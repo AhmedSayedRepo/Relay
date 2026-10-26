@@ -61,7 +61,9 @@ android {
         disable += setOf(
             "AndroidGradlePluginVersion",
             "GradleDependency",
-            "NewerVersionAvailable"
+            "NewerVersionAvailable",
+            // Time-dependent like the checks above; targetSdk upgrades are tracked as explicit tasks.
+            "OldTargetApi",
         )
     }
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
