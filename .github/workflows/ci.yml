@@ -74,7 +74,15 @@ jobs:
           python -m alembic downgrade base
           python -m alembic upgrade head
       - name: Tests including PostgreSQL integration
-        run: python -m pytest
+        shell: bash
+        run: |
+          set +e
+          python -m pytest 2>&1 | tee pytest.log
+          status=${PIPESTATUS[0]}
+          grep -E "^(FAILED|ERROR) " pytest.log | head -30 | sed 's/^/::error title=pytest::/'
+          grep -E "^E   " pytest.log | head -20 | sed 's/^/::error title=pytest-detail::/'
+          tail -1 pytest.log | sed 's/^/::notice title=pytest-summary::/'
+          exit $status
 
   android:
     runs-on: ubuntu-latest
