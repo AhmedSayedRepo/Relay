@@ -62,7 +62,7 @@ android {
             "AndroidGradlePluginVersion",
             "GradleDependency",
             "NewerVersionAvailable",
-            // Time-dependent like the checks above; targetSdk upgrades are tracked as explicit tasks.
+            // Time-dependent; targetSdk upgrades are tracked as tasks.
             "OldTargetApi",
         )
     }
