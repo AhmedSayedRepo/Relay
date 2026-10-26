@@ -115,6 +115,10 @@ jobs:
           for i, line in enumerate(log):
               if "First failure" in line or ": Error: " in line:
                   print("::error title=lint-text::" + " | ".join(l.strip() for l in log[i:i + 6]))
+          for f in glob.glob("app/build/reports/ktlint/**/*.txt", recursive=True):
+              for l in pathlib.Path(f).read_text(errors="ignore").splitlines():
+                  if l.strip():
+                      print("::error title=ktlint::" + l.strip()[:400])
           for f in glob.glob("app/build/reports/lint-results-*.txt") + glob.glob("app/build/reports/lint-results-*.xml"):
               print("::notice title=lint-report::" + f)
               for l in pathlib.Path(f).read_text(errors="ignore").splitlines():
