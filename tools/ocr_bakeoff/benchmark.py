@@ -90,13 +90,9 @@ def _text_has(field: str, expected: str, text: str) -> bool:
     if field == "currency":
         if _normalized(field, expected) == "EGP":
             return bool(
-                re.search(
-                    r"\bEGP\b|ج\.?\s*م\.?|جنيه", comparable, re.IGNORECASE
-                )
+                re.search(r"\bEGP\b|ج\.?\s*م\.?|جنيه", comparable, re.IGNORECASE)
             )
-        return bool(
-            re.search(rf"\b{re.escape(expected)}\b", comparable, re.IGNORECASE)
-        )
+        return bool(re.search(rf"\b{re.escape(expected)}\b", comparable, re.IGNORECASE))
     compact_text = re.sub(r"\s+", " ", comparable.casefold())
     return _normalized(field, expected) in compact_text
 
@@ -353,9 +349,7 @@ def calculate_metrics(
         "date": _field_metric(positives, by_id, "date"),
         "time": _field_metric(positives, by_id, "time"),
         "handle": _field_metric(positives, by_id, "handle"),
-        "recipient_identifier": _field_metric(
-            positives, by_id, "recipient_identifier"
-        ),
+        "recipient_identifier": _field_metric(positives, by_id, "recipient_identifier"),
         "participant_handle_usefulness": _ratio(
             participant_exact, participant_scorable
         ),

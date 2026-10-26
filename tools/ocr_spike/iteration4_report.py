@@ -22,9 +22,7 @@ def _ratio(value: dict[str, int], numerator: str = "found") -> str:
 def _sum_pair(reports: list[dict[str, Any]], key: str) -> dict[str, int]:
     return {
         "found": sum(report["metrics"][key]["found"] for report in reports),
-        "annotated": sum(
-            report["metrics"][key]["annotated"] for report in reports
-        ),
+        "annotated": sum(report["metrics"][key]["annotated"] for report in reports),
     }
 
 
@@ -64,8 +62,7 @@ def _combine_positive(reports: list[dict[str, Any]]) -> dict[str, Any]:
         "amount_currency_exact_pairs": {
             "exact": exact_pairs,
             "expected": sum(
-                report["metrics"]["amount_recovery"]["expected"]
-                for report in reports
+                report["metrics"]["amount_recovery"]["expected"] for report in reports
             ),
         },
         "reference_recovery": _sum_recovery(reports, "reference_recovery"),
@@ -292,7 +289,7 @@ def _summary(report: dict[str, Any]) -> str:
         "",
         "S06's legacy RANKING_SELECTION_MISS remains resolved by the Iteration 3",
         "region-discovery/ranking work. Iteration 4 selected its amount band and the",
-        '"mixed-language targeted pass read \"520 EGP\" at 0.900 confidence;',
+        '"mixed-language targeted pass read "520 EGP" at 0.900 confidence;',
         "preserving that mixed path is why the exact recovery remains stable.",
         "",
         "## Negative benchmark",
@@ -368,9 +365,9 @@ def build_report(
     combined = _combine_positive([positive, pilot])
     samples = _sample_by_id([positive, pilot])
     baseline = iteration3["iteration_3"]
-    runtime_delta = combined["average_processing_ms"] - baseline[
-        "average_processing_ms"
-    ]
+    runtime_delta = (
+        combined["average_processing_ms"] - baseline["average_processing_ms"]
+    )
     runtime_percent = runtime_delta / baseline["average_processing_ms"] * 100
     regressions: list[str] = []
     comparisons = (
@@ -538,8 +535,7 @@ def main() -> None:
         _summary(report), encoding="utf-8"
     )
     (args.output / "iteration-4-status.txt").write_text(
-        "\n".join(f"{key}={value}" for key, value in report["status"].items())
-        + "\n",
+        "\n".join(f"{key}={value}" for key, value in report["status"].items()) + "\n",
         encoding="utf-8",
     )
     (args.output / "sample-pack-map.json").write_text(

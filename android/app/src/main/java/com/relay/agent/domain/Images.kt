@@ -10,9 +10,10 @@ data class ImageCandidate(
     val displayName: String?,
     val byteSize: Long,
     val width: Int,
-    val height: Int,
+    val height: Int
 ) {
-    override fun toString(): String = "ImageCandidate(sourceId=$sourceId,mimeType=$mimeType,byteSize=$byteSize)"
+    override fun toString(): String =
+        "ImageCandidate(sourceId=$sourceId,mimeType=$mimeType,byteSize=$byteSize)"
 }
 
 data class QueuedImage(
@@ -34,7 +35,7 @@ data class QueuedImage(
     val mediaAt: String?,
     val uploadedBytes: Int,
     val sessionId: String?,
-    val bytes: ByteArray,
+    val bytes: ByteArray
 ) {
     override fun equals(other: Any?): Boolean = other is QueuedImage && uploadId == other.uploadId
 
@@ -43,23 +44,19 @@ data class QueuedImage(
     override fun toString(): String = "QueuedImage(uploadId=$uploadId,byteSize=$byteSize)"
 }
 
-data class BinaryOutboxStats(
-    val queued: Int,
-    val encryptedBytes: Long,
-    val dropped: Long,
-)
+data class BinaryOutboxStats(val queued: Int, val encryptedBytes: Long, val dropped: Long)
 
 data class BinaryEnqueueResult(
     val accepted: Boolean,
     val duplicate: Boolean,
-    val droppedOldest: Int,
+    val droppedOldest: Int
 )
 
 data class UploadInitialization(
     val sessionId: String,
     val status: String,
     val uploadedBytes: Int,
-    val objectId: String?,
+    val objectId: String?
 )
 
 interface BinaryOutbox {
@@ -67,11 +64,7 @@ interface BinaryOutbox {
 
     suspend fun next(): QueuedImage?
 
-    suspend fun progress(
-        uploadId: String,
-        sessionId: String,
-        uploadedBytes: Int,
-    )
+    suspend fun progress(uploadId: String, sessionId: String, uploadedBytes: Int)
 
     suspend fun remove(uploadId: String)
 
@@ -87,13 +80,7 @@ interface BinaryOutbox {
 interface ImageSource {
     fun accessGranted(source: ApprovedImageSource): Boolean
 
-    suspend fun candidates(
-        source: ApprovedImageSource,
-        limit: Int,
-    ): List<ImageCandidate>
+    suspend fun candidates(source: ApprovedImageSource, limit: Int): List<ImageCandidate>
 
-    suspend fun read(
-        candidate: ImageCandidate,
-        maximumBytes: Int,
-    ): ByteArray
+    suspend fun read(candidate: ImageCandidate, maximumBytes: Int): ByteArray
 }

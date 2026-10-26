@@ -101,8 +101,21 @@ def test_decision_uses_unrounded_ratios_and_negative_safety(
 def test_missing_evidence_is_review_only_and_not_duplicate_authority() -> None:
     document = _map({})
     result = ProviderSampleResult(
-        "fixture", "hash", "paddleocr", "fixture-model", 20, "", {}, [],
-        False, False, "No evidence", 0, 0, 0, 0,
+        "fixture",
+        "hash",
+        "paddleocr",
+        "fixture-model",
+        20,
+        "",
+        {},
+        [],
+        False,
+        False,
+        "No evidence",
+        0,
+        0,
+        0,
+        0,
     )
     trust = evaluate_trust(document, result)
     assert trust["review_status"] == "NEEDS_REVIEW"
@@ -125,7 +138,13 @@ def test_invalid_date_and_source_mismatch_are_not_trusted() -> None:
         }
     )
     result = ProviderSampleResult(
-        "fixture", "hash", "paddleocr", "fixture-model", 20, "", {
+        "fixture",
+        "hash",
+        "paddleocr",
+        "fixture-model",
+        20,
+        "",
+        {
             "date": {
                 "normalized": "39 Aug 2026",
                 "original_ocr_text": "different source text",
@@ -134,7 +153,15 @@ def test_invalid_date_and_source_mismatch_are_not_trusted() -> None:
                 "crop_geometry": [10, 20, 80, 10],
                 "supporting_structural_evidence": ["rigid_datetime_span"],
             }
-        }, [], True, True, "fixture", 1, 0, 1, 1,
+        },
+        [],
+        True,
+        True,
+        "fixture",
+        1,
+        0,
+        1,
+        1,
     )
     trust = evaluate_trust(document, result)
     assert "invalid_field_structure" in trust["fields"]["date"]["reasons"]

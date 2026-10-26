@@ -214,9 +214,7 @@ def test_manifest_language_bounds_ocr_languages() -> None:
 
 
 def test_receipt_identity_anchor_enables_mixed_targeted_ocr() -> None:
-    anchors = (
-        Anchor("handle", Box(100, 500, 300, 30), 0.95, "user@instapay"),
-    )
+    anchors = (Anchor("handle", Box(100, 500, 300, 30), 0.95, "user@instapay"),)
 
     assert _targeted_ocr_languages("en", anchors) == ("eng", "ara")
     assert _targeted_ocr_languages("en", ()) == ("eng",)

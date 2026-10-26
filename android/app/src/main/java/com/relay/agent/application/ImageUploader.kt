@@ -7,9 +7,9 @@ import com.relay.agent.domain.BinaryOutbox
 import com.relay.agent.domain.Credentials
 import com.relay.agent.domain.RelayApi
 import com.relay.agent.domain.SyncOutcome
-import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 class ImageUploader(
     private val store: AgentStore,
@@ -17,7 +17,7 @@ class ImageUploader(
     private val outbox: BinaryOutbox,
     private val now: () -> String = { Instant.now().toString() },
     private val newRequestId: () -> String = { UUID.randomUUID().toString() },
-    private val log: (String) -> Unit = { Log.i(TAG, it) },
+    private val log: (String) -> Unit = { Log.i(TAG, it) }
 ) {
     suspend fun upload(): SyncOutcome {
         val state = store.read()
@@ -37,21 +37,20 @@ class ImageUploader(
             val replacement = api.renew(pending, requestId)
             require(
                 replacement.installationId == state.installationId &&
-                    replacement.deviceId == credentials.deviceId,
+                    replacement.deviceId == credentials.deviceId
             )
             store.credentials(replacement)
             credentials = replacement
             renewed = true
         }
 
-        suspend fun <T> authenticated(operation: suspend (String) -> T): T =
-            try {
-                operation(credentials.accessToken)
-            } catch (error: ApiFailure) {
-                if (error.statusCode != 401 || renewed) throw error
-                renew()
-                operation(credentials.accessToken)
-            }
+        suspend fun <T> authenticated(operation: suspend (String) -> T): T = try {
+            operation(credentials.accessToken)
+        } catch (error: ApiFailure) {
+            if (error.statusCode != 401 || renewed) throw error
+            renew()
+            operation(credentials.accessToken)
+        }
         return try {
             if (credentials.pendingRenewalId != null) renew()
             val initialized = authenticated { api.initializeImage(it, image) }
@@ -71,7 +70,7 @@ class ImageUploader(
                             it,
                             initialized.sessionId,
                             offset,
-                            image.bytes.copyOfRange(offset, end),
+                            image.bytes.copyOfRange(offset, end)
                         )
                     }
                 require(next == end)

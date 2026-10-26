@@ -319,9 +319,8 @@ def _write_report(
             "api_calls_made": api_calls,
             "cache_hits": cache_hits,
             "pages_submitted": api_calls,
-            "pages_processed": len(results) - sum(
-                result.error is not None for result in results
-            ),
+            "pages_processed": len(results)
+            - sum(result.error is not None for result in results),
             "successful_new_pages": max(0, successful_calls),
             "list_price_estimate_usd": round(estimated_cost, 4),
             "measured_billed_cost_usd": None,
@@ -337,9 +336,9 @@ def _write_report(
             "baseline_tesseract_mixed_accuracy": _TESSERACT_MIXED_ACCURACY,
             "eligible": gate,
         },
-        "confidence_geometry_layout": metrics.get("confidence_geometry_layout")
-        if metrics
-        else None,
+        "confidence_geometry_layout": (
+            metrics.get("confidence_geometry_layout") if metrics else None
+        ),
         "operational_requirements": [
             "Google Cloud project with Document AI API enabled",
             "Enterprise Document OCR processor in an approved region",

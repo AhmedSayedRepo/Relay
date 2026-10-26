@@ -261,17 +261,11 @@ def _targeted_ocr_languages(
 def _needs_english_currency_retry(evidence: list[CropEvidence]) -> bool:
     if not evidence:
         return False
-    has_digits = any(
-        re.search(r"[0-9٠-٩۰-۹]", item.original_text) for item in evidence
-    )
+    has_digits = any(re.search(r"[0-9٠-٩۰-۹]", item.original_text) for item in evidence)
     fields = {
-        candidate.field
-        for item in evidence
-        for candidate in extract_candidates(item)
+        candidate.field for item in evidence for candidate in extract_candidates(item)
     }
-    structural = {
-        value for item in evidence for value in item.structural_evidence
-    }
+    structural = {value for item in evidence for value in item.structural_evidence}
     return bool(
         has_digits
         and not {"amount", "currency"}.issubset(fields)
@@ -283,9 +277,7 @@ def _needs_english_currency_retry(evidence: list[CropEvidence]) -> bool:
     )
 
 
-def _promotion_decision(
-    merged: dict[str, Any], combined_text: str
-) -> dict[str, Any]:
+def _promotion_decision(merged: dict[str, Any], combined_text: str) -> dict[str, Any]:
     selected_candidates = tuple(
         value.selected for value in merged.values() if value.selected is not None
     )
@@ -459,9 +451,9 @@ def run_sample(
                     )
                     for proposal in discovery.proposals:
                         if proposal.selected and proposal.box == box:
-                            proposal.grouping_information[
-                                "ocr_retry"
-                            ] = "english_currency_recovery"
+                            proposal.grouping_information["ocr_retry"] = (
+                                "english_currency_recovery"
+                            )
             targeted.extend(band_evidence)
     targeted_complete = time.monotonic()
 
@@ -626,9 +618,7 @@ def run_sample(
             classification_evidence.append(field)
     promotion_decision = _promotion_decision(merged, combined_text)
     receipt_classified = bool(promotion_decision["receipt_classified"])
-    transaction_promoted = bool(
-        promotion_decision["transaction_candidate_promoted"]
-    )
+    transaction_promoted = bool(promotion_decision["transaction_candidate_promoted"])
     promoted_fields = set(promotion_decision["promoted_fields"])
     false_positives: list[str] = []
     if not manifest.expected_receipt:

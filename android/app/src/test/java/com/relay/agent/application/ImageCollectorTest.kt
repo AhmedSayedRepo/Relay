@@ -14,10 +14,10 @@ import com.relay.agent.domain.ImageSource
 import com.relay.agent.domain.ImageSourceConfiguration
 import com.relay.agent.domain.QueuedImage
 import com.relay.agent.domain.StoredState
+import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.time.Instant
 
 class ImageCollectorTest {
     private val approved = ApprovedImageSource("folder", "content://tree/redacted", 1000)
@@ -32,140 +32,135 @@ class ImageCollectorTest {
             ".png",
             maxBytes = 100,
             maxWidth = 100,
-            maxHeight = 100,
+            maxHeight = 100
         )
     private val configuration =
         Configuration(
             2,
             "{}",
             images =
-                ImageConfiguration(
-                    true,
-                    listOf(ImageSourceConfiguration("folder", "saf_tree")),
-                    listOf(rule),
-                ),
+            ImageConfiguration(
+                true,
+                listOf(ImageSourceConfiguration("folder", "saf_tree")),
+                listOf(rule)
+            )
         )
 
     @Test
-    fun requiresEveryConsentAccessConfigurationAndEnrollmentGate() =
-        runTest {
-            val source = FakeImageSource(access = true)
-            val outbox = MemoryBinaryOutbox()
-            val blocked =
-                listOf(
-                    state(consent = false),
-                    state(credentials = null),
-                    state(configuration = Configuration(2, "{}")),
-                    state(source = null),
-                )
-            blocked.forEach { value ->
-                assertEquals(
-                    0,
-                    ImageCollector(StaticImageStore(value), source, outbox, log = {}).collect().captured,
-                )
-            }
+    fun requiresEveryConsentAccessConfigurationAndEnrollmentGate() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        val blocked =
+            listOf(
+                state(consent = false),
+                state(credentials = null),
+                state(configuration = Configuration(2, "{}")),
+                state(source = null)
+            )
+        blocked.forEach { value ->
             assertEquals(
                 0,
-                ImageCollector(StaticImageStore(state()), FakeImageSource(false), outbox, log = {})
-                    .collect()
-                    .captured,
+                ImageCollector(StaticImageStore(value), source, outbox, log = {
+                }).collect().captured
             )
-            assertEquals(0, outbox.values.size)
         }
+        assertEquals(
+            0,
+            ImageCollector(StaticImageStore(state()), FakeImageSource(false), outbox, log = {})
+                .collect()
+                .captured
+        )
+        assertEquals(0, outbox.values.size)
+    }
 
     @Test
-    fun filtersBeforeReadHashesBytesAndDeduplicatesContent() =
-        runTest {
-            val source = FakeImageSource(access = true)
-            val outbox = MemoryBinaryOutbox()
-            val collector =
-                ImageCollector(
-                    StaticImageStore(state()),
-                    source,
-                    outbox,
-                    now = { Instant.parse("2026-01-01T00:00:00Z") },
-                    newId = { "00000000-0000-0000-0000-000000000001" },
-                    log = {},
-                )
-            val result = collector.collect()
-            assertEquals(1, result.captured)
-            assertEquals(1, result.filtered)
-            assertEquals(1, source.readCount)
-            assertEquals(
-                "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
-                outbox.values.single().contentHash,
+    fun filtersBeforeReadHashesBytesAndDeduplicatesContent() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        val collector =
+            ImageCollector(
+                StaticImageStore(state()),
+                source,
+                outbox,
+                now = { Instant.parse("2026-01-01T00:00:00Z") },
+                newId = { "00000000-0000-0000-0000-000000000001" },
+                log = {}
             )
-            assertEquals(0, collector.collect().captured)
-            assertEquals(1, outbox.values.size)
-        }
+        val result = collector.collect()
+        assertEquals(1, result.captured)
+        assertEquals(1, result.filtered)
+        assertEquals(1, source.readCount)
+        assertEquals(
+            "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+            outbox.values.single().contentHash
+        )
+        assertEquals(0, collector.collect().captured)
+        assertEquals(1, outbox.values.size)
+    }
 
     @Test
-    fun sourceDisappearingBeforeEncryptedCopyIsRejected() =
-        runTest {
-            val outbox = MemoryBinaryOutbox()
-            val result =
-                ImageCollector(
-                    StaticImageStore(state()),
-                    FakeImageSource(access = true, readFails = true),
-                    outbox,
-                    log = {},
-                ).collect()
+    fun sourceDisappearingBeforeEncryptedCopyIsRejected() = runTest {
+        val outbox = MemoryBinaryOutbox()
+        val result =
+            ImageCollector(
+                StaticImageStore(state()),
+                FakeImageSource(access = true, readFails = true),
+                outbox,
+                log = {}
+            ).collect()
 
-            assertEquals(0, result.captured)
-            assertEquals(1, result.rejected)
-            assertEquals(0, outbox.values.size)
-        }
-
-    @Test
-    fun successfullyHandledImageIsNotRecollectedAcrossCollectorRestart() =
-        runTest {
-            val source = FakeImageSource(access = true)
-            val outbox = MemoryBinaryOutbox()
-            val first = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
-
-            assertEquals(1, first.collect().captured)
-            outbox.complete(outbox.values.single().uploadId)
-
-            val restarted = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
-            assertEquals(0, restarted.collect().captured)
-            assertEquals(0, outbox.values.size)
-        }
+        assertEquals(0, result.captured)
+        assertEquals(1, result.rejected)
+        assertEquals(0, outbox.values.size)
+    }
 
     @Test
-    fun changedImageBytesAtSameSourceAreCollectedAgain() =
-        runTest {
-            val source = FakeImageSource(access = true)
-            val outbox = MemoryBinaryOutbox()
-            val collector = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
+    fun successfullyHandledImageIsNotRecollectedAcrossCollectorRestart() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        val first = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
 
-            assertEquals(1, collector.collect().captured)
-            outbox.complete(outbox.values.single().uploadId)
-            source.imageBytes = byteArrayOf(4, 3, 2, 1)
+        assertEquals(1, first.collect().captured)
+        outbox.complete(outbox.values.single().uploadId)
 
-            assertEquals(1, collector.collect().captured)
-            assertEquals(1, outbox.values.size)
-        }
+        val restarted = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
+        assertEquals(0, restarted.collect().captured)
+        assertEquals(0, outbox.values.size)
+    }
 
     @Test
-    fun successfulUploadWatermarkPreventsLegacyRecollectionWithoutReadingBytes() =
-        runTest {
-            val source = FakeImageSource(access = true)
-            val outbox = MemoryBinaryOutbox()
-            val collector =
-                ImageCollector(
-                    StaticImageStore(state(lastImageUpload = "2026-01-01T00:00:03Z")),
-                    source,
-                    outbox,
-                    log = {},
-                )
+    fun changedImageBytesAtSameSourceAreCollectedAgain() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        val collector = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
 
-            val result = collector.collect()
+        assertEquals(1, collector.collect().captured)
+        outbox.complete(outbox.values.single().uploadId)
+        source.imageBytes = byteArrayOf(4, 3, 2, 1)
 
-            assertEquals(0, result.captured)
-            assertEquals(2, result.filtered)
-            assertEquals(0, source.readCount)
-            assertEquals(0, outbox.values.size)
-        }
+        assertEquals(1, collector.collect().captured)
+        assertEquals(1, outbox.values.size)
+    }
+
+    @Test
+    fun successfulUploadWatermarkPreventsLegacyRecollectionWithoutReadingBytes() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        val collector =
+            ImageCollector(
+                StaticImageStore(state(lastImageUpload = "2026-01-01T00:00:03Z")),
+                source,
+                outbox,
+                log = {}
+            )
+
+        val result = collector.collect()
+
+        assertEquals(0, result.captured)
+        assertEquals(2, result.filtered)
+        assertEquals(0, source.readCount)
+        assertEquals(0, outbox.values.size)
+    }
 
     private fun state(
         consent: Boolean = true,
@@ -176,33 +171,30 @@ class ImageCollectorTest {
                 "name",
                 "access",
                 "refresh",
-                "2099-01-01T00:00:00Z",
+                "2099-01-01T00:00:00Z"
             ),
         configuration: Configuration? = this.configuration,
         source: ApprovedImageSource? = approved,
-        lastImageUpload: String? = null,
+        lastImageUpload: String? = null
     ) = StoredState(
         "installation",
         credentials,
         configuration,
         localImageConsent = consent,
         approvedImageSource = source,
-        lastSuccessfulImageUpload = lastImageUpload,
+        lastSuccessfulImageUpload = lastImageUpload
     )
 
     private inner class FakeImageSource(
         private val access: Boolean,
-        private val readFails: Boolean = false,
+        private val readFails: Boolean = false
     ) : ImageSource {
         var readCount = 0
         var imageBytes = bytes
 
         override fun accessGranted(source: ApprovedImageSource) = access
 
-        override suspend fun candidates(
-            source: ApprovedImageSource,
-            limit: Int,
-        ) = listOf(
+        override suspend fun candidates(source: ApprovedImageSource, limit: Int) = listOf(
             ImageCandidate(
                 "folder",
                 "saf_tree",
@@ -213,7 +205,7 @@ class ImageCollectorTest {
                 "match.png",
                 imageBytes.size.toLong(),
                 2,
-                2,
+                2
             ),
             ImageCandidate(
                 "folder",
@@ -225,14 +217,11 @@ class ImageCollectorTest {
                 "filtered.jpg",
                 4,
                 2,
-                2,
-            ),
+                2
+            )
         )
 
-        override suspend fun read(
-            candidate: ImageCandidate,
-            maximumBytes: Int,
-        ): ByteArray {
+        override suspend fun read(candidate: ImageCandidate, maximumBytes: Int): ByteArray {
             readCount += 1
             if (readFails) throw IllegalStateException("source disappeared")
             return imageBytes
@@ -240,9 +229,7 @@ class ImageCollectorTest {
     }
 }
 
-private class StaticImageStore(
-    private val value: StoredState,
-) : AgentStore {
+private class StaticImageStore(private val value: StoredState) : AgentStore {
     override suspend fun read() = value
 
     override suspend fun credentials(value: Credentials?) = Unit
@@ -253,10 +240,7 @@ private class StaticImageStore(
 
     override suspend fun localSmsConsent(value: Boolean) = Unit
 
-    override suspend fun uploadStatus(
-        successAt: String?,
-        error: String?,
-    ) = Unit
+    override suspend fun uploadStatus(successAt: String?, error: String?) = Unit
 }
 
 private class MemoryBinaryOutbox : BinaryOutbox {
@@ -274,11 +258,7 @@ private class MemoryBinaryOutbox : BinaryOutbox {
 
     override suspend fun next() = values.firstOrNull()
 
-    override suspend fun progress(
-        uploadId: String,
-        sessionId: String,
-        uploadedBytes: Int,
-    ) = Unit
+    override suspend fun progress(uploadId: String, sessionId: String, uploadedBytes: Int) = Unit
 
     override suspend fun remove(uploadId: String) {
         values.removeAll { it.uploadId == uploadId }

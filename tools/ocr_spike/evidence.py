@@ -132,9 +132,7 @@ def extract_candidates(evidence: CropEvidence) -> tuple[FieldCandidate, ...]:
                     for token in evidence.tokens
                     if digits
                     and digits
-                    in re.sub(
-                        r"[^0-9]", "", token.text.translate(_ARABIC_DIGITS)
-                    )
+                    in re.sub(r"[^0-9]", "", token.text.translate(_ARABIC_DIGITS))
                 ),
                 default=evidence.confidence,
             )
