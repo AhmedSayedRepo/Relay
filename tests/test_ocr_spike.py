@@ -28,10 +28,13 @@ from tools.ocr_spike.models import Anchor, Box, SampleManifest
 
 
 def _font(size: int = 36) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    try:
-        return ImageFont.truetype("arial.ttf", size)
-    except OSError:
-        return ImageFont.load_default()
+    # Prefer Arial (Windows), then DejaVu (Linux CI); never the tiny bitmap font.
+    for name in ("arial.ttf", "DejaVuSans.ttf"):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
 
 
 def _image(

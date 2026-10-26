@@ -109,8 +109,9 @@ jobs:
           if [ "$status" -ne 0 ]; then
             grep -A12 "What went wrong" gradle.log | head -40 | tr '\n' ' ' | sed 's/^/::error title=gradle::/'
             echo
-            grep -A4 "First failure" gradle.log | head -6 | tr '\n' ' ' | sed 's/^/::error title=lint-first::/'
-            echo
+            for f in app/build/reports/lint-results-*.xml; do
+              [ -f "$f" ] && python3 -c "import sys,xml.etree.ElementTree as E; [print('::error title=lint::'+i.get('id','')+': '+i.get('message','')+' @ '+(i.find('location').get('file','') if i.find('location') is not None else '')+':'+(i.find('location').get('line','') if i.find('location') is not None else '')) for i in E.parse(sys.argv[1]).getroot() if i.get('severity') in ('Error','Fatal')]" "$f"
+            done
             grep -E "^e: |FAILED|Lint found|\.kt:[0-9]+:[0-9]+" gradle.log | head -20 | sed 's/^/::error title=gradle-detail::/'
           fi
           exit $status
