@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-09-03T05:40:53.534864+00:00",
+  "backend": "http://127.0.0.1:60474",
+  "emulator_endpoint": "http://10.0.2.2:60474/",
+  "database": "sprint3-emulator-e2e-9f14afe24d27435c9f18637ec5f4e92c.sqlite",
+  "results": [
+    {
+      "check": "backend_ready",
+      "status": "passed"
+    },
+    {
+      "check": "android_instrumentation",
+      "status": "passed"
+    },
+    {
+      "check": "android_tests",
+      "summary": "Finished 6 tests on RelayTestApi35(AVD) - 15"
+    },
+    {
+      "check": "raw_event_visible",
+      "status": "passed",
+      "event_count": 1,
+      "collector": "sms",
+      "config_version": 2,
+      "rule_id": "e2e-generic"
+    }
+  ]
+}

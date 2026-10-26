@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-05",
+  "database": "PostgreSQL 16.15",
+  "database_scope": "fresh loopback-only disposable cluster and database",
+  "checks": [
+    {"name": "alembic upgrade head", "status": "passed"},
+    {"name": "alembic check after upgrade", "status": "passed", "result": "No new upgrade operations detected."},
+    {"name": "alembic downgrade base", "status": "passed"},
+    {"name": "alembic re-upgrade head", "status": "passed"},
+    {"name": "alembic check after re-upgrade", "status": "passed", "result": "No new upgrade operations detected."},
+    {"name": "live Uvicorn and PostgreSQL smoke", "status": "passed", "checks": 17},
+    {"name": "full Pytest suite with TEST_POSTGRES_URL", "status": "passed", "tests": 179, "duration_seconds": 120.41}
+  ],
+  "race_sensitive_coverage": [
+    "concurrent same-reference processing creates one canonical and duplicate links",
+    "different devices do not share duplicate identity",
+    "reclaimed jobs reject stale worker failure and result writes",
+    "retention deterministically promotes one of multiple surviving duplicates",
+    "database checks and partial unique indexes reject invalid persisted state"
+  ],
+  "secret_handling": "Random credentials were generated for the disposable run and are not recorded."
+}

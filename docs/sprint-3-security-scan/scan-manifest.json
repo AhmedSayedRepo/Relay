@@ -1,0 +1,52 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "84234b2f4dd47021d435d6250ad47daddb1058a1da6f105b64681cbfe7d9a531"
+      },
+      {
+        "mediaType": "application/json",
+        "path": "coverage.json",
+        "sha256": "1b848ff0075dd96e27c2f29d45b82564b8151027aa4a3dc792cdc6bbb2e3e6a3"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/01_context/threat_model.md",
+        "sha256": "535137cf1c6035328eac27b9c76a812ce840dcfb201443c172a297cb86aeb617"
+      },
+      {
+        "mediaType": "application/octet-stream",
+        "path": "artifacts/02_discovery/review_receipt.md",
+        "sha256": "513de69bcf1847587153a5e1626e72b4e9422a245c33b4827489f3f7e55961f6"
+      }
+    ],
+    "completedAt": "2026-09-03T00:00:00Z",
+    "coverageRef": "coverage.json",
+    "findingsRef": "findings.json",
+    "id": "scan_relay_sprint3_20260903",
+    "producer": {
+      "name": "codex-security-plugin-terminal-fallback",
+      "version": "0.1.22"
+    },
+    "scope": {
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ]
+    },
+    "sealedAt": "2026-09-03T00:00:00Z",
+    "startedAt": "2026-09-02T06:00:00Z",
+    "status": "completed",
+    "target": {
+      "displayName": "Relay Sprint 3 change set",
+      "kind": "git_diff",
+      "revision": "a7ae986888d842e9e45b224480edf8f9413ee8b1",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:dbcea58cd747ce0883918d2913b1c168aac8303e07564594454778df0e44984f",
+      "targetId": "relay-sprint2-a7ae9868-to-sprint3-patch-dbcea58c"
+    }
+  },
+  "schemaVersion": "1.0"
+}

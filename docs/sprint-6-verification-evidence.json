@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-09-07T13:52:00+03:00",
+  "backend": {
+    "black": "100 files would be left unchanged",
+    "ruff": "all checks passed",
+    "mypy": "success: no issues found in 76 source files",
+    "sqlite_and_real_ocr": "175 passed, 8 deselected in 113.99s",
+    "postgresql_and_real_ocr": "183 passed in 136.37s",
+    "focused_sprint_6": "8 passed in 24.13s"
+  },
+  "postgresql": {
+    "version": "16.15",
+    "migration_cycle": "upgrade head, drift clean, downgrade base, re-upgrade head, drift clean",
+    "live_api_smoke": "17 of 17 checks passed"
+  },
+  "frontend": {
+    "tests": "10 passed",
+    "lint": "passed",
+    "build": "85 modules transformed; 307.83 kB JavaScript, 96.18 kB gzip"
+  },
+  "android": {
+    "clean_matrix": "BUILD SUCCESSFUL in 10m 23s; 114 tasks, 112 executed and 2 up-to-date",
+    "instrumentation": "API 35: 7 tests, 6 passed, 1 expected backend-dependent skip, 0 failures",
+    "debug_apk_sha256": "7d4dca4e0d84cf750238a3ee9caf496da0a6e0f2d56c89794c44b59929a030d0",
+    "release_unsigned_apk_sha256": "a851ca0298b4f19cad564f64d3e9591f714b2f599aaa446ae3d6909226045249",
+    "permissions": [
+      "android.permission.INTERNET",
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.RECEIVE_SMS",
+      "android.permission.WAKE_LOCK",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.FOREGROUND_SERVICE",
+      "application-scoped DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "new_permissions": []
+  },
+  "unverified": [
+    "Docker image build because Docker is not installed",
+    "production deployment and external infrastructure",
+    "penetration testing and dependency/container vulnerability scanning",
+    "manual usability testing with real operators"
+  ]
+}

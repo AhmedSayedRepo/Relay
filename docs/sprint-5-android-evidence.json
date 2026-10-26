@@ -1,0 +1,55 @@
+{
+  "date": "2026-09-06",
+  "source_change": "No Android source or permission change was made for Sprint 5.",
+  "clean_matrix": {
+    "status": "passed",
+    "duration": "3m 32s",
+    "tasks_executed": 123,
+    "commands": [
+      "clean",
+      "ktlintCheck",
+      "testDebugUnitTest",
+      "testReleaseUnitTest",
+      "lintDebug",
+      "lintRelease",
+      "assembleDebug",
+      "assembleRelease"
+    ],
+    "jvm_tests": 84,
+    "jvm_test_note": "42 test cases executed once for debug and once for release",
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "instrumentation": {
+    "status": "passed",
+    "device": "RelayTestApi35 AVD, API 35",
+    "tests": 7,
+    "passed": 6,
+    "skipped": 1,
+    "failures": 0,
+    "skip_reason": "Backend round-trip test requires an explicitly configured live backend."
+  },
+  "apk_permissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.RECEIVE_SMS",
+    "android.permission.WAKE_LOCK",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.FOREGROUND_SERVICE",
+    "application-specific DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+  ],
+  "new_permissions": [],
+  "artifacts": [
+    {
+      "name": "relay-agent-0.4.0-debug.apk",
+      "sha256": "75A02C0E1A6A2A670B5EB16EE0B82E4CE4DD3E56CE445E60619E15795DF5A399",
+      "bytes": 13113322
+    },
+    {
+      "name": "relay-agent-0.4.0-release-unsigned.apk",
+      "sha256": "A851CA0298B4F19CAD564F64D3E9591F714B2F599AAA446AE3D6909226045249",
+      "bytes": 1977275
+    }
+  ]
+}

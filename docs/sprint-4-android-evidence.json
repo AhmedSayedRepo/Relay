@@ -1,0 +1,57 @@
+{
+  "platform": {
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "instrumentation_api": 35
+  },
+  "quality_matrix": {
+    "ktlintCheck": "passed",
+    "testDebugUnitTest": {
+      "status": "passed",
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "lintDebug": "passed",
+    "lintRelease": "passed",
+    "assembleDebug": "passed",
+    "assembleRelease": "passed"
+  },
+  "instrumentation": {
+    "status": "passed",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "skip_reason": "Backend round-trip requires externally supplied E2E endpoint and credentials; local Android media and Keystore tests executed."
+  },
+  "apks": [
+    {
+      "path": "artifacts/relay-agent-0.4.0-debug.apk",
+      "sha256": "b4ee1f78be41bac404420f34203be2fc21b845052e4511a328354a1c3d583ced"
+    },
+    {
+      "path": "artifacts/relay-agent-0.4.0-release-unsigned.apk",
+      "sha256": "a851ca0298b4f19cad564f64d3e9591f714b2f599aaa446ae3d6909226045249"
+    }
+  ],
+  "debug_permissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.RECEIVE_SMS",
+    "android.permission.WAKE_LOCK",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.FOREGROUND_SERVICE",
+    "com.relay.agent.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+  ],
+  "release_permissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.RECEIVE_SMS",
+    "android.permission.WAKE_LOCK",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.FOREGROUND_SERVICE",
+    "com.relay.agent.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+  ]
+}

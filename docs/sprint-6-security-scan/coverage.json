@@ -1,0 +1,99 @@
+{
+  "documentType": "codex-security.coverage",
+  "schemaVersion": "1.0",
+  "scanId": "scan_relay_sprint6_20260907",
+  "mode": "scoped_path",
+  "completeness": "complete",
+  "inventoryStrategy": "custom",
+  "includePaths": [
+    "src",
+    "frontend/src",
+    "migrations",
+    "tests/test_operations.py",
+    "Dockerfile",
+    "compose.yaml",
+    ".env.example",
+    "pyproject.toml",
+    "requirements.lock",
+    "requirements-dev.lock"
+  ],
+  "excludePaths": [
+    "frontend/node_modules",
+    "frontend/dist",
+    "android/app/build",
+    "generated caches and packaged artifacts"
+  ],
+  "surfaces": [
+    {
+      "id": "surface_authz",
+      "label": "Operator API authorization and data exposure",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "authorization-privacy",
+      "notes": "All Sprint 6 operator reads and writes require an active administrator; receipt images use authenticated content access and no-store responses."
+    },
+    {
+      "id": "surface_duplicate_scope",
+      "label": "Duplicate grouping and cross-device isolation",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "tenant-data-isolation",
+      "notes": "Deterministic grouping remains scoped by device and receipt type; operator views preserve device provenance."
+    },
+    {
+      "id": "surface_spreadsheet",
+      "label": "Excel generation and formula injection",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "file-generation",
+      "notes": "Export is macro-free, in-memory, capped at 5000 rows, typed where appropriate, and escapes formula prefixes after leading whitespace."
+    },
+    {
+      "id": "surface_frontend",
+      "label": "Frontend XSS, Help rendering, token handling, and caching",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "browser-security",
+      "notes": "React text rendering is used without raw HTML injection; bearer tokens stay in memory; operator responses are no-store; contextual Help uses registered static topics."
+    },
+    {
+      "id": "surface_bounds",
+      "label": "Pagination, search, retry, and export abuse bounds",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "resource-abuse",
+      "notes": "List limits, offsets, date spans, search length, retry eligibility/attempts, and export rows are server-bounded."
+    },
+    {
+      "id": "surface_audit",
+      "label": "Operator audit integrity and retention",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "audit-integrity",
+      "notes": "Append-only actions identify actors and durable target UUIDs. The scan found and fixed cascading source foreign keys so audit rows outlive shorter source retention."
+    },
+    {
+      "id": "surface_config",
+      "label": "Configuration visibility and error leakage",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "secrets-errors",
+      "notes": "The operational device projection excludes credentials and API errors use stable safe messages without OCR or receipt content."
+    },
+    {
+      "id": "surface_android",
+      "label": "Android permission regression",
+      "disposition": "no_issue_found",
+      "receiptRefs": [],
+      "riskArea": "mobile-permissions",
+      "notes": "Sprint 6 changes no Android source; both built APK manifests were inspected and add no permission."
+    }
+  ],
+  "explicitExclusions": [
+    {
+      "pattern": "android source",
+      "reason": "No Sprint 6 Android source change; regression build, instrumentation, and final APK permission inspection were performed separately."
+    }
+  ],
+  "deferred": []
+}

@@ -1,0 +1,150 @@
+[
+  {
+    "id": "mixed_noisy_reference_token",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["pilot.user@instapay 19", 0.58, [300, 100, 360, 40], [["pilot.user@instapay", 0.96, [300, 100, 290, 40]], ["19", 0.20, [610, 100, 50, 40]]]],
+      ["مستلم تجريبي PILOT", 0.70, [280, 180, 380, 42], [["مستلم", 0.91, [520, 180, 100, 42]], ["تجريبي", 0.90, [400, 180, 100, 42]], ["PILOT", 0.29, [280, 180, 90, 42]]]],
+      ["123456789012 label noise", 0.49, [80, 280, 520, 30], [["123456789012", 0.96, [80, 280, 220, 30]], ["label", 0.31, [330, 280, 90, 30]], ["noise", 0.20, [440, 280, 100, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]],
+      ["POWERED BY", 0.97, [300, 500, 130, 20]]
+    ],
+    "expected": {"receipt_type": "INSTAPAY_TRANSFER_RECEIPT", "review_status": "NEEDS_REVIEW", "reference": "123456789012", "reference_original": "123456789012", "reference_confidence": 0.96, "occurred_at": "2026-08-29T16:30:00", "sender": "pilot.user@instapay"}
+  },
+  {
+    "id": "english_noisy_datetime_span",
+    "languages": ["eng"],
+    "lines": [
+      ["english.user@instapay", 0.93, [300, 100, 330, 40], [["english.user@instapay", 0.93, [300, 100, 330, 40]]]],
+      ["SYNTHETIC RECIPIENT", 0.92, [280, 180, 380, 42], [["SYNTHETIC", 0.92, [280, 180, 180, 42]], ["RECIPIENT", 0.92, [480, 180, 180, 42]]]],
+      ["223456789012", 0.95, [80, 280, 220, 30], [["223456789012", 0.95, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM 4 |", 0.90, [80, 340, 480, 32]]
+    ],
+    "expected": {"receipt_type": "INSTAPAY_TRANSFER_RECEIPT", "review_status": "NEEDS_REVIEW", "reference": "223456789012", "reference_original": "223456789012", "reference_confidence": 0.95, "occurred_at": "2026-08-29T16:30:00", "sender": "english.user@instapay"}
+  },
+  {
+    "id": "arabic_digits_compact_sequence",
+    "languages": ["ara", "eng"],
+    "lines": [
+      ["arabic.user@instapay", 0.93, [300, 100, 330, 40], [["arabic.user@instapay", 0.93, [300, 100, 330, 40]]]],
+      ["مستلم تجريبي", 0.92, [280, 180, 320, 42], [["مستلم", 0.92, [460, 180, 100, 42]], ["تجريبي", 0.91, [320, 180, 120, 42]]]],
+      ["٣٢٣٤٥٦٧٨٩٠١٢ ضوضاء", 0.61, [80, 280, 430, 30], [["٣٢٣٤٥٦٧٨٩٠١٢", 0.95, [80, 280, 220, 30]], ["ضوضاء", 0.27, [330, 280, 100, 30]]]],
+      ["٢٩ Aug ٢٠٢٦ ٠٤:٣٠ PM ٤ |", 0.90, [80, 340, 480, 32]]
+    ],
+    "expected": {"receipt_type": "INSTAPAY_TRANSFER_RECEIPT", "review_status": "NEEDS_REVIEW", "reference": "323456789012", "reference_original": "٣٢٣٤٥٦٧٨٩٠١٢", "reference_confidence": 0.95, "occurred_at": "2026-08-29T16:30:00", "sender": "arabic.user@instapay"}
+  },
+  {
+    "id": "p03_both_noisy_spans",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["m.gohari1712@instapay 19", 0.7669, [331, 407, 364, 58], [["m.gohari1712@instapay", 0.94, [331, 407, 330, 58]], ["19", 0.20, [670, 407, 25, 58]]]],
+      ["يه", 0.7900, [381, 528, 28, 23], [["يه", 0.7900, [381, 528, 28, 23]]]],
+      ["YOUSSEF M0 eee وس وير 0", 0.4992, [240, 600, 449, 55], [["YOUSSEF", 0.93, [240, 600, 130, 55]], ["M0", 0.40, [380, 600, 40, 55]], ["eee", 0.20, [430, 600, 60, 55]], ["وس", 0.42, [500, 600, 40, 55]], ["وير", 0.65, [550, 600, 60, 55]], ["0", 0.39, [670, 600, 19, 55]]]],
+      ["128895843616 ‘all pz", 0.5478, [76, 794, 606, 18], [["128895843616", 0.96, [76, 794, 230, 18]], ["‘all", 0.42, [330, 794, 120, 18]], ["pz", 0.26, [470, 794, 80, 18]]]],
+      ["29 Aug 2026 04:30 PM 4 |", 0.9045, [75, 854, 638, 24]],
+      ["POWERED BY", 0.9670, [342, 1070, 94, 22]]
+    ],
+    "expected": {"receipt_type": "INSTAPAY_TRANSFER_RECEIPT", "review_status": "NEEDS_REVIEW", "reference": "128895843616", "reference_original": "128895843616", "reference_confidence": 0.96, "occurred_at": "2026-08-29T16:30:00", "sender": "m.gohari1712@instapay"}
+  },
+  {
+    "id": "low_confidence_reference_token",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["323456789012 noise", 0.60, [80, 280, 360, 30], [["323456789012", 0.84, [80, 280, 220, 30]], ["noise", 0.36, [330, 280, 100, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "multiple_reference_tokens",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["423456789012", 0.96, [80, 250, 220, 30], [["423456789012", 0.96, [80, 250, 220, 30]]]],
+      ["523456789012", 0.96, [80, 290, 220, 30], [["523456789012", 0.96, [80, 290, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "phone_shaped_12_digit_candidate",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["010034052321", 0.96, [80, 280, 220, 30], [["010034052321", 0.96, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "handle_reference_without_adjacent_datetime",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["623456789012", 0.96, [80, 280, 220, 30], [["623456789012", 0.96, [80, 280, 220, 30]]]],
+      ["memo", 0.94, [80, 330, 100, 30]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 380, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "reference_datetime_without_handle",
+    "languages": ["eng"],
+    "lines": [
+      ["user@example.com", 0.94, [300, 100, 260, 40], [["user@example.com", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["723456789012", 0.96, [80, 280, 220, 30], [["723456789012", 0.96, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "generic_numeric_screenshot",
+    "languages": ["eng"],
+    "lines": [
+      ["Monthly report", 0.96, [300, 100, 260, 40], [["Monthly", 0.96, [300, 100, 120, 40]], ["report", 0.96, [440, 100, 120, 40]]]],
+      ["823456789012", 0.96, [80, 280, 220, 30], [["823456789012", 0.96, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "powered_by_without_receipt_evidence",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["923456789012", 0.96, [80, 280, 220, 30], [["923456789012", 0.96, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]],
+      ["POWERED BY", 0.97, [300, 500, 130, 20]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "invalid_reference_datetime_geometry",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["133456789012", 0.96, [80, 400, 220, 30], [["133456789012", 0.96, [80, 400, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 250, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "conflicting_datetime_candidates",
+    "languages": ["eng"],
+    "lines": [
+      ["user@instapay", 0.94, [300, 100, 260, 40], [["user@instapay", 0.94, [300, 100, 260, 40]]]],
+      ["PILOT RECIPIENT", 0.92, [280, 180, 320, 40], [["PILOT", 0.92, [280, 180, 120, 40]], ["RECIPIENT", 0.92, [420, 180, 180, 40]]]],
+      ["143456789012", 0.96, [80, 280, 220, 30], [["143456789012", 0.96, [80, 280, 220, 30]]]],
+      ["29 Aug 2026 04:30 PM", 0.94, [80, 340, 350, 32]],
+      ["30 Aug 2026 05:45 PM", 0.94, [80, 390, 350, 32]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  }
+]

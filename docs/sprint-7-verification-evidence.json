@@ -1,0 +1,137 @@
+{
+  "sprint": 7,
+  "generated_at": "2026-09-08T08:55:01.045529+03:00",
+  "scope": "frontend-only UI/UX, EN/AR, RTL, accessibility, responsive polish, and pilot readiness",
+  "baseline_manifest": {
+    "path": "../relay-sprint-6.manifest.json",
+    "files_checked": 261,
+    "missing": 0,
+    "extra": 0,
+    "different": 0
+  },
+  "frontend": {
+    "tests": {
+      "command": "npm test",
+      "result": "passed",
+      "tests": 14
+    },
+    "lint": {
+      "command": "npm run lint",
+      "result": "passed"
+    },
+    "typecheck_build": {
+      "command": "npm run build",
+      "result": "passed",
+      "modules": 89,
+      "js_kb": 352.92,
+      "js_gzip_kb": 110.04,
+      "css_kb": 17.88,
+      "css_gzip_kb": 4.73
+    }
+  },
+  "browser": {
+    "result": "passed for executed checks",
+    "screenshots": 14,
+    "console_or_page_errors": 0,
+    "unnamed_actions": 0,
+    "unlabeled_form_controls": 0,
+    "missing_image_alts": 0,
+    "undersized_controls": 0,
+    "narrow_375_overflow": false,
+    "zoom_proxy_720_overflow": false,
+    "dialog_escape": "passed",
+    "reduced_motion": "passed",
+    "details": "sprint-7-visual-evidence/browser-accessibility-evidence.json"
+  },
+  "backend": {
+    "black": {
+      "result": "passed",
+      "files": 100
+    },
+    "ruff": {
+      "result": "passed"
+    },
+    "mypy": {
+      "result": "passed",
+      "source_files": 76
+    },
+    "non_postgres_real_ocr": {
+      "result": "passed",
+      "passed": 175,
+      "deselected": 8,
+      "seconds": 132.37
+    },
+    "ocr_runtime": "Tesseract 5.5.3 with eng and ara"
+  },
+  "postgresql": {
+    "version": "16.15",
+    "binding": "loopback only",
+    "upgrade_head": "passed",
+    "alembic_check_after_upgrade": "No new upgrade operations detected.",
+    "downgrade_base": "passed",
+    "reupgrade_head": "passed",
+    "alembic_check_after_reupgrade": "No new upgrade operations detected.",
+    "tests": {
+      "result": "passed",
+      "passed": 183,
+      "seconds": 141.35,
+      "postgres_specific": 8
+    },
+    "shutdown": "clean"
+  },
+  "android": {
+    "clean_matrix": {
+      "tasks": "clean testDebugUnitTest testReleaseUnitTest lintDebug lintRelease assembleDebug assembleRelease",
+      "result": "passed",
+      "gradle": "8.13",
+      "jdk": 21,
+      "seconds": 207,
+      "actionable_tasks": 114,
+      "executed": 112,
+      "up_to_date": 2
+    },
+    "instrumentation_build": {
+      "result": "passed",
+      "actionable_tasks": 52
+    },
+    "api_35_emulator": {
+      "result": "OK (7 tests)",
+      "passed": 6,
+      "expected_backend_dependent_skip": 1
+    },
+    "permissions": [
+      "android.permission.INTERNET",
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.RECEIVE_SMS",
+      "android.permission.WAKE_LOCK",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.FOREGROUND_SERVICE",
+      "app-scoped DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "new_personal_content_permissions": 0,
+    "debug_apk_sha256": "75A02C0E1A6A2A670B5EB16EE0B82E4CE4DD3E56CE445E60619E15795DF5A399",
+    "release_unsigned_apk_sha256": "A851CA0298B4F19CAD564F64D3E9591F714B2F599AAA446AE3D6909226045249"
+  },
+  "security": {
+    "source_review": "passed with no actionable finding",
+    "production_dependency_tree": "clean",
+    "offline_production_audit": "0 known vulnerabilities from locally available advisory data",
+    "canonical_workbench_scan": "not run: one registration attempt failed on an unreadable stale generated Android desugar_graph intermediate"
+  },
+  "not_verified": [
+    "full WCAG conformance",
+    "dedicated screen-reader session",
+    "representative operator usability outcomes",
+    "real-world pilot success criteria",
+    "Docker/container build because Docker was unavailable",
+    "production deployment and production browser security headers",
+    "current online dependency advisory audit"
+  ],
+  "prohibited_scope": {
+    "ai_implemented": false,
+    "image_tampering_detection_implemented": false,
+    "payment_or_reconciliation_implemented": false,
+    "production_deployment_performed": false,
+    "backend_api_or_migration_changed": false
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "samples": [
+    {
+      "sample_id": "S01-ar-clean",
+      "source_filename": "../samples/S01-ar-clean.png",
+      "language": "ar",
+      "expected_receipt": true,
+      "expected": {
+        "amount": "790",
+        "currency": "EGP",
+        "reference": "128895843616",
+        "date": "29 Aug 2026",
+        "time": "04:30 PM",
+        "sender_handle": "pilot.user@instapay",
+        "recipient_identifier": null,
+        "duplicate_group": "128895843616"
+      },
+      "notes": ["clean screenshot"],
+      "masked_fields": ["participant_name"],
+      "targets": [
+        {"field": "amount", "box": [330, 300, 450, 160]},
+        {"field": "reference", "box": [90, 1130, 280, 70]},
+        {"field": "date", "box": [90, 1210, 400, 80]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-09-03",
+  "baseline": {
+    "sprint_2_zip_sha256": "631d5164b2b87de89b9e8265c5f19019bde304ab87849cc2078d6a03fdd809ea",
+    "source_files": 119,
+    "archive_files": 119,
+    "exact_match": true,
+    "backend": "131 passed, 5 PostgreSQL tests skipped when TEST_POSTGRES_URL was unset",
+    "postgresql": "136 passed on PostgreSQL 16.15",
+    "android_jvm": "19 passed",
+    "android_instrumentation": "3 passed, 1 explicitly optional live-backend test skipped",
+    "configured_emulator": "1 live Sprint 2 backend round-trip test passed",
+    "android_quality": "ktlint, lint, debug build, and unsigned release build passed"
+  },
+  "sprint_3": {
+    "backend_local": "147 passed, 6 PostgreSQL-marked tests deselected in 77.07s",
+    "backend_ruff": "passed",
+    "backend_black": "64 files unchanged",
+    "backend_mypy": "46 production source files, no issues",
+    "postgresql_version": "16.15",
+    "backend_with_postgresql": "153 passed in 83.46s",
+    "postgresql_migrations": "upgrade, drift check, downgrade to base, re-upgrade, and second drift check passed",
+    "live_backend_smoke": "17 checks passed against Uvicorn and PostgreSQL",
+    "android_jvm": "36 passed",
+    "android_instrumentation": "6 passed and 1 optional live-backend test skipped on the ordinary run",
+    "android_configured_emulator": "6 instrumentation tests passed; one raw SMS event reached the admin API with config_version 2 and rule_id e2e-generic",
+    "android_ktlint": "passed",
+    "android_lint_debug": "passed",
+    "android_debug_build": "passed",
+    "android_release_build": "passed, unsigned",
+    "security_scan": "completed; 0 reportable findings; partial coverage due unverified deployment-edge rate limiting",
+    "penetration_testing": false
+  },
+  "apk_permissions": {
+    "release": [
+      "android.permission.RECEIVE_SMS",
+      "android.permission.INTERNET",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.WAKE_LOCK",
+      "com.relay.agent.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      "android.permission.RECEIVE_BOOT_COMPLETED"
+    ],
+    "personal_content_permissions": ["android.permission.RECEIVE_SMS"],
+    "explicitly_absent": [
+      "android.permission.READ_SMS",
+      "android.permission.READ_CONTACTS",
+      "android.permission.READ_CALL_LOG",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.CAMERA"
+    ]
+  },
+  "apk_sha256": {
+    "relay-agent-0.3.0-debug.apk": "f734d6a189c928e23520ca632863e593fafc258e83a08869ed2c645d9ba563f8",
+    "relay-agent-0.3.0-release-unsigned.apk": "2ebbc102384d246d49183feef47b3881d47fe4fac91278c5e39c910d05156d4a"
+  }
+}

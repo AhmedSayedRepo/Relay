@@ -1,0 +1,128 @@
+export const en = {
+  meta: { name: "English", direction: "ltr" },
+  common: {
+    appName: "Relay", operator: "Operator", workspace: "Operator workspace", help: "Help", close: "Close",
+    signOut: "Sign out", yes: "Yes", no: "No", all: "All", none: "None", unknown: "Unknown",
+    previous: "Previous", next: "Next", page: "Page", records: "records", of: "of", open: "Open",
+    dateBasis: "Date range uses the UTC time Relay received and created each transaction candidate.",
+    secureEvidence: "Evidence, organized with provenance", menu: "Open navigation", skip: "Skip to main content",
+  },
+  preferences: {
+    language: "Language", theme: "Theme", system: "System", light: "Light", dark: "Dark",
+    switchLanguage: "Change language", switchTheme: "Change color theme",
+  },
+  navigation: {
+    dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
+    processing: "Processing", reports: "Reports", devices: "Devices", help: "Help",
+  },
+  pages: {
+    dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
+    transactions: ["Transactions", "Scan final and pending evidence, then open any receipt without losing context."],
+    transactionDetail: ["Transaction evidence", "Reviewed values lead. Machine extraction and original provenance remain available for audit."],
+    duplicates: ["Duplicate investigation", "Reference matches are grouped without deleting or merging their source evidence."],
+    duplicateDetail: ["Compare duplicate evidence", "Compare each screenshot with the canonical candidate and record an explicit judgment."],
+    review: ["Review queue", "Work the oldest uncertain receipts first, with evidence one step away."],
+    processing: ["Processing queue", "Understand each job state and retry only eligible transient failures."],
+    reports: ["Reports and export", "Check the bounded summary, then create an audited Excel workbook."],
+    devices: ["Devices and configuration", "See collection readiness, synchronization, and activity without exposing credentials."],
+    help: ["Relay guide", "Practical guidance for collection, processing, review, duplicates, and reporting."],
+  },
+  auth: {
+    eyebrow: "Secure operator access", welcome: "Welcome to Relay", intro: "Sign in with an administrator account. Your access token stays in this browser tab only.",
+    email: "Email", password: "Password", signIn: "Sign in", signingIn: "Signing in…",
+    failed: "Sign-in failed. Check your credentials and try again.", pilotNote: "Built for controlled, authorized operational use.",
+  },
+  state: {
+    loading: "Loading operational data…", loadError: "Couldn’t load this view.", authExpired: "Your session is invalid or expired. Sign out and sign in again.",
+    unavailable: "Relay is unavailable. Check the service connection and try again.", genericError: "The request could not be completed safely.",
+    noResults: "No records match this view.", noResultsAction: "Change the filters or date range, or open Help for the next checks.",
+    noTransactions: "No transactions in this range.", noDuplicates: "No duplicate groups in this range.", noReview: "No receipts currently need review.",
+    noProcessing: "No processing jobs match this state.", noDevices: "No enrolled devices are visible.",
+  },
+  filters: {
+    search: "Search", searchTransactions: "Reference, sender, or recipient", searchReferences: "Search references",
+    from: "From", to: "To", review: "Review", duplicate: "Duplicate", currency: "Currency", sort: "Sort",
+    order: "Order", status: "Status", newest: "Newest first", oldest: "Oldest first", relayEntry: "Relay entry",
+    transactionDate: "Transaction date", amount: "Amount", reference: "Reference", applyHint: "Filters update automatically.",
+  },
+  dashboard: {
+    finalTransactions: "Final transactions", reviewDemand: "Needs review", duplicateGroups: "Duplicate groups",
+    failedProcessing: "Processing issues", pendingProcessing: "Pending jobs", moneyTitle: "Final money by currency",
+    moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",
+    noTotals: "No final transaction totals in this range.", activity: "Collection pulse", receiptImages: "Receipt images",
+    smsEvents: "SMS events", reviewed: "Reviewed", deviceHealth: "Device/source health", quiet: "No urgent operational condition is visible.",
+  },
+  transactions: {
+    relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
+    review: "Review", duplicate: "Duplicate", device: "Device / source", noReference: "No reference",
+    to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", duplicateItem: "Duplicate", unique: "Unique",
+  },
+  detail: {
+    reviewedTitle: "Reviewed / final values", reviewedPriority: "Operator-reviewed values take priority when present.",
+    receiptImage: "Original receipt", receiptAlt: "Receipt evidence for {reference}", imageLoading: "Loading protected receipt…",
+    imageFailed: "The protected receipt could not be loaded.", facts: "Operational facts", machine: "Machine-extracted evidence",
+    machineHint: "Machine output is retained unchanged for audit. Confidence is recognition evidence, not authenticity.",
+    reference: "Reference / serial", amount: "Amount", transactionTime: "Transaction time", relayEntry: "Relay entry",
+    review: "Review", processing: "Processing", device: "Device", source: "Source", confidence: "OCR confidence",
+    openDuplicate: "Open duplicate group", reviewTitle: "Record review decision", decision: "Decision", accept: "Accept",
+    correct: "Correct", reject: "Reject", correctedAmount: "Corrected amount", correctedCurrency: "Corrected currency",
+    correctionPlaceholder: "Used only for Correct", recordReview: "Record audited review", reviewHint: "Corrections are applied only with Correct. Machine output remains unchanged.",
+    reviewRecorded: "Review decision recorded.", reviewFailed: "Review could not be recorded.", provenance: "OCR and processing provenance",
+    history: "Review and duplicate history", showEvidence: "Show technical evidence", uncertainFields: "Extraction field states",
+    field: "Field", value: "Value", confidenceState: "Confidence state",
+  },
+  journey: {
+    title: "Receipt journey", description: "Only stages supported by stored evidence are marked complete.",
+    collected: "Collected", uploaded: "Uploaded", processed: "Processed", ocr: "OCR extracted", classified: "Classified",
+    duplicate: "Duplicate checked", reviewed: "Reviewed", resolved: "Fields resolved", final: "Final", complete: "Complete", current: "Current",
+    blocked: "Needs attention", pending: "Pending",
+  },
+  duplicates: {
+    groupSize: "{count} screenshots", matchedReference: "Matched reference", canonical: "Canonical candidate",
+    candidate: "Duplicate candidate", reason: "Why Relay grouped these", referenceReason: "The normalized reference / serial matches within the same device and receipt type.",
+    evidencePreserved: "Every screenshot and its provenance remain preserved.", openGroup: "Open duplicate group",
+    compareIntro: "Compare source evidence. A visual difference does not imply fraud.", received: "Received", sender: "Sender",
+    recipient: "Recipient", sourceDevice: "Source / device", openFull: "Open full evidence", operatorDecision: "Operator decision",
+    unresolved: "Unresolved", confirmed: "Confirmed duplicate", notDuplicate: "Not duplicate", note: "Note (optional)",
+    record: "Record audited decision", recorded: "Decision recorded. The deterministic link remains preserved.",
+    failed: "Decision could not be recorded.", differs: "Differs from canonical", matches: "Matches canonical",
+  },
+  exceptions: {
+    title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",
+    fields: { reference_number: "Reference", amount: "Amount", currency: "Currency", date: "Date", time: "Time", classification: "Receipt classification", layout: "Receipt layout", sender_name: "Sender", sender_handle: "Sender handle", recipient_name: "Recipient", recipient_identifier: "Recipient identifier", transfer_status: "Explicit transfer status" },
+  },
+  review: { needsReview: "Needs review", oldestHint: "Start with the oldest item and compare the receipt with the extracted values." },
+  processing: {
+    failure: "Safe reason", attempts: "Attempts", nextAttempt: "Next attempt", action: "Action", retry: "Retry processing",
+    noAction: "No retry", retryAvailable: "Retry available", retryQueued: "The job is queued for one bounded retry.",
+    retryFailed: "Retry could not be requested.", help: "Understand processing states", object: "Object",
+  },
+  reports: {
+    export: "Export Excel", preparing: "Preparing workbook…", downloaded: "Workbook downloaded.", failed: "Export failed safely.",
+    scope: "Workbook scope", scopeLine: "{transactions} final transactions · {duplicates} duplicate groups · {review} needing review.",
+    contents: "Transactions, Duplicates, and Summary sheets are created in memory. Relay retains only an export audit record.",
+  },
+  devices: {
+    active: "Active", lastSeen: "Last seen", appVersion: "App version", configVersion: "Configuration version",
+    transactions: "Transactions", duplicates: "Duplicates", needsReview: "Needs review", collection: "Collection configuration",
+    sms: "SMS collection", images: "Image collection", smsRules: "SMS rules", imageRules: "Image rules", imageSources: "Approved image sources",
+    readiness: "Pilot readiness signal", externalId: "Installation ID",
+  },
+  helpUi: {
+    title: "Relay help", search: "Search help", topics: "Help topics", topic: "Help topic", related: "Related topics",
+    noMatch: "No Help topic matches your search.", openContext: "Open contextual Help", fullGuide: "Open full guide",
+  },
+  statuses: {
+    PENDING: "Pending", PROCESSING: "Processing", SUCCEEDED: "Succeeded", NEEDS_REVIEW: "Needs review", FAILED: "Failed",
+    SKIPPED: "Skipped", AUTO_ACCEPTED: "Accepted", REJECTED: "Rejected", ACTIVE: "Active", DISABLED: "Disabled",
+    CONFIDENT: "Confident", UNCERTAIN: "Uncertain", MISSING: "Missing", INVALID: "Invalid", UNKNOWN: "Unknown",
+    AUTO_FINALIZED: "Data finalized automatically", REVIEW_FINALIZED: "Data finalized after review", PROCESSING_FAILED: "Processing failed", TRANSFER_FAILED: "Explicit transfer failure", REJECTED_OR_UNKNOWN_RECEIPT: "Rejected or unknown receipt", RESOLVED: "Resolved", UNRESOLVED: "Unresolved",
+  },
+  failures: {
+    OCR_TIMEOUT: "OCR took longer than the safe limit.", OCR_FAILED: "OCR could not read the image.", INTERNAL_ERROR: "Processing stopped because of an internal error.",
+    RESOURCE_LIMIT: "The image exceeded a safe processing limit.", default: "Processing stopped with a safe failure category.",
+  },
+} as const;
+
+export type DeepWiden<T> = T extends string ? string : T extends readonly unknown[] ? { readonly [K in keyof T]: DeepWiden<T[K]> } : T extends object ? { readonly [K in keyof T]: DeepWiden<T[K]> } : T;
+export type Messages = DeepWiden<typeof en>;

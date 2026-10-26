@@ -1,0 +1,35 @@
+{
+  "verified_at": "2026-09-04",
+  "backend": {
+    "ruff": "passed",
+    "black_check": "passed; 75 files unchanged",
+    "mypy_strict": "passed; 55 source files",
+    "sqlite_pytest": "153 passed, 7 PostgreSQL-only tests deselected",
+    "postgresql_pytest": "160 passed"
+  },
+  "postgresql": {
+    "version": "16.15",
+    "upgrade": "passed",
+    "drift_check": "passed; no new upgrade operations",
+    "downgrade": "passed",
+    "reupgrade": "passed",
+    "second_drift_check": "passed; no new upgrade operations",
+    "live_api_smoke": "passed"
+  },
+  "android": {
+    "ktlint": "passed",
+    "unit_tests": "42 passed",
+    "lint_debug": "passed",
+    "lint_release": "passed",
+    "assemble_debug": "passed",
+    "assemble_release": "passed",
+    "api_35_instrumentation": "7 total, 6 passed, 1 skipped, 0 failed"
+  },
+  "boundaries": [
+    "No deployment was performed.",
+    "The release APK is unsigned.",
+    "The instrumentation backend round-trip was skipped because external E2E arguments were not supplied.",
+    "No penetration test was performed.",
+    "No paid or production cloud object store was exercised."
+  ]
+}

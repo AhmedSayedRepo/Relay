@@ -1,0 +1,37 @@
+{
+  "result": "passed",
+  "executed_at": "2026-09-02",
+  "postgresql_version": "16.15",
+  "migration": {
+    "upgrade_to_head": "passed",
+    "schema_drift_check": "passed",
+    "downgrade_to_base": "passed",
+    "reupgrade_to_head": "passed",
+    "second_schema_drift_check": "passed"
+  },
+  "live_api_checks": {
+    "count": 10,
+    "result": "passed",
+    "includes": [
+      "liveness",
+      "PostgreSQL readiness",
+      "protected-route rejection",
+      "administrator login and identity",
+      "device create, duplicate conflict, retrieve, disable, and list"
+    ]
+  },
+  "pytest": {
+    "passed": 136,
+    "failed": 0,
+    "skipped": 0,
+    "duration_seconds": 61.67,
+    "includes_real_postgresql_cases": [
+      "timezone and uniqueness",
+      "concurrent duplicate insert",
+      "concurrent one-time enrollment consumption",
+      "concurrent disjoint-field updates",
+      "database status constraint"
+    ]
+  },
+  "database_scope": "Fresh disposable local PostgreSQL cluster and test database; stopped after verification"
+}

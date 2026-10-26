@@ -1,0 +1,12 @@
+{
+  "result": "passed",
+  "emulator_api": 35,
+  "database": "SQLite test transport; PostgreSQL verified separately",
+  "instrumentation_tests": 1,
+  "device_status": "ACTIVE",
+  "configuration_version": 1,
+  "acknowledged_version": 1,
+  "last_seen_recorded": true,
+  "app_version": "0.2.0",
+  "installation_recorded": true
+}

@@ -1,0 +1,131 @@
+[
+  {
+    "id": "p02_mixed_missing_currency_and_status",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["1,437", 0.9672, [355, 710, 243, 86]],
+      ["zainabismail150@instapay =", 0.7484, [382, 1090, 524, 36]],
+      ["انستاباى 8", 0.6793, [653, 1346, 300, 92]],
+      ["01003405232", 0.9667, [592, 1525, 238, 27]],
+      ["930342632189", 0.9563, [100, 1696, 259, 26]],
+      ["29 Aug 2026 12:48 PM", 0.9637, [100, 1838, 378, 36]],
+      ["تفقات المعيشة", 0.5551, [98, 1964, 248, 32]],
+      ["POWERED BY", 0.9693, [465, 2112, 139, 16]]
+    ],
+    "expected": {
+      "receipt_type": "INSTAPAY_TRANSFER_RECEIPT",
+      "review_status": "NEEDS_REVIEW",
+      "amount": null,
+      "currency": null,
+      "occurred_at": "2026-08-29T12:48:00",
+      "reference": "930342632189",
+      "sender": "zainabismail150@instapay",
+      "recipient_identifier": "01003405232",
+      "status": null,
+      "classification_path": "structural"
+    }
+  },
+  {
+    "id": "arabic_structural_missing_status",
+    "languages": ["ara", "eng"],
+    "lines": [
+      ["٨٢٥ ج.م", 0.95, [360, 100, 180, 34]],
+      ["arabic.user@instapay", 0.91, [300, 190, 300, 34]],
+      ["انستاباي", 0.94, [430, 245, 130, 32]],
+      ["٠١٠١٢٣٤٥٦٧٨", 0.96, [330, 315, 210, 30]],
+      ["٩٨٧٦٥٤٣٢١٠٩٨", 0.97, [100, 390, 220, 30]],
+      ["30 Aug 2026 02:45 PM", 0.96, [100, 445, 340, 30]]
+    ],
+    "expected": {
+      "receipt_type": "INSTAPAY_TRANSFER_RECEIPT",
+      "review_status": "NEEDS_REVIEW",
+      "amount": "825.00",
+      "currency": "EGP",
+      "occurred_at": "2026-08-30T14:45:00",
+      "reference": "987654321098",
+      "sender": "arabic.user@instapay",
+      "recipient_identifier": "01012345678",
+      "recipient_identifier_original": "٠١٠١٢٣٤٥٦٧٨",
+      "status": null,
+      "classification_path": "structural"
+    }
+  },
+  {
+    "id": "english_structural_missing_currency",
+    "languages": ["eng"],
+    "lines": [
+      ["Transfer completed", 0.93, [300, 35, 280, 32]],
+      ["640", 0.96, [360, 100, 120, 34]],
+      ["english.user@instapay", 0.92, [300, 190, 320, 34]],
+      ["InstaPay", 0.96, [430, 245, 140, 32]],
+      ["01098765432", 0.97, [330, 315, 210, 30]],
+      ["334455667788", 0.97, [100, 390, 220, 30]],
+      ["01 Sep 2026 09:05 AM", 0.96, [100, 445, 340, 30]]
+    ],
+    "expected": {
+      "receipt_type": "INSTAPAY_TRANSFER_RECEIPT",
+      "review_status": "NEEDS_REVIEW",
+      "amount": null,
+      "currency": null,
+      "occurred_at": "2026-09-01T09:05:00",
+      "reference": "334455667788",
+      "sender": "english.user@instapay",
+      "recipient_identifier": "01098765432",
+      "status": "SUCCESS",
+      "classification_path": "marker"
+    }
+  },
+  {
+    "id": "multiple_12_digit_candidates",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["1,437", 0.97, [355, 710, 243, 86]],
+      ["user@instapay", 0.91, [382, 1090, 300, 36]],
+      ["انستاباى", 0.91, [653, 1346, 200, 42]],
+      ["01003405232", 0.97, [592, 1525, 238, 27]],
+      ["111122223333", 0.96, [100, 1635, 259, 26]],
+      ["930342632189", 0.96, [100, 1696, 259, 26]],
+      ["29 Aug 2026 12:48 PM", 0.96, [100, 1838, 378, 36]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "low_confidence_structural_reference",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["1,437", 0.97, [355, 710, 243, 86]],
+      ["user@instapay", 0.91, [382, 1090, 300, 36]],
+      ["انستاباى", 0.91, [653, 1346, 200, 42]],
+      ["01003405232", 0.97, [592, 1525, 238, 27]],
+      ["930342632189", 0.84, [100, 1696, 259, 26]],
+      ["29 Aug 2026 12:48 PM", 0.96, [100, 1838, 378, 36]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "invalid_structural_geometry",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["1,437", 0.97, [355, 710, 243, 86]],
+      ["user@instapay", 0.91, [382, 1090, 300, 36]],
+      ["انستاباى", 0.91, [653, 1346, 200, 42]],
+      ["01003405232", 0.97, [592, 1525, 238, 27]],
+      ["930342632189", 0.96, [100, 1696, 259, 26]],
+      ["29 Aug 2026 12:48 PM", 0.96, [100, 2050, 378, 36]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  },
+  {
+    "id": "non_instapay_numeric_screenshot",
+    "languages": ["eng"],
+    "lines": [
+      ["1,437", 0.97, [355, 710, 243, 86]],
+      ["user@example.com", 0.96, [382, 1090, 300, 36]],
+      ["Example Wallet", 0.96, [653, 1346, 220, 42]],
+      ["01003405232", 0.97, [592, 1525, 238, 27]],
+      ["930342632189", 0.96, [100, 1696, 259, 26]],
+      ["29 Aug 2026 12:48 PM", 0.96, [100, 1838, 378, 36]]
+    ],
+    "expected": {"receipt_type": "UNKNOWN_RECEIPT", "review_status": "REJECTED"}
+  }
+]

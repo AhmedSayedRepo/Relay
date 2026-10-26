@@ -1,0 +1,107 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "schemaVersion": "1.0",
+  "scan": {
+    "id": "scan_relay_sprint6_20260907",
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.23"
+    },
+    "status": "completed",
+    "startedAt": "2026-09-07T10:54:00Z",
+    "completedAt": "2026-09-07T11:06:19Z",
+    "sealedAt": "2026-09-07T11:06:19Z",
+    "target": {
+      "kind": "directory_snapshot",
+      "targetId": "sha256:0df2005ccd1082b3ca340d1f88371e5202ac2e8ed1796467a051601efcf80efc",
+      "displayName": "Relay Sprint 6 operator product",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:0df2005ccd1082b3ca340d1f88371e5202ac2e8ed1796467a051601efcf80efc"
+    },
+    "scope": {
+      "includePaths": [
+        "src",
+        "frontend/src",
+        "migrations",
+        "tests/test_operations.py",
+        "Dockerfile",
+        "compose.yaml",
+        ".env.example",
+        "pyproject.toml",
+        "requirements.lock",
+        "requirements-dev.lock"
+      ],
+      "excludePaths": [
+        "frontend/node_modules",
+        "frontend/dist",
+        "android/app/build",
+        "generated caches and packaged artifacts"
+      ],
+      "summary": "Sprint 6 operator APIs, read models, audit persistence, Excel export, web frontend, migration integration, and focused tests.",
+      "artifactsReviewed": [
+        "Sprint 6 source and migration",
+        "frontend behavior tests",
+        "backend operation tests",
+        "PostgreSQL migration and integration evidence",
+        "Android regression and APK permission evidence"
+      ],
+      "runtimeStatus": "Backend, PostgreSQL, frontend, Android build, and API 35 instrumentation passed; Docker unavailable.",
+      "validationMode": "Manual source review plus automated unit, integration, migration, browser, build, and Android checks.",
+      "context": "Standard single-pass security review. Delegated worker capacity was unavailable after preflight, so the coordinator completed the documented fallback review.",
+      "limitations": [
+        "No penetration test was performed.",
+        "No dependency or container vulnerability scanner was available.",
+        "Docker runtime was not installed, so the image was not built."
+      ]
+    },
+    "threatModel": {
+      "summary": "An unauthenticated network client or malicious receipt content may try to read operator data, cross device boundaries, exhaust bounded operations, inject active workbook or browser content, or erase/forge audit evidence.",
+      "assets": [
+        "administrator credentials and bearer tokens",
+        "receipt images and OCR text",
+        "transaction and duplicate provenance",
+        "device configuration",
+        "operator audit history",
+        "generated workbooks"
+      ],
+      "trustBoundaries": [
+        "browser to FastAPI",
+        "FastAPI to PostgreSQL",
+        "FastAPI to object storage",
+        "untrusted receipt and OCR text to UI and Excel",
+        "Android agent to device API"
+      ],
+      "attackerCapabilities": [
+        "send unauthenticated or malformed HTTP requests",
+        "control receipt text rendered or exported",
+        "repeat searches, retries, and exports",
+        "present duplicate references across devices"
+      ],
+      "securityObjectives": [
+        "administrator-only visibility",
+        "device-scoped deterministic duplicate identity",
+        "bounded resource use",
+        "inert untrusted content",
+        "durable attributable operator actions",
+        "no browser persistence of bearer tokens"
+      ],
+      "assumptions": [
+        "TLS and reverse-proxy security are deployment responsibilities",
+        "administrators are trusted to view all enrolled devices"
+      ]
+    },
+    "coverageRef": "coverage.json",
+    "findingsRef": "findings.json",
+    "artifacts": [
+      {
+        "path": "findings.json",
+        "sha256": "287a0b1b4e5940682bd91c9ed63d3059d849b9f8aacd4b75811eb6b9fc3e13a8",
+        "mediaType": "application/json"
+      },
+      {
+        "path": "coverage.json",
+        "sha256": "9fb091c2c6ede2f4fe7305372326fb28869a6bd5bd271269262cdbc1bb36c56e",
+        "mediaType": "application/json"
+      }
+    ]
+  }
+}

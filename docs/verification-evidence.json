@@ -1,0 +1,51 @@
+{
+  "verification_date": "2026-08-31",
+  "runtime": "Windows CPython 3.12.13; PostgreSQL 16.15",
+  "checks": [
+    {
+      "check": "PostgreSQL version",
+      "exit_code": 0,
+      "output": "postgres (PostgreSQL) 16.15\n"
+    },
+    {
+      "check": "PostgreSQL migration upgrade",
+      "exit_code": 0,
+      "output": "Completed with output redirected."
+    },
+    {
+      "check": "PostgreSQL schema drift check",
+      "exit_code": 0,
+      "output": "No new upgrade operations detected.\n"
+    },
+    {
+      "check": "PostgreSQL migration downgrade",
+      "exit_code": 0,
+      "output": "Completed with output redirected."
+    },
+    {
+      "check": "PostgreSQL migration re-upgrade",
+      "exit_code": 0,
+      "output": "Completed with output redirected."
+    },
+    {
+      "check": "PostgreSQL schema drift re-check",
+      "exit_code": 0,
+      "output": "No new upgrade operations detected.\n"
+    },
+    {
+      "check": "live Uvicorn and PostgreSQL smoke",
+      "exit_code": 0,
+      "output": "[\n  {\n    \"check\": \"live liveness\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live PostgreSQL readiness\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live protected rejection\",\n    \"status\": 401\n  },\n  {\n    \"check\": \"live login\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live current user\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live device create\",\n    \"status\": 201\n  },\n  {\n    \"check\": \"live duplicate conflict\",\n    \"status\": 409\n  },\n  {\n    \"check\": \"live device retrieve\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live device disable\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live device list\",\n    \"status\": 200\n  }\n]\n"
+    },
+    {
+      "check": "full test suite including PostgreSQL",
+      "exit_code": 0,
+      "output": "........................................................................ [ 62%]\n............................................                             [100%]\n116 passed in 39.53s\n"
+    },
+    {
+      "check": "stop isolated PostgreSQL",
+      "exit_code": 0,
+      "output": "waiting for server to shut down...... done\nserver stopped\n"
+    }
+  ]
+}

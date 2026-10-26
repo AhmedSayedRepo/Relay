@@ -1,0 +1,116 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-relay}
+      POSTGRES_DB: ${POSTGRES_DB:-relay}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - relay_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - relay_internal
+
+  backend:
+    build: .
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-Relay}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env using hostname db}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      JWT_ISSUER: ${JWT_ISSUER:-relay}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-relay-admin}
+      CORS_ORIGINS: ${CORS_ORIGINS:-[]}
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
+      READINESS_TIMEOUT_SECONDS: ${READINESS_TIMEOUT_SECONDS:-3}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+      DB_POOL_TIMEOUT_SECONDS: ${DB_POOL_TIMEOUT_SECONDS:-5}
+      IMAGE_OBJECT_RETENTION_DAYS: ${IMAGE_OBJECT_RETENTION_DAYS:-14}
+      IMAGE_UPLOAD_SESSION_HOURS: ${IMAGE_UPLOAD_SESSION_HOURS:-24}
+      IMAGE_MAX_ACTIVE_UPLOADS: ${IMAGE_MAX_ACTIVE_UPLOADS:-3}
+      IMAGE_UPLOADS_PER_HOUR: ${IMAGE_UPLOADS_PER_HOUR:-30}
+      IMAGE_STORED_BYTES_PER_DEVICE: ${IMAGE_STORED_BYTES_PER_DEVICE:-67108864}
+      OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+      OCR_TESSERACT_EXECUTABLE: ${OCR_TESSERACT_EXECUTABLE:-/usr/bin/tesseract}
+      OCR_TESSDATA_DIR: ${OCR_TESSDATA_DIR:-/usr/share/tesseract-ocr/5/tessdata}
+      OCR_LANGUAGES: '${OCR_LANGUAGES:-["eng","ara"]}'
+      OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-20}
+      PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-5}
+      PROCESSING_BATCH_LIMIT: ${PROCESSING_BATCH_LIMIT:-10}
+      OPERATOR_AUDIT_RETENTION_DAYS: ${OPERATOR_AUDIT_RETENTION_DAYS:-365}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - relay_object_data:/var/lib/relay/objects
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 128
+    cpus: "1.0"
+    networks:
+      - relay_internal
+
+  worker:
+    profiles: ["worker"]
+    build: .
+    command: ["python", "-m", "relay.infrastructure.cli", "process-pending-images"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-Relay Worker}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env using hostname db}
+      JWT_SECRET: ${WORKER_JWT_SECRET:?Set an independent WORKER_JWT_SECRET in .env}
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
+      OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+      OCR_TESSERACT_EXECUTABLE: ${OCR_TESSERACT_EXECUTABLE:-/usr/bin/tesseract}
+      OCR_TESSDATA_DIR: ${OCR_TESSDATA_DIR:-/usr/share/tesseract-ocr/5/tessdata}
+      OCR_LANGUAGES: '${OCR_LANGUAGES:-["eng","ara"]}'
+      OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-20}
+      PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-5}
+      PROCESSING_BATCH_LIMIT: ${PROCESSING_BATCH_LIMIT:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - relay_object_data:/var/lib/relay/objects:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 64
+    cpus: "1.0"
+    networks:
+      - relay_internal
+
+volumes:
+  relay_postgres_data:
+  relay_object_data:
+
+networks:
+  relay_internal:
+    internal: true

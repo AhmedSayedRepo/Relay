@@ -1,0 +1,49 @@
+{
+  "date": "2026-09-05",
+  "scope": "Four synthetic English fixtures; Arabic language-pack availability only",
+  "provider": "tesseract",
+  "provider_version": "5.5.3.20260724",
+  "license": "Apache-2.0",
+  "language_packs": {"eng": "available", "ara": "available"},
+  "real_runtime_smoke": "passed",
+  "cases": [
+    {
+      "case": "clean",
+      "anchors": "12/12",
+      "recall": 1.0,
+      "duration_ms": 281,
+      "classification": "INSTAPAY_TRANSFER_RECEIPT",
+      "review": "NEEDS_REVIEW",
+      "reference_normalized": "ABC123456"
+    },
+    {
+      "case": "low_contrast",
+      "anchors": "12/12",
+      "recall": 1.0,
+      "duration_ms": 312,
+      "classification": "INSTAPAY_TRANSFER_RECEIPT",
+      "review": "NEEDS_REVIEW",
+      "reference_normalized": "ABC123456"
+    },
+    {
+      "case": "moderate_glare_noise",
+      "anchors": "11/12",
+      "recall": 0.917,
+      "duration_ms": 312,
+      "classification": "INSTAPAY_TRANSFER_RECEIPT",
+      "review": "NEEDS_REVIEW",
+      "reference_normalized": null,
+      "observation": "The damaged short reference was preserved as original OCR text but rejected by deterministic reference validation."
+    },
+    {
+      "case": "raw_90_degree_rotation",
+      "anchors": "0/12",
+      "recall": 0.0,
+      "duration_ms": 375,
+      "classification": "UNKNOWN_RECEIPT",
+      "review": "REJECTED",
+      "observation": "Sprint 5 normalizes EXIF orientation only and does not detect raw pixel rotation."
+    }
+  ],
+  "accuracy_limit": "This tiny synthetic evaluation does not establish general OCR accuracy. Arabic recognition accuracy was not tested or claimed."
+}

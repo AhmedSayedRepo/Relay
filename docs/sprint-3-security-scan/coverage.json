@@ -1,0 +1,133 @@
+{
+  "completeness": "partial",
+  "deferred": [
+    {
+      "id": "deployment-edge-rate-limiter",
+      "reason": "The expected production gateway or shared per-device rate and volume limiter is outside this repository and was not available for verification.",
+      "surfaceIds": [
+        "request-rate-volume"
+      ]
+    }
+  ],
+  "documentType": "codex-security.coverage",
+  "excludePaths": [],
+  "explicitExclusions": [],
+  "includePaths": [
+    "."
+  ],
+  "inventoryStrategy": "diff",
+  "mode": "diff",
+  "openQuestions": [
+    {
+      "followUpPrompt": "Verify the deployment gateway rate-limit and volume-quota configuration before production rollout.",
+      "question": "Which production edge enforces per-device request and accepted-event quotas, and what limits and alerts are configured?"
+    }
+  ],
+  "scanId": "scan_relay_sprint3_20260903",
+  "schemaVersion": "1.0",
+  "surfaces": [
+    {
+      "disposition": "no_issue_found",
+      "id": "sms-permission-broadcast",
+      "label": "SMS permission and protected broadcast boundary",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "consent-permission-withdrawal",
+      "label": "Local consent and runtime permission withdrawal",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "configuration-abuse",
+      "label": "Remote configuration and rule abuse",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "encrypted-outbox",
+      "label": "Encrypted outbox, capacity, restart, and rooted-device boundary",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "upload-auth-revocation",
+      "label": "Upload authentication, retry, and device revocation",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "backend-auth-ownership",
+      "label": "Backend authorization and installation ownership",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "payload-batch-bounds",
+      "label": "Payload size, batch, schema, and timestamp abuse",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "idempotency-concurrency",
+      "label": "Idempotency abuse and concurrent duplicates",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "sql-json-injection",
+      "label": "SQL and JSON injection",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "logging-leakage",
+      "label": "SMS payload, token, and credential logging leakage",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "no_issue_found",
+      "id": "retention-deletion",
+      "label": "Raw event retention and deletion",
+      "receiptRefs": [
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    },
+    {
+      "disposition": "needs_follow_up",
+      "id": "request-rate-volume",
+      "label": "Authenticated request rate and volume abuse",
+      "notes": "Repository bounds individual requests, batches, records, and retention, but no shared per-device rate or volume limiter was implemented or verified.",
+      "receiptRefs": [
+        "artifacts/01_context/threat_model.md",
+        "artifacts/02_discovery/review_receipt.md"
+      ]
+    }
+  ]
+}

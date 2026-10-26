@@ -1,0 +1,57 @@
+[
+  {
+    "check": "PostgreSQL version",
+    "exit_code": 0,
+    "output": "postgres (PostgreSQL) 16.15\n"
+  },
+  {
+    "check": "initdb",
+    "exit_code": 0,
+    "output": "The files belonging to this database system will be owned by user \"pc\".\nThis user must also own the server process.\n\nThe database cluster will be initialized with locale \"C\".\nThe default text search configuration will be set to \"english\".\n\nData page checksums are disabled.\n\ncreating directory D:/DevData/Codex/Workspaces/2026-08-31/files-pasted-by-the-user-you/work/pg-verification-902c5476eccd435988eaa762cad42d3d/data ... ok\ncreating subdirectories ... ok\nselecting dynamic shared memory implementation ... windows\nselecting default max_connections ... 100\nselecting default shared_buffers ... 128MB\nselecting default time zone ... Africa/Cairo\ncreating configuration files ... ok\nrunning bootstrap script ... ok\nperforming post-bootstrap initialization ... ok\nsyncing data to disk ... ok\n\nSuccess. You can now start the database server using:\n\n    ^\"D^:^\\DevData^\\Codex^\\Workspaces^\\2026^-08^-31^\\files^-pasted^-by^-the^-user^-you^\\work^\\postgresql^-portable^\\pgsql^\\bin^\\pg^_ctl^\" -D ^\"D^:^\\DevData^\\Codex^\\Workspaces^\\2026^-08^-31^\\files^-pasted^-by^-the^-user^-you^\\work^\\pg^-verification^-902c5476eccd435988eaa762cad42d3d^\\data^\" -l logfile start\n\n"
+  },
+  {
+    "check": "start isolated PostgreSQL",
+    "exit_code": 0,
+    "output": "Completed with output redirected."
+  },
+  {
+    "check": "PostgreSQL migration upgrade",
+    "exit_code": 0,
+    "output": "Completed with output redirected."
+  },
+  {
+    "check": "PostgreSQL schema drift check",
+    "exit_code": 0,
+    "output": "No new upgrade operations detected.\n"
+  },
+  {
+    "check": "PostgreSQL migration downgrade",
+    "exit_code": 0,
+    "output": "Completed with output redirected."
+  },
+  {
+    "check": "PostgreSQL migration re-upgrade",
+    "exit_code": 0,
+    "output": "Completed with output redirected."
+  },
+  {
+    "check": "PostgreSQL schema drift re-check",
+    "exit_code": 0,
+    "output": "No new upgrade operations detected.\n"
+  },
+  {
+    "check": "live Uvicorn and PostgreSQL smoke",
+    "exit_code": 0,
+    "output": "[\n  {\n    \"check\": \"live liveness\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live PostgreSQL readiness\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live protected rejection\",\n    \"status\": 401\n  },\n  {\n    \"check\": \"live login\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live current user\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live device create\",\n    \"status\": 201\n  },\n  {\n    \"check\": \"live duplicate conflict\",\n    \"status\": 409\n  },\n  {\n    \"check\": \"live device retrieve\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live enrollment challenge\",\n    \"status\": 201\n  },\n  {\n    \"check\": \"live device enrollment\",\n    \"status\": 201\n  },\n  {\n    \"check\": \"live SMS configuration\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live event accepted\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live event duplicate\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live administrator event visibility\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live device disable\",\n    \"status\": 200\n  },\n  {\n    \"check\": \"live disabled device event rejection\",\n    \"status\": 401\n  },\n  {\n    \"check\": \"live device list\",\n    \"status\": 200\n  }\n]\n"
+  },
+  {
+    "check": "full test suite including PostgreSQL",
+    "exit_code": 0,
+    "output": "........................................................................ [ 45%]\n........................................................................ [ 90%]\n................                                                         [100%]\n160 passed in 72.88s (0:01:12)\n"
+  },
+  {
+    "check": "stop isolated PostgreSQL",
+    "exit_code": 0,
+    "output": "waiting for server to shut down..... done\nserver stopped\n"
+  }
+]

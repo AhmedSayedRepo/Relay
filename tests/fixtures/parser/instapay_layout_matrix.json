@@ -1,0 +1,150 @@
+[
+  {
+    "id": "arabic_label_first",
+    "languages": ["ara"],
+    "lines": [
+      ["انستاباي تم التحويل بنجاح", 0.96, [420, 40, 300, 32]],
+      ["المبلغ: ٧٩٠ ج.م", 0.95, [300, 120, 260, 30]],
+      ["التاريخ: ٢٩/٠٨/٢٠٢٦", 0.94, [280, 180, 280, 30]],
+      ["الوقت: ١٦:٣٠", 0.94, [340, 240, 220, 30]],
+      ["رقم المرجع: ١٢٣٤٥٦٧٨٩٠١٢", 0.97, [180, 300, 380, 30]]
+    ],
+    "expected": {"amount": "790.00", "currency": "EGP", "occurred_at": "2026-08-29T16:30:00", "reference": "123456789012"}
+  },
+  {
+    "id": "arabic_value_first_two_column",
+    "languages": ["ara"],
+    "lines": [
+      ["انستاباي تم التحويل بنجاح", 0.96, [420, 40, 300, 32]],
+      ["٨٢٥ ج.م", 0.95, [100, 120, 150, 30]],
+      ["المبلغ", 0.96, [400, 120, 120, 30]],
+      ["٣٠/٠٨/٢٠٢٦", 0.95, [100, 180, 180, 30]],
+      ["التاريخ", 0.96, [400, 180, 120, 30]],
+      ["١٤:٤٥", 0.95, [100, 240, 100, 30]],
+      ["الوقت", 0.96, [400, 240, 100, 30]],
+      ["٩٨٧٦٥٤٣٢١٠٩٨", 0.97, [100, 300, 210, 30]],
+      ["رقم المرجع", 0.96, [400, 300, 160, 30]]
+    ],
+    "expected": {"amount": "825.00", "currency": "EGP", "occurred_at": "2026-08-30T14:45:00", "reference": "987654321098"}
+  },
+  {
+    "id": "english_label_first",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.97, [80, 40, 360, 32]],
+      ["Amount: EGP 910.50", 0.96, [80, 120, 250, 30]],
+      ["Date: 31 Aug 2026", 0.95, [80, 180, 240, 30]],
+      ["Time: 05:10 PM", 0.95, [80, 240, 220, 30]],
+      ["Reference Number: 223344556677", 0.97, [80, 300, 390, 30]]
+    ],
+    "expected": {"amount": "910.50", "currency": "EGP", "occurred_at": "2026-08-31T17:10:00", "reference": "223344556677"}
+  },
+  {
+    "id": "english_value_first_two_column",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.97, [80, 40, 360, 32]],
+      ["EGP 640", 0.96, [360, 120, 130, 30]],
+      ["Amount", 0.96, [80, 120, 100, 30]],
+      ["01 Sep 2026", 0.95, [360, 180, 170, 30]],
+      ["Date", 0.96, [80, 180, 80, 30]],
+      ["09:05 AM", 0.95, [360, 240, 130, 30]],
+      ["Time", 0.96, [80, 240, 80, 30]],
+      ["334455667788", 0.97, [360, 300, 190, 30]],
+      ["Reference Number", 0.96, [80, 300, 210, 30]]
+    ],
+    "expected": {"amount": "640.00", "currency": "EGP", "occurred_at": "2026-09-01T09:05:00", "reference": "334455667788"}
+  },
+  {
+    "id": "mixed_arabic_english_observed_sequence",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["تم التحويل بنجاح", 0.95, [420, 40, 250, 32]],
+      ["EGP 790", 0.94, [100, 110, 150, 30]],
+      ["pilot.user@instapay", 0.91, [180, 190, 300, 30]],
+      ["انستاباي", 0.95, [430, 245, 130, 30]],
+      ["PILOT RECIPIENT ###", 0.42, [220, 330, 330, 30]],
+      ["128895843616", 0.97, [100, 430, 220, 30]],
+      ["29 Aug 2026 04:30 PM", 0.96, [100, 485, 340, 30]]
+    ],
+    "expected": {"amount": "790.00", "currency": "EGP", "occurred_at": "2026-08-29T16:30:00", "reference": "128895843616", "sender": "pilot.user@instapay", "recipient": null}
+  },
+  {
+    "id": "missing_reference",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["Amount: EGP 500", 0.95, [80, 120, 220, 30]],
+      ["Invoice 998877665544", 0.96, [80, 180, 260, 30]],
+      ["random.user@instapay", 0.96, [80, 210, 280, 30]],
+      ["Date: 2026-09-02", 0.95, [80, 240, 220, 30]],
+      ["Time: 12:00", 0.95, [80, 300, 180, 30]]
+    ],
+    "expected": {"amount": "500.00", "currency": "EGP", "occurred_at": "2026-09-02T12:00:00", "reference": null}
+  },
+  {
+    "id": "low_confidence_corrupted_reference",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["EGP 300", 0.95, [80, 120, 150, 30]],
+      ["I288958436I6", 0.54, [80, 240, 210, 30]],
+      ["03 Sep 2026 01:20 PM", 0.95, [80, 290, 330, 30]]
+    ],
+    "expected": {"amount": "300.00", "currency": "EGP", "occurred_at": null, "reference": null}
+  },
+  {
+    "id": "low_confidence_numeric_reference",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["EGP 305", 0.95, [80, 120, 150, 30]],
+      ["128895843616", 0.84, [80, 240, 210, 30]],
+      ["03 Sep 2026 01:20 PM", 0.95, [80, 290, 330, 30]]
+    ],
+    "expected": {"amount": "305.00", "currency": "EGP", "occurred_at": null, "reference": null}
+  },
+  {
+    "id": "amount_and_reference_present",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["EGP 1250.50", 0.95, [80, 120, 190, 30]],
+      ["445566778899", 0.96, [80, 240, 210, 30]],
+      ["04 Sep 2026 02:25 PM", 0.95, [80, 290, 330, 30]]
+    ],
+    "expected": {"amount": "1250.50", "currency": "EGP", "occurred_at": "2026-09-04T14:25:00", "reference": "445566778899"}
+  },
+  {
+    "id": "phone_and_reference_present",
+    "languages": ["eng", "ara"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["EGP 275", 0.95, [80, 120, 150, 30]],
+      ["01003405232", 0.98, [80, 190, 190, 30]],
+      ["556677889900", 0.97, [80, 250, 210, 30]],
+      ["05 Sep 2026 03:15 PM", 0.95, [80, 300, 330, 30]]
+    ],
+    "expected": {"amount": "275.00", "currency": "EGP", "occurred_at": "2026-09-05T15:15:00", "reference": "556677889900"}
+  },
+  {
+    "id": "same_reference_ascii",
+    "languages": ["eng"],
+    "lines": [
+      ["InstaPay Transfer Successful", 0.96, [80, 40, 360, 32]],
+      ["Amount: EGP 111", 0.95, [80, 120, 220, 30]],
+      ["Reference Number: 667788990011", 0.97, [80, 240, 390, 30]]
+    ],
+    "expected": {"amount": "111.00", "currency": "EGP", "occurred_at": null, "reference": "667788990011"}
+  },
+  {
+    "id": "same_reference_arabic_digits",
+    "languages": ["ara"],
+    "lines": [
+      ["انستاباي تم التحويل بنجاح", 0.96, [420, 40, 300, 32]],
+      ["المبلغ: ١١١ ج.م", 0.95, [300, 120, 260, 30]],
+      ["رقم المرجع: ٦٦٧٧٨٨٩٩٠٠١١", 0.97, [180, 240, 380, 30]]
+    ],
+    "expected": {"amount": "111.00", "currency": "EGP", "occurred_at": null, "reference": "667788990011"}
+  }
+]

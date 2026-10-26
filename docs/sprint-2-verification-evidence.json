@@ -1,0 +1,36 @@
+{
+  "result": "passed",
+  "executed_at": "2026-09-02",
+  "backend": {
+    "sqlite_and_unit_suite": {"passed": 131, "failed": 0, "skipped_postgresql": 5},
+    "postgresql_full_suite": {"passed": 136, "failed": 0, "skipped": 0},
+    "black": "54 files unchanged",
+    "ruff": "passed",
+    "mypy_strict": "38 source files passed",
+    "migration_roundtrip_and_drift": "passed",
+    "live_postgresql_api_checks": 10
+  },
+  "android": {
+    "gradle": "8.13",
+    "jdk": "21",
+    "compile_sdk": 36,
+    "target_sdk": 36,
+    "min_sdk": 26,
+    "jvm_unit_tests": {"passed": 19, "failed": 0},
+    "local_instrumentation": {"passed": 3, "failed": 0, "skipped_optional_live_test": 1},
+    "configured_live_emulator_test": {"passed": 1, "failed": 0, "emulator_api": 35},
+    "ktlint": "passed",
+    "lint_debug": "passed",
+    "lint_release": "passed",
+    "assemble_debug": "passed",
+    "assemble_debug_android_test": "passed",
+    "assemble_release": "passed",
+    "final_gradle_run": "BUILD SUCCESSFUL in 2m 52s; 146 actionable tasks"
+  },
+  "scope_check": {
+    "collectors_or_ingestion": false,
+    "personal_content_permissions": false,
+    "direct_manifest_permissions": ["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE"],
+    "backup_enabled": false
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-06",
+  "baseline_before_edits": {
+    "source_manifest": {"expected": 184, "current": 184, "missing": 0, "extra": 0, "different": 0},
+    "ruff": "passed",
+    "black": {"status": "passed", "files": 75},
+    "mypy": {"status": "passed", "source_files": 55},
+    "sqlite_pytest": {"status": "passed", "passed": 153, "postgres_deselected": 7},
+    "postgres_full_pytest": {"status": "passed", "passed": 160},
+    "android_matrix": {"status": "passed", "tasks": 117, "jvm_tests": 42},
+    "android_instrumentation": {"status": "passed", "tests": 7, "skipped": 1}
+  },
+  "final": {
+    "black": {"status": "passed", "files": 89},
+    "ruff": "passed",
+    "strict_mypy": {"status": "passed", "source_files": 67},
+    "focused_processing_and_migrations": {"status": "passed", "tests": 14},
+    "sqlite_pytest": {"status": "passed", "passed": 171, "postgres_deselected": 8, "duration_seconds": 134.81},
+    "postgres_full_pytest": {"status": "passed", "passed": 179, "duration_seconds": 120.41},
+    "postgres_migration_roundtrip_and_drift": "passed",
+    "live_postgres_api_smoke": {"status": "passed", "checks": 17},
+    "real_tesseract_smoke": "passed",
+    "android_clean_matrix": {"status": "passed", "tasks": 123, "duration": "3m 32s"},
+    "android_jvm_tests": {"status": "passed", "executions": 84, "unique_tests_per_variant": 42},
+    "android_instrumentation": {"status": "passed", "tests": 7, "passed": 6, "skipped": 1},
+    "apk_permissions": {"status": "passed", "new_permissions": 0}
+  },
+  "environment_limits": [
+    "Docker/Compose configuration was reviewed statically; Docker is not installed in the verification environment.",
+    "No hosted immutable diff scan was possible because the supplied workspace is not a Git repository.",
+    "Arabic trained data availability was verified; Arabic OCR accuracy was not evaluated."
+  ]
+}

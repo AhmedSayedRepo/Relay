@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-09-07T18:02:38.943Z",
+  "issues": [],
+  "semantics": {
+    "landmarks": {
+      "header": 1,
+      "nav": 1,
+      "main": 1,
+      "aside": 1
+    },
+    "undersized": [],
+    "unlabeled": [],
+    "unnamed": [],
+    "badImages": [],
+    "lang": "en",
+    "dir": "ltr"
+  },
+  "narrow": {
+    "innerWidth": 375,
+    "scrollWidth": 375,
+    "overflow": false,
+    "dir": "rtl"
+  },
+  "zoom200": {
+    "innerWidth": 720,
+    "scrollWidth": 720,
+    "overflow": false
+  },
+  "focusOrder": [
+    {
+      "tag": "A",
+      "text": "Skip to main content"
+    },
+    {
+      "tag": "A",
+      "text": "Relay Dashboard"
+    },
+    {
+      "tag": "A",
+      "text": "⌂Dashboard"
+    },
+    {
+      "tag": "A",
+      "text": "⇄Transactions"
+    },
+    {
+      "tag": "A",
+      "text": "≋Duplicates"
+    },
+    {
+      "tag": "A",
+      "text": "✓Review"
+    },
+    {
+      "tag": "A",
+      "text": "↻Processing"
+    },
+    {
+      "tag": "A",
+      "text": "▤Reports"
+    },
+    {
+      "tag": "A",
+      "text": "◉Devices"
+    },
+    {
+      "tag": "A",
+      "text": "?Help"
+    },
+    {
+      "tag": "SELECT",
+      "text": "Change language"
+    },
+    {
+      "tag": "SELECT",
+      "text": "Change color theme"
+    }
+  ],
+  "dialog": {
+    "opened": true,
+    "escapeClosed": true
+  },
+  "reducedMotion": "none",
+  "contrast": {
+    "light": {
+      "body": 13.29,
+      "muted": 5.98,
+      "eyebrow": 5.43,
+      "button": 8.13,
+      "rail": 7.41
+    },
+    "dark": {
+      "body": 15.87,
+      "muted": 8.23,
+      "eyebrow": 6.93,
+      "button": 9.42,
+      "rail": 11.11
+    }
+  }
+}

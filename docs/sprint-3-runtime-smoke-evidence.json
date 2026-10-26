@@ -1,0 +1,70 @@
+[
+  {
+    "check": "live liveness",
+    "status": 200
+  },
+  {
+    "check": "live PostgreSQL readiness",
+    "status": 200
+  },
+  {
+    "check": "live protected rejection",
+    "status": 401
+  },
+  {
+    "check": "live login",
+    "status": 200
+  },
+  {
+    "check": "live current user",
+    "status": 200
+  },
+  {
+    "check": "live device create",
+    "status": 201
+  },
+  {
+    "check": "live duplicate conflict",
+    "status": 409
+  },
+  {
+    "check": "live device retrieve",
+    "status": 200
+  },
+  {
+    "check": "live enrollment challenge",
+    "status": 201
+  },
+  {
+    "check": "live device enrollment",
+    "status": 201
+  },
+  {
+    "check": "live SMS configuration",
+    "status": 200
+  },
+  {
+    "check": "live event accepted",
+    "status": 200
+  },
+  {
+    "check": "live event duplicate",
+    "status": 200
+  },
+  {
+    "check": "live administrator event visibility",
+    "status": 200
+  },
+  {
+    "check": "live device disable",
+    "status": 200
+  },
+  {
+    "check": "live disabled device event rejection",
+    "status": 401
+  },
+  {
+    "check": "live device list",
+    "status": 200
+  }
+]
