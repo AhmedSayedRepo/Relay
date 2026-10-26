@@ -21,7 +21,7 @@ frontend/dist/
 
 # Local data and build outputs (never commit real receipts or binaries)
 relay-object-storage/
-artifacts/
+/artifacts/
 *.apk
 *.aab
 *.zip
