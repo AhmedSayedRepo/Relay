@@ -118,44 +118,54 @@ class TrainingDatasetService:
 
         The holdout split is written only on explicit request and to its own
         manifest, so it cannot leak into training by accident."""
-        destination.mkdir(parents=True, exist_ok=True)
-        images = destination / "images"
-        images.mkdir(exist_ok=True)
-        counts = {Split.TRAIN.value: 0, Split.HOLDOUT.value: 0}
-        manifests = {
-            Split.TRAIN.value: destination / "train-manifest.jsonl",
-            Split.HOLDOUT.value: destination / "holdout-manifest.jsonl",
+        examples = await self.uow.training.examples()
+        return write_export(
+            destination, examples, self.store, include_holdout=include_holdout
+        )
+
+
+def write_export(
+    destination: Path,
+    examples: list[TrainingExample],
+    store: DatasetStore,
+    *,
+    include_holdout: bool,
+) -> dict[str, int]:
+    destination.mkdir(parents=True, exist_ok=True)
+    images = destination / "images"
+    images.mkdir(exist_ok=True)
+    counts = {Split.TRAIN.value: 0, Split.HOLDOUT.value: 0}
+    manifests = {
+        Split.TRAIN.value: destination / "train-manifest.jsonl",
+        Split.HOLDOUT.value: destination / "holdout-manifest.jsonl",
+    }
+    lines: dict[str, list[str]] = {
+        split: []
+        for split in manifests
+        if split == Split.TRAIN.value or include_holdout
+    }
+    for example in examples:
+        bucket = lines.get(example.split)
+        if bucket is None:
+            continue
+        name = Path(example.image_key).name
+        target = images / name
+        if not target.exists():
+            target.write_bytes(store.read(example.image_key, MAX_IMAGE_BYTES))
+        record: dict[str, JsonValue] = {
+            "contract_version": CONTRACT_VERSION,
+            "label_version": example.label_version,
+            "sample_id": str(example.id),
+            "transaction_group_id": example.transaction_group_id,
+            "source_kind": "relay_reviewed_real",
+            "split": example.split,
+            "image_path": f"images/{name}",
+            "image_sha256": example.image_sha256,
+            "fields": example.labels,
         }
-        handles = {
-            split: path.open("w", encoding="utf-8")
-            for split, path in manifests.items()
-            if split == Split.TRAIN.value or include_holdout
-        }
-        try:
-            for example in await self.uow.training.examples():
-                handle = handles.get(example.split)
-                if handle is None:
-                    continue
-                name = Path(example.image_key).name
-                target = images / name
-                if not target.exists():
-                    target.write_bytes(
-                        self.store.read(example.image_key, MAX_IMAGE_BYTES)
-                    )
-                record: dict[str, JsonValue] = {
-                    "contract_version": CONTRACT_VERSION,
-                    "label_version": example.label_version,
-                    "sample_id": str(example.id),
-                    "transaction_group_id": example.transaction_group_id,
-                    "source_kind": "relay_reviewed_real",
-                    "split": example.split,
-                    "image_path": f"images/{name}",
-                    "image_sha256": example.image_sha256,
-                    "fields": example.labels,
-                }
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-                counts[example.split] += 1
-        finally:
-            for handle in handles.values():
-                handle.close()
-        return counts
+        bucket.append(json.dumps(record, ensure_ascii=False))
+        counts[example.split] += 1
+    for split, content in lines.items():
+        text = "".join(f"{line}\n" for line in content)
+        manifests[split].write_text(text, encoding="utf-8")
+    return counts

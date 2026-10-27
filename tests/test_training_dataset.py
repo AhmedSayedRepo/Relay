@@ -139,9 +139,9 @@ async def test_capture_requires_consent_and_review_then_exports(
     again = await client.post("/api/v1/training/capture", headers=auth_headers)
     assert again.json() == {"captured": 0}  # idempotent
 
-    summary = (
-        await client.get("/api/v1/training/summary", headers=auth_headers)
-    ).json()
+    response = await client.get("/api/v1/training/summary", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    summary = response.json()
     assert summary["train_examples"] + summary["holdout_examples"] == 1
     assert summary["transaction_groups"] == 1
     assert summary["consenting_devices"] == 1

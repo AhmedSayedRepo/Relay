@@ -15,8 +15,8 @@ from relay.application.processing import ProcessingService
 from relay.application.training import TrainingDatasetService
 from relay.application.receipts import InstaPayReceiptParser
 from relay.infrastructure.config import load_settings
-from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.database import Database
+from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage

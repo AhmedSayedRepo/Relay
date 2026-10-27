@@ -7,8 +7,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from relay.infrastructure.config import Settings, load_settings
-from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.database import Database
+from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.device_security import DeviceTokens
 from relay.infrastructure.logging import configure_logging
 from relay.infrastructure.object_storage import FilesystemObjectStorage
