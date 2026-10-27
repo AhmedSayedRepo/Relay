@@ -128,9 +128,15 @@ jobs:
             grep -E "^e: |FAILED|Lint found|\.kt:[0-9]+:[0-9]+" gradle.log | head -20 | sed 's/^/::error title=gradle-detail::/'
           fi
           exit $status
+      - name: Enable KVM for the Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Run Android instrumentation tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          emulator-boot-timeout: 900
           api-level: 35
           arch: x86_64
           target: google_apis
