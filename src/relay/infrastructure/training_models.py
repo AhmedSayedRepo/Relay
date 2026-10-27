@@ -40,9 +40,7 @@ class TrainingExampleRow(Base):
     __tablename__ = "training_examples"
     __table_args__ = (
         UniqueConstraint("candidate_id", name="uq_training_examples_candidate"),
-        CheckConstraint(
-            "split IN ('TRAIN','HOLDOUT')", name="training_example_split"
-        ),
+        CheckConstraint("split IN ('TRAIN','HOLDOUT')", name="training_example_split"),
         Index("ix_training_examples_device", "device_id"),
         Index("ix_training_examples_group", "transaction_group_id"),
         Index("ix_training_examples_created", "created_at", "id"),

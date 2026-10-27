@@ -50,9 +50,7 @@ class TrainingDatasetService:
             raise NotFound("Device not found.")
         return await self.uow.training.consent(device_id)
 
-    async def set_consent(
-        self, device_id: UUID, enabled: bool, actor_id: UUID
-    ) -> bool:
+    async def set_consent(self, device_id: UUID, enabled: bool, actor_id: UUID) -> bool:
         if not await self.uow.training.device_exists(device_id):
             raise NotFound("Device not found.")
         await self.uow.training.set_consent(
@@ -113,7 +111,9 @@ class TrainingDatasetService:
             self.store.delete(key)
         return deleted
 
-    async def export(self, destination: Path, *, include_holdout: bool) -> dict[str, int]:
+    async def export(
+        self, destination: Path, *, include_holdout: bool
+    ) -> dict[str, int]:
         """Write images plus JSONL manifests in the field-model record format.
 
         The holdout split is written only on explicit request and to its own
@@ -139,7 +139,9 @@ class TrainingDatasetService:
                 name = Path(example.image_key).name
                 target = images / name
                 if not target.exists():
-                    target.write_bytes(self.store.read(example.image_key, MAX_IMAGE_BYTES))
+                    target.write_bytes(
+                        self.store.read(example.image_key, MAX_IMAGE_BYTES)
+                    )
                 record: dict[str, JsonValue] = {
                     "contract_version": CONTRACT_VERSION,
                     "label_version": example.label_version,

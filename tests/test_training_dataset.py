@@ -69,9 +69,12 @@ def test_incomplete_or_unsupported_receipts_are_not_eligible():
         is None
     )
     unavailable = {"reason": "operator_unavailable"}
-    assert labels_from_resolution(
-        _metadata({name: unavailable for name in CRITICAL}, state="NEEDS_REVIEW")
-    ) is None
+    assert (
+        labels_from_resolution(
+            _metadata({name: unavailable for name in CRITICAL}, state="NEEDS_REVIEW")
+        )
+        is None
+    )
     assert labels_from_resolution(_metadata(CRITICAL)) is not None
 
 
@@ -157,8 +160,10 @@ async def test_capture_requires_consent_and_review_then_exports(
     split = next(name for name, count in everything.items() if count)
     assert train_only[Split.HOLDOUT.value] == 0
     assert not (tmp_path / "train" / "holdout-manifest.jsonl").exists()
-    manifest = tmp_path / "all" / (
-        "train-manifest.jsonl" if split == "TRAIN" else "holdout-manifest.jsonl"
+    manifest = (
+        tmp_path
+        / "all"
+        / ("train-manifest.jsonl" if split == "TRAIN" else "holdout-manifest.jsonl")
     )
     (record,) = [json.loads(line) for line in manifest.read_text().splitlines()]
     assert record["source_kind"] == "relay_reviewed_real"
@@ -203,9 +208,7 @@ async def test_training_routes_require_admin_and_known_device(
     client, auth_headers, assert_error
 ):
     missing = uuid4()
-    assert_error(
-        await client.get(f"/api/v1/devices/{missing}/training-consent"), 401
-    )
+    assert_error(await client.get(f"/api/v1/devices/{missing}/training-consent"), 401)
     assert_error(
         await client.get(
             f"/api/v1/devices/{missing}/training-consent", headers=auth_headers

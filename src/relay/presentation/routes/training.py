@@ -60,7 +60,9 @@ class DeleteTrainingResponse(BaseModel):
 
 @router.get("/devices/{device_id}/training-consent", response_model=ConsentResponse)
 async def get_consent(device_id: UUID, service: Service) -> ConsentResponse:
-    return ConsentResponse(device_id=device_id, enabled=await service.consent(device_id))
+    return ConsentResponse(
+        device_id=device_id, enabled=await service.consent(device_id)
+    )
 
 
 @router.put("/devices/{device_id}/training-consent", response_model=ConsentResponse)

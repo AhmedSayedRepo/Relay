@@ -159,11 +159,15 @@ class SqlTrainingRepository:
         result = await self.session.execute(
             delete(TrainingExampleRow).where(TrainingExampleRow.device_id == device_id)
         )
-        still_used = set(
-            await self.session.scalars(
-                select(TrainingExampleRow.image_key).where(
-                    TrainingExampleRow.image_key.in_(keys)
+        still_used = (
+            set(
+                await self.session.scalars(
+                    select(TrainingExampleRow.image_key).where(
+                        TrainingExampleRow.image_key.in_(keys)
+                    )
                 )
             )
-        ) if keys else set()
+            if keys
+            else set()
+        )
         return int(getattr(result, "rowcount", 0) or 0), sorted(keys - still_used)
