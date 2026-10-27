@@ -97,7 +97,7 @@ jobs:
           exit $status
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -149,6 +149,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
           api-level: 35
           arch: x86_64
           target: google_apis
