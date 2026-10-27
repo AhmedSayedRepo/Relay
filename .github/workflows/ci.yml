@@ -92,7 +92,7 @@ jobs:
           status=${PIPESTATUS[0]}
           grep -E "^(FAILED|ERROR) " pytest.log | head -30 | sed 's/^/::error title=pytest::/'
           grep -E "^E   " pytest.log | head -20 | sed 's/^/::error title=pytest-detail::/'
-          grep -E "(Error|Exception)(:| )|Traceback|File \"/home/runner/work/Relay/Relay/src" pytest.log | grep -v "^E   " | head -40 | sed 's/^/::error title=pytest-trace::/'
+          grep -E "(Error|Exception)(:| )|Traceback|File \"/home/runner/work/Relay/Relay/src|^src/relay/.*: in |^[a-z_/]+\\.py:[0-9]+: " pytest.log | grep -v "^E   " | head -40 | sed 's/^/::error title=pytest-trace::/'
           tail -1 pytest.log | sed 's/^/::notice title=pytest-summary::/'
           exit $status
 

@@ -12,8 +12,8 @@ from relay.application.errors import ApplicationError
 from relay.application.events import EventService
 from relay.application.operations import OperationsService
 from relay.application.processing import ProcessingService
-from relay.application.training import TrainingDatasetService
 from relay.application.receipts import InstaPayReceiptParser
+from relay.application.training import TrainingDatasetService
 from relay.infrastructure.config import load_settings
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore

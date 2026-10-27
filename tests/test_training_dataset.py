@@ -204,6 +204,18 @@ async def test_withdrawn_consent_stops_capture_and_erasure_removes_copies(
     assert summary["train_examples"] + summary["holdout_examples"] == 0
 
 
+async def test_summary_on_empty_dataset(app):
+    from relay.infrastructure.repositories import SqlUnitOfWork
+
+    async with app.state.database.session() as session:
+        assert await SqlUnitOfWork(session).training.summary() == {
+            "train_examples": 0,
+            "holdout_examples": 0,
+            "transaction_groups": 0,
+            "consenting_devices": 0,
+        }
+
+
 async def test_training_routes_require_admin_and_known_device(
     client, auth_headers, assert_error
 ):
