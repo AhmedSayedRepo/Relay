@@ -49,8 +49,9 @@ jobs:
           python -m pip install -r requirements-dev.lock
           python -m pip install --no-deps -e .
       - name: Lint
-        run: python -m ruff check .
+        run: python -m ruff check --output-format=github .
       - name: Formatting
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
@@ -59,8 +60,16 @@ jobs:
           grep -E "would reformat" black.log | sed 's/^/::error title=black::/'
           exit $status
       - name: Type checks
-        run: python -m mypy src
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          python -m mypy src 2>&1 | tee mypy.log
+          status=${PIPESTATUS[0]}
+          grep -E "^[^:]+:[0-9]+: error:" mypy.log | head -30 | sed 's/^/::error title=mypy::/'
+          exit $status
       - name: Verify operator frontend
+        if: ${{ !cancelled() }}
         working-directory: frontend
         run: |
           npm ci
@@ -68,12 +77,14 @@ jobs:
           npm run lint
           npm run build
       - name: Verify PostgreSQL migrations on the disposable CI database
+        if: ${{ !cancelled() }}
         run: |
           python -m alembic upgrade head
           python -m alembic check
           python -m alembic downgrade base
           python -m alembic upgrade head
       - name: Tests including PostgreSQL integration
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
