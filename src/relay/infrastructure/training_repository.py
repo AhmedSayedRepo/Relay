@@ -124,15 +124,12 @@ class SqlTrainingRepository:
         return [to_example(row) for row in rows]
 
     async def summary(self) -> dict[str, int]:
-        counts = dict(
-            (
-                await self.session.execute(
-                    select(TrainingExampleRow.split, func.count()).group_by(
-                        TrainingExampleRow.split
-                    )
-                )
-            ).tuples()
+        result = await self.session.execute(
+            select(TrainingExampleRow.split, func.count()).group_by(
+                TrainingExampleRow.split
+            )
         )
+        counts = {str(split): int(count) for split, count in result.tuples()}
         groups = await self.session.scalar(
             select(func.count(distinct(TrainingExampleRow.transaction_group_id)))
         )
