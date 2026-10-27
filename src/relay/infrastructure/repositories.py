@@ -15,6 +15,7 @@ from relay.infrastructure.event_repository import SqlEventRepository
 from relay.infrastructure.models import DeviceRow, UserRow
 from relay.infrastructure.operations_repository import SqlOperationsRepository
 from relay.infrastructure.processing_repository import SqlProcessingRepository
+from relay.infrastructure.training_repository import SqlTrainingRepository
 
 
 def to_user(row: UserRow) -> User:
@@ -153,6 +154,7 @@ class SqlUnitOfWork:
         self.binaries = SqlBinaryRepository(session)
         self.processing = SqlProcessingRepository(session)
         self.operations = SqlOperationsRepository(session)
+        self.training = SqlTrainingRepository(session)
 
     async def commit(self) -> None:
         await self.session.commit()

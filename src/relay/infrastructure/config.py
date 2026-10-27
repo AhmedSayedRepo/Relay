@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         default=64 * 1024 * 1024, ge=8 * 1024 * 1024, le=1024 * 1024 * 1024
     )
     object_storage_root: Path = Path("./relay-object-storage")
+    training_dataset_root: Path = Path("./relay-training-dataset")
     ocr_tesseract_executable: Path = Path("tesseract")
     ocr_tessdata_dir: Path | None = None
     ocr_languages: list[str] = Field(default_factory=lambda: ["eng", "ara"])
@@ -161,6 +162,11 @@ class Settings(BaseSettings):
         resolved_storage = self.object_storage_root.expanduser().resolve()
         if resolved_storage == Path(resolved_storage.anchor):
             raise ValueError("OBJECT_STORAGE_ROOT cannot be a filesystem root.")
+        resolved_dataset = self.training_dataset_root.expanduser().resolve()
+        if resolved_dataset == Path(resolved_dataset.anchor):
+            raise ValueError("TRAINING_DATASET_ROOT cannot be a filesystem root.")
+        if resolved_dataset == resolved_storage:
+            raise ValueError("TRAINING_DATASET_ROOT must differ from object storage.")
         frontend = self.operator_frontend_dir.expanduser().resolve()
         if frontend == Path(frontend.anchor):
             raise ValueError("OPERATOR_FRONTEND_DIR cannot be a filesystem root.")

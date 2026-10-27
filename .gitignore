@@ -21,6 +21,7 @@ frontend/dist/
 
 # Local data and build outputs (never commit real receipts or binaries)
 relay-object-storage/
+relay-training-dataset/
 /artifacts/
 *.apk
 *.aab
