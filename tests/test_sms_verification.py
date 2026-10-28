@@ -24,25 +24,25 @@ RECEIPT_DEVICE, SMS_DEVICE, OTHER_DEVICE = uuid4(), uuid4(), uuid4()
 
 
 CIB = (
-    "Kindly note your account ********8413 was charged with IPN Outward with "
+    "Kindly note your account ********0000 was charged with IPN Outward with "
     "amount EGP {amount} on {day} at {time} with reference {ref} For more "
     "information, please contact 19666."
 )
-# Real CIB debit SMS (account masked) paired with the InstaPay receipts they
-# belong to: receipt amount, receipt wall-clock minute.
+# CIB debit SMS wording from real samples (account, references anonymised)
+# paired with their receipts: receipt amount, receipt wall-clock minute.
 REAL_PAIRS = [
     (
-        CIB.format(amount="650.00", day="25-10-2026", time="23:00", ref="1b52f3a6"),
+        CIB.format(amount="650.00", day="25-10-2026", time="23:00", ref="1a2b3c4d"),
         "650.00",
         datetime(2026, 10, 25, 23, 0),
     ),
     (
-        CIB.format(amount="1000.00", day="26-10-2026", time="19:11", ref="af4d156f"),
+        CIB.format(amount="1000.00", day="26-10-2026", time="19:11", ref="5e6f7a8b"),
         "1000.00",
         datetime(2026, 10, 26, 19, 11),
     ),
     (
-        CIB.format(amount="650.00", day="27-10-2026", time="20:20", ref="17592413"),
+        CIB.format(amount="650.00", day="27-10-2026", time="20:20", ref="12345678"),
         "650.00",
         datetime(2026, 10, 27, 20, 20),
     ),
@@ -56,6 +56,18 @@ def test_real_cib_debit_sms_are_read_with_their_stated_time():
         assert parsed.amount == Decimal(amount) and parsed.currency == "EGP"
         assert parsed.direction is SmsDirection.OUT
         assert parsed.stated_local == minute
+
+
+def test_real_cib_credit_sms_is_read():
+    parsed = parse_bank_sms(
+        "Kindly note your account ********0000 was credited with IPN Inward with "
+        "amount EGP 40000.00 on 25-10-2026 at 13:20 from SENDER NAME "
+        "with reference 0a1b2c3d For more information, please contact 19666."
+    )
+    assert parsed is not None
+    assert parsed.amount == Decimal("40000.00")
+    assert parsed.direction is SmsDirection.IN
+    assert parsed.stated_local == datetime(2026, 10, 25, 13, 20)
 
 
 def test_parser_handles_arabic_and_stays_strict():

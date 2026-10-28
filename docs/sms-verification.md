@@ -21,9 +21,8 @@ SMS reference is a different bank identifier), so those are the only match keys:
 - One SMS can verify only one receipt, so one real payment cannot vouch for
   several edited receipts.
 
-Supported wording: the CIB `charged with IPN Outward with amount EGP … on
-DD-MM-YYYY at HH:MM` format (from real samples), its assumed `credited with IPN
-Inward` counterpart, and English or Arabic messages with one clear direction word
+Supported wording: the CIB `charged with IPN Outward …` and `credited with IPN
+Inward with amount EGP … on DD-MM-YYYY at HH:MM` formats (both from real samples), and English or Arabic messages with one clear direction word
 (e.g. received/credited/إضافة/إيداع or charged/debited/خصم), one amount in EGP or
 جنيه, and an optional date and time (Arabic digits and ص/م supported). Debits must
 mention InstaPay/IPN; card purchases and cash withdrawals are ignored.
@@ -54,8 +53,8 @@ or currency is corrected afterwards or the phones are unlinked.
 
 - Amount and time are weak keys on their own: equal payments close together
   need an operator decision.
-- Only the CIB debit format is confirmed by real samples; credit and Arabic
-  wording are strict best guesses until samples are added. An SMS the parser
+- The CIB debit and credit formats are confirmed by real samples; Arabic and
+  other banks' wording are strict best guesses until samples are added. An SMS the parser
   cannot read never verifies anything.
 - Raw SMS expire with event retention (`RAW_EVENT_RETENTION_DAYS`); the matched
   SMS facts are kept with the verification.
