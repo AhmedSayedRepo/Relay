@@ -31,6 +31,7 @@ export type Transaction = {
   received_at: string;
   created_at: string;
   ocr_mean_confidence: number | null;
+  sms_verification: string | null;
   image_url: string;
   [key: string]: Json;
 };
