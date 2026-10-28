@@ -93,7 +93,7 @@ class AgentScreenScreenshotTest {
     fun workingLight() {
         shoot("working-light", working)
         compose.onNodeWithText("Synced", substring = true).assertExists()
-        assertEquals(2, compose.onAllNodesWithTextCount("Active"))
+        assertEquals(2, onAllNodesWithTextCount("Active"))
     }
 
     @Test
