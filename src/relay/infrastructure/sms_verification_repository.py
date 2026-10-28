@@ -137,11 +137,12 @@ class SqlSmsVerificationRepository:
         await self.session.flush()
 
     async def candidate_device(self, candidate_id: UUID) -> UUID | None:
-        return await self.session.scalar(
+        device_id: UUID | None = await self.session.scalar(
             select(ReceiptCandidateRow.device_id).where(
                 ReceiptCandidateRow.id == candidate_id
             )
         )
+        return device_id
 
     async def eligible_receipts(
         self, *, since: datetime | None = None, candidate_id: UUID | None = None
