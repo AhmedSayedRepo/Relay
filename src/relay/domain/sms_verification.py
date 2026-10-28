@@ -93,10 +93,10 @@ _DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫٬۰۱۲۳۴۵۶۷۸۹", "0123456
 _NUMBER = r"(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?"
 _CURRENCY = r"(?:EGP|E\.G\.P|LE|L\.E|جنيه|جنية|ج\.م|جم)"
 
-# CIB-style IPN SMS, e.g. "Kindly note your account ********8413 was charged
-# with IPN Outward with amount EGP 650.00 on 25-10-2026 at 23:00 with reference
-# 1b52f3a6". The Inward (credit) wording is assumed by symmetry until a real
-# sample confirms it.
+# CIB-style IPN SMS (wording confirmed by real samples), e.g. "Kindly note your
+# account ********0000 was charged with IPN Outward with amount EGP 650.00 on
+# 25-10-2026 at 23:00 with reference 1a2b3c4d" and "... was credited with IPN
+# Inward with amount EGP 400.00 on 25-10-2026 at 13:20 from SENDER NAME ...".
 _IPN = re.compile(
     r"was\s+(charged|credited)\s+with\s+IPN\s+(Outward|Inward)\s+with\s+amount\s+"
     rf"(EGP)\s*{_NUMBER}\s+on\s+(\d{{1,2}})-(\d{{1,2}})-(\d{{4}})\s+at\s+"
