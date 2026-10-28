@@ -1,5 +1,6 @@
 package com.relay.agent.presentation
 
+import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.activity.ComponentActivity
@@ -26,7 +27,8 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h891dp-xxhdpi")
+// A plain Application: the real one starts WorkManager, which tests do not need.
+@Config(application = Application::class, qualifiers = "w411dp-h891dp-xxhdpi")
 class AgentScreenScreenshotTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
@@ -92,7 +94,7 @@ class AgentScreenScreenshotTest {
     @Test
     fun workingLight() {
         shoot("working-light", working)
-        compose.onNodeWithText("Synced", substring = true).assertExists()
+        compose.onNodeWithText("Synced", substring = true, useUnmergedTree = true).assertExists()
         assertEquals(2, onAllNodesWithTextCount("Active"))
     }
 
@@ -102,22 +104,22 @@ class AgentScreenScreenshotTest {
     @Test
     fun needsAttentionLight() {
         shoot("needs-attention-light", needsAttention)
-        compose.onNodeWithText("Allow SMS access").assertExists()
-        compose.onNodeWithText("Choose folder").assertExists()
-        compose.onNodeWithText("Offline · will retry").assertExists()
+        compose.onNodeWithText("Allow SMS access", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Choose folder", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Offline · will retry", useUnmergedTree = true).assertExists()
     }
 
     @Test
     fun notEnrolledLight() {
         shoot("not-enrolled-light", notEnrolled)
-        compose.onNodeWithText("Connect phone").assertExists()
+        compose.onNodeWithText("Connect phone", useUnmergedTree = true).assertExists()
     }
 
     @Test
     @Config(qualifiers = "+ar")
     fun workingArabic() {
         shoot("working-arabic", working)
-        compose.onNodeWithText("مزامنة الآن").assertExists()
+        compose.onNodeWithText("مزامنة الآن", useUnmergedTree = true).assertExists()
     }
 
     @Test
@@ -126,5 +128,5 @@ class AgentScreenScreenshotTest {
         shoot("needs-attention-arabic-dark", needsAttention, dark = true)
 
     private fun onAllNodesWithTextCount(text: String): Int =
-        compose.onAllNodes(hasText(text)).fetchSemanticsNodes().size
+        compose.onAllNodes(hasText(text), useUnmergedTree = true).fetchSemanticsNodes().size
 }
