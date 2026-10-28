@@ -109,6 +109,7 @@ export const ar = {
     transactions: "المعاملات", duplicates: "التكرارات", needsReview: "تحتاج إلى مراجعة", collection: "إعدادات الجمع",
     sms: "جمع رسائل SMS", images: "جمع الصور", smsRules: "قواعد SMS", imageRules: "قواعد الصور", imageSources: "مصادر الصور المعتمدة",
     readiness: "مؤشر جاهزية التجربة", externalId: "معرّف التثبيت",
+    training: "بيانات تدريب النموذج", trainingToggle: "استخدام الإيصالات المراجَعة من هذا الجهاز لتدريب النموذج", trainingOn: "مفعّل: يمكن نسخ الإيصالات المراجَعة من هذا الجهاز إلى بيانات التدريب.", trainingOff: "معطّل: لا يُنسخ أي شيء من هذا الجهاز إلى بيانات التدريب.", trainingLoading: "جارٍ التحقق من موافقة التدريب…", trainingUnavailable: "تعذر تحميل موافقة التدريب.", trainingFailed: "لم يُحفظ التغيير. حاول مرة أخرى.",
   },
   helpUi: {
     title: "مساعدة Relay", search: "البحث في المساعدة", topics: "موضوعات المساعدة", topic: "موضوع المساعدة", related: "موضوعات مرتبطة",

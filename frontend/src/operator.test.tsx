@@ -185,6 +185,27 @@ describe("Sprint 7 operator experience", () => {
     expect(screen.queryByText("sensitive-credential-value")).not.toBeInTheDocument();
   });
 
+  it("lets an operator opt a device in and out of training capture", async () => {
+    const device = { id: "device-1", name: "Front desk", status: "ACTIVE", last_seen_at: null, external_device_id: "installation-1", app_version: "0.6.0", configuration_version: 1, transaction_count: 0, duplicate_count: 0, needs_review_count: 0, configuration: {} };
+    let saved = false; const writes: unknown[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
+      const url = String(request);
+      if (url.endsWith("/devices/device-1/training-consent")) {
+        if (init?.method === "PUT") { const body = JSON.parse(String(init.body)) as { enabled: boolean }; writes.push(body); if (body.enabled === false) return json({ error: { message: "nope" } }, 500); saved = body.enabled; }
+        return json({ device_id: "device-1", enabled: saved });
+      }
+      return json(page([device]));
+    });
+    renderRelay(<Devices token="token" />);
+    const toggle = await screen.findByRole("checkbox", { name: "Use this device’s reviewed receipts for model training" });
+    expect(toggle).not.toBeChecked(); expect(screen.getByText(/^Off:/)).toBeInTheDocument();
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked()); expect(screen.getByText(/^On:/)).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(await screen.findByRole("alert")).toHaveTextContent("The change was not saved."); expect(toggle).toBeChecked();
+    expect(writes).toEqual([{ enabled: true }, { enabled: false }]);
+  });
+
   it("supports Arabic Help search with no mixed Relay-controlled labels", () => {
     localStorage.setItem("relay.locale", "ar"); renderRelay(<HelpPage />);
     expect(screen.getByRole("heading", { name: "دليل Relay" })).toBeInTheDocument();
