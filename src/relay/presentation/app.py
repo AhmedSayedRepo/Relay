@@ -28,6 +28,7 @@ from relay.presentation.routes import (
     health,
     operations,
     processing,
+    sms_verification,
     training,
 )
 
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(processing.router, prefix="/api/v1")
     app.include_router(operations.router, prefix="/api/v1")
     app.include_router(training.router, prefix="/api/v1")
+    app.include_router(sms_verification.router, prefix="/api/v1")
     frontend = config.operator_frontend_dir.expanduser().resolve()
     if frontend.is_dir():
 

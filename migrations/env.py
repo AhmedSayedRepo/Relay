@@ -13,6 +13,7 @@ from relay.infrastructure import (
     models,  # noqa: F401
     operation_models,  # noqa: F401
     processing_models,  # noqa: F401
+    sms_verification_models,  # noqa: F401
     training_models,  # noqa: F401
 )
 from relay.infrastructure.config import load_settings
