@@ -10,6 +10,8 @@ import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.EnrollmentState
 import com.relay.agent.presentation.theme.RelayTheme
+import java.io.File
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -17,8 +19,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import java.io.File
-import java.time.Instant
 
 /**
  * Renders the agent screen in its key states and writes PNGs for review.
