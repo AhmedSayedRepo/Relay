@@ -3,8 +3,10 @@ import asyncio
 import getpass
 import sys
 from pathlib import Path
+from uuid import UUID
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
+from sqlalchemy import select
 
 from relay.application.auth import create_admin, disable_user
 from relay.application.binaries import BinaryService
@@ -14,7 +16,9 @@ from relay.application.operations import OperationsService
 from relay.application.processing import ProcessingService
 from relay.application.receipts import InstaPayReceiptParser
 from relay.application.training import TrainingDatasetService
-from relay.infrastructure.config import load_settings
+from relay.domain.binary_objects import MAX_IMAGE_BYTES, BinaryRejected
+from relay.infrastructure.agent_models import InstallationRow
+from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.image_processing import PillowImagePreprocessor
@@ -27,6 +31,63 @@ from relay.infrastructure.sms_verification_repository import (
 )
 from relay.infrastructure.tesseract_ocr import create_tesseract_provider
 
+IMPORT_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_IMPORT_FILES = 1000
+
+
+def read_images(folder: Path) -> list[tuple[str, bytes]]:
+    """Read candidate images up front; validation happens in the service."""
+    if not folder.is_dir():
+        raise ValueError("Import folder does not exist.")
+    files = sorted(
+        path
+        for path in folder.iterdir()
+        if path.is_file() and path.suffix.lower() in IMPORT_SUFFIXES
+    )
+    if len(files) > MAX_IMPORT_FILES:
+        raise ValueError("Import at most 1000 images at a time.")
+    return [
+        (
+            path.name,
+            path.read_bytes() if path.stat().st_size <= MAX_IMAGE_BYTES else b"",
+        )
+        for path in files
+    ]
+
+
+async def import_images(
+    uow: SqlUnitOfWork,
+    settings: Settings,
+    device_id: UUID,
+    images: list[tuple[str, bytes]],
+) -> dict[str, int]:
+    installation_id = await uow.session.scalar(
+        select(InstallationRow.id).where(
+            InstallationRow.device_id == device_id,
+            InstallationRow.revoked_at.is_(None),
+        )
+    )
+    if installation_id is None:
+        raise ValueError("Enrol the device before importing images.")
+    service = BinaryService(
+        uow,
+        FilesystemObjectStorage(settings.object_storage_root),
+        retention_days=settings.image_object_retention_days,
+        receipt_evidence_enabled=settings.receipt_evidence_enabled,
+    )
+    counts = {"imported": 0, "duplicate": 0, "rejected": 0}
+    for name, data in images:
+        try:
+            counts[await service.import_image(device_id, installation_id, data)] += 1
+        except BinaryRejected:
+            counts["rejected"] += 1
+            print(f"Rejected: {name}", file=sys.stderr)
+    print(
+        f"Imported {counts['imported']}, duplicates {counts['duplicate']}, "
+        f"rejected {counts['rejected']}. Next: process-pending-images."
+    )
+    return counts
+
 
 async def run(
     command: str,
@@ -36,6 +97,8 @@ async def run(
     *,
     out: Path | None = None,
     include_holdout: bool = False,
+    device_id: UUID | None = None,
+    images: list[tuple[str, bytes]] | None = None,
 ) -> None:
     settings = load_settings()
     database = Database(settings)
@@ -82,6 +145,8 @@ async def run(
                     stale_job_minutes=settings.processing_stale_minutes,
                     evidence_extractor=InstaPayReceiptAdapter(provider),
                 ).process_pending(limit=limit or settings.processing_batch_limit)
+            elif command == "import-images" and device_id is not None:
+                await import_images(uow, settings, device_id, images or [])
             elif command == "verify-sms":
                 await build_sms_verification_service(uow, settings).run()
             elif command in {"capture-training", "export-training"}:
@@ -110,12 +175,15 @@ def main() -> int:
             "capture-training",
             "export-training",
             "verify-sms",
+            "import-images",
         ],
     )
     parser.add_argument("--email")
     parser.add_argument("--limit", type=int, choices=range(1, 101))
     parser.add_argument("--out", type=Path)
     parser.add_argument("--include-holdout", action="store_true")
+    parser.add_argument("--device", type=UUID)
+    parser.add_argument("--dir", type=Path)
     args = parser.parse_args()
     try:
         email = None
@@ -135,6 +203,11 @@ def main() -> int:
                 raise ValueError("Export requires --out.")
         elif args.out is not None or args.include_holdout:
             raise ValueError("Export options are accepted only for export-training.")
+        if args.command == "import-images":
+            if args.device is None or args.dir is None:
+                raise ValueError("Import requires --device and --dir.")
+        elif args.device is not None or args.dir is not None:
+            raise ValueError("Device and folder are accepted only for import-images.")
         password = None
         if args.command == "create-admin":
             if not sys.stdin.isatty():
@@ -147,6 +220,11 @@ def main() -> int:
                 raise ValueError("Password must contain 12 to 1024 characters.")
         if args.command in limited:
             asyncio.run(run(args.command, email, password, args.limit))
+        elif args.command == "import-images":
+            images = read_images(args.dir)
+            asyncio.run(
+                run(args.command, None, None, device_id=args.device, images=images)
+            )
         elif args.command == "export-training":
             asyncio.run(
                 run(

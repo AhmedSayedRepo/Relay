@@ -32,3 +32,19 @@ only with `--include-holdout`). Each line uses the field-model record contract
 
 **Do not open the holdout manifest during development or tuning.** It is the
 independent real test set required before any production decision.
+
+## Importing existing receipt images
+
+Images already saved on a computer can be loaded without sending them through
+the phone. They go through the same records, duplicate check and processing as
+phone uploads, and are attributed to an enrolled device (normally phone A):
+
+```
+python -m relay.infrastructure.cli import-images --device <device-id> --dir ./receipts
+python -m relay.infrastructure.cli process-pending-images --limit 100   # repeat until done
+```
+
+- JPEG, PNG and WebP up to 8 MB; other files are skipped and reported.
+- Byte-identical files are imported once; re-running the command is safe.
+- Imported images follow normal image retention (`IMAGE_OBJECT_RETENTION_DAYS`),
+  so review them and run `capture-training` before they expire.
