@@ -8,10 +8,11 @@ from zoneinfo import ZoneInfo
 from relay.domain.sms_verification import (
     MatchWindow,
     ReceiptFacts,
+    SmsDirection,
     SmsFacts,
     VerificationStatus,
     decide,
-    parse_credit_sms,
+    parse_bank_sms,
 )
 from tests.review_helpers import review_critical_fields
 from tests.test_events import event, headers, provision
@@ -22,21 +23,95 @@ WINDOW = MatchWindow()
 RECEIPT_DEVICE, SMS_DEVICE, OTHER_DEVICE = uuid4(), uuid4(), uuid4()
 
 
-def test_credit_sms_parser_is_strict():
-    assert parse_credit_sms(
-        "You have received EGP 1,250.50 via InstaPay. Your balance is EGP 10,000.00"
-    ) == (Decimal("1250.50"), "EGP")
-    assert parse_credit_sms("تم استلام مبلغ ١٢٥٠٫٥٠ جنيه عبر InstaPay") == (
-        Decimal("1250.50"),
-        "EGP",
+CIB = (
+    "Kindly note your account ********8413 was charged with IPN Outward with "
+    "amount EGP {amount} on {day} at {time} with reference {ref} For more "
+    "information, please contact 19666."
+)
+# Real CIB debit SMS (account masked) paired with the InstaPay receipts they
+# belong to: receipt amount, receipt wall-clock minute.
+REAL_PAIRS = [
+    (
+        CIB.format(amount="650.00", day="25-10-2026", time="23:00", ref="1b52f3a6"),
+        "650.00",
+        datetime(2026, 10, 25, 23, 0),
+    ),
+    (
+        CIB.format(amount="1000.00", day="26-10-2026", time="19:11", ref="af4d156f"),
+        "1000.00",
+        datetime(2026, 10, 26, 19, 11),
+    ),
+    (
+        CIB.format(amount="650.00", day="27-10-2026", time="20:20", ref="17592413"),
+        "650.00",
+        datetime(2026, 10, 27, 20, 20),
+    ),
+]
+
+
+def test_real_cib_debit_sms_are_read_with_their_stated_time():
+    for body, amount, minute in REAL_PAIRS:
+        parsed = parse_bank_sms(body)
+        assert parsed is not None
+        assert parsed.amount == Decimal(amount) and parsed.currency == "EGP"
+        assert parsed.direction is SmsDirection.OUT
+        assert parsed.stated_local == minute
+
+
+def test_parser_handles_arabic_and_stays_strict():
+    credit = parse_bank_sms(
+        "تم إضافة مبلغ ١٬٢٥٠٫٥٠ جنيه إلى حسابك عبر انستاباي "
+        "بتاريخ ٢٥/١٠/٢٠٢٦ الساعة ١١:٠٠ م"
     )
-    assert parse_credit_sms("Your account was debited EGP 500.00") is None
-    assert parse_credit_sms("Payment of EGP 500.00 is due") is None  # no credit word
-    assert parse_credit_sms("Received EGP 500 and EGP 700") is None  # two amounts
-    assert parse_credit_sms("") is None
+    assert credit is not None
+    assert (credit.amount, credit.direction) == (Decimal("1250.50"), SmsDirection.IN)
+    assert credit.stated_local == datetime(2026, 10, 25, 23, 0)
+    debit = parse_bank_sms("تم خصم مبلغ 650.00 جنيه من حسابك تحويل لحظي انستاباي")
+    assert debit is not None and debit.direction is SmsDirection.OUT
+    assert debit.stated_local is None
+    assert parse_bank_sms(
+        "You have received EGP 1,250.50 via InstaPay. Your balance is EGP 10,000.00"
+    ) == parse_bank_sms("Received EGP 1250.50 via InstaPay")
+    # Card purchases, cash withdrawals, non-InstaPay debits, unclear direction,
+    # and several amounts are never read.
+    assert parse_bank_sms("تم خصم مبلغ 500 جنيه عملية شراء") is None
+    assert parse_bank_sms("Your account was debited EGP 500.00") is None
+    assert parse_bank_sms("Payment of EGP 500.00 is due") is None
+    assert parse_bank_sms("Received EGP 500 and EGP 700") is None
+    assert parse_bank_sms("credited and charged EGP 5 via IPN") is None
+    assert parse_bank_sms("") is None
 
 
-def _receipt(minute: datetime, amount="500.00", created=None, devices=None):
+def test_real_pairs_verify_and_direction_must_match():
+    for body, amount, minute in REAL_PAIRS:
+        parsed = parse_bank_sms(body)
+        assert parsed is not None
+        # The SMS arrived a minute later; the stated time is what is compared.
+        sms = SmsFacts(
+            uuid4(),
+            SMS_DEVICE,
+            parsed.amount,
+            parsed.currency,
+            minute.replace(tzinfo=CAIRO) + timedelta(minutes=1),
+            parsed.direction,
+            parsed.stated_local,
+        )
+        sent = _receipt(minute, amount, direction=SmsDirection.OUT)
+        assert _decide([sent], [sms])[0].status is VerificationStatus.VERIFIED
+        received = _receipt(minute, amount, direction=SmsDirection.IN)
+        assert _decide([received], [sms])[0].status is VerificationStatus.WAITING
+        # A stated time two minutes off is not the same transfer.
+        later = _receipt(minute + timedelta(minutes=2), amount, SmsDirection.OUT)
+        assert _decide([later], [sms])[0].sms is None
+
+
+def _receipt(
+    minute: datetime,
+    amount="500.00",
+    direction=SmsDirection.IN,
+    created=None,
+    devices=None,
+):
     return ReceiptFacts(
         uuid4(),
         Decimal(amount),
@@ -44,6 +119,7 @@ def _receipt(minute: datetime, amount="500.00", created=None, devices=None):
         minute,
         created or datetime.now(UTC),
         frozenset(devices or {SMS_DEVICE}),
+        direction,
     )
 
 
@@ -123,9 +199,9 @@ async def test_cross_device_verification_flow(client, auth_headers, app):
         sources, headers=auth_headers, json={"sms_device_ids": [sms_device["id"]]}
     )
     assert linked.status_code == 200
-    assert (await client.get(sources, headers=auth_headers)).json()[
-        "sms_device_ids"
-    ] == [sms_device["id"]]
+    saved = (await client.get(sources, headers=auth_headers)).json()
+    assert saved["sms_device_ids"] == [sms_device["id"]]
+    assert saved["direction"] == "IN"
     assert (await client.get(url, headers=auth_headers)).json()["status"] == (
         "NOT_READY"
     )

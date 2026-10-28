@@ -18,6 +18,7 @@ from relay.domain.sms_verification import (
     MatchMethod,
     MatchWindow,
     ReceiptFacts,
+    SmsDirection,
     SmsFacts,
     VerificationStatus,
 )
@@ -46,7 +47,9 @@ def build_sms_verification_service(
     )
 
 
-def _receipt(row: ReceiptCandidateRow, sources: frozenset[UUID]) -> ReceiptFacts | None:
+def _receipt(
+    row: ReceiptCandidateRow, sources: frozenset[UUID], direction: SmsDirection
+) -> ReceiptFacts | None:
     values = {
         name: reviewed_value(row.resolution_result, name)
         for name in ("amount", "currency", "date", "time")
@@ -67,6 +70,7 @@ def _receipt(row: ReceiptCandidateRow, sources: frozenset[UUID]) -> ReceiptFacts
         local,
         aware(row.created_at),
         sources,
+        direction,
     )
 
 
@@ -85,6 +89,8 @@ def _stored(row: SmsVerificationRow) -> StoredVerification:
             row.sms_amount,
             row.sms_currency,
             aware(row.sms_occurred_at),
+            SmsDirection(row.sms_direction or SmsDirection.IN.value),
+            row.sms_stated_at,
         )
     return StoredVerification(
         row.candidate_id,
@@ -117,8 +123,21 @@ class SqlSmsVerificationRepository:
         )
         return list(rows)
 
+    async def sms_direction(self, device_id: UUID) -> SmsDirection:
+        value = await self.session.scalar(
+            select(SmsSourceLinkRow.direction)
+            .where(SmsSourceLinkRow.receipt_device_id == device_id)
+            .limit(1)
+        )
+        return SmsDirection(value) if value else SmsDirection.IN
+
     async def set_sms_sources(
-        self, device_id: UUID, sources: list[UUID], actor_id: UUID, now: datetime
+        self,
+        device_id: UUID,
+        sources: list[UUID],
+        direction: SmsDirection,
+        actor_id: UUID,
+        now: datetime,
     ) -> None:
         await self.session.execute(
             delete(SmsSourceLinkRow).where(
@@ -130,6 +149,7 @@ class SqlSmsVerificationRepository:
                 SmsSourceLinkRow(
                     receipt_device_id=device_id,
                     sms_device_id=source,
+                    direction=direction.value,
                     created_by=actor_id,
                     created_at=now,
                 )
@@ -148,14 +168,18 @@ class SqlSmsVerificationRepository:
         self, *, since: datetime | None = None, candidate_id: UUID | None = None
     ) -> list[ReceiptFacts]:
         links: dict[UUID, set[UUID]] = {}
-        for receipt_device, sms_device in (
+        directions: dict[UUID, SmsDirection] = {}
+        for receipt_device, sms_device, direction in (
             await self.session.execute(
                 select(
-                    SmsSourceLinkRow.receipt_device_id, SmsSourceLinkRow.sms_device_id
+                    SmsSourceLinkRow.receipt_device_id,
+                    SmsSourceLinkRow.sms_device_id,
+                    SmsSourceLinkRow.direction,
                 )
             )
         ).tuples():
             links.setdefault(receipt_device, set()).add(sms_device)
+            directions[receipt_device] = SmsDirection(direction)
         if not links:
             return []
         statement = select(ReceiptCandidateRow).where(
@@ -173,7 +197,9 @@ class SqlSmsVerificationRepository:
         )
         facts = []
         for row in rows:
-            receipt = _receipt(row, frozenset(links[row.device_id]))
+            receipt = _receipt(
+                row, frozenset(links[row.device_id]), directions[row.device_id]
+            )
             if receipt is not None:
                 facts.append(receipt)
         return facts
@@ -256,6 +282,8 @@ class SqlSmsVerificationRepository:
             sms_occurred_at=sms.occurred_at if sms else None,
             sms_amount=sms.amount if sms else None,
             sms_currency=sms.currency if sms else None,
+            sms_direction=sms.direction.value if sms else None,
+            sms_stated_at=sms.stated_local if sms else None,
             option_count=option_count,
             decided_by=decided_by,
             updated_at=now,

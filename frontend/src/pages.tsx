@@ -150,17 +150,19 @@ export function SmsVerificationPanel({ id, token }: { id: string; token: string 
 
 export function SmsSources({ deviceId, token, devices }: { deviceId: string; token: string; devices: { id: string; name: string }[] }) {
   const { messages: m } = useI18n(); const path = "/devices/" + encodeURIComponent(deviceId) + "/sms-sources";
-  const { data, error, loading } = useApi<{ sms_device_ids: string[] }>(path, token);
-  const [chosen, setChosen] = useState<string[] | null>(null); const [busy, setBusy] = useState(false); const [failed, setFailed] = useState(false);
-  const current = chosen ?? (Array.isArray(data?.sms_device_ids) ? data.sms_device_ids : []); const others = devices.filter((device) => device.id !== deviceId);
-  async function toggle(id: string, on: boolean) {
-    const next = on ? [...current, id] : current.filter((value) => value !== id);
+  type Sources = { sms_device_ids: string[]; direction: string };
+  const { data, error, loading } = useApi<Sources>(path, token);
+  const [saved, setSaved] = useState<Sources | null>(null); const [busy, setBusy] = useState(false); const [failed, setFailed] = useState(false);
+  const current = saved?.sms_device_ids ?? (Array.isArray(data?.sms_device_ids) ? data.sms_device_ids : []);
+  const direction = saved?.direction ?? (data?.direction === "OUT" ? "OUT" : "IN"); const others = devices.filter((device) => device.id !== deviceId);
+  async function save(next: string[], nextDirection: string) {
     setBusy(true); setFailed(false);
-    try { const result = await api<{ sms_device_ids: string[] }>(path, token, { method: "PUT", body: JSON.stringify({ sms_device_ids: next }) }); setChosen(result.sms_device_ids); }
+    try { setSaved(await api<Sources>(path, token, { method: "PUT", body: JSON.stringify({ sms_device_ids: next, direction: nextDirection }) })); }
     catch { setFailed(true); }
     finally { setBusy(false); }
   }
-  return <section className="training-consent"><h3>{m.sms.sourcesTitle}</h3>{loading ? <p className="hint">{m.sms.loading}</p> : error ? <p className="status error" role="alert">{m.sms.unavailable}</p> : others.length === 0 ? <p className="hint">{m.sms.noOtherDevices}</p> : <><p className="hint">{m.sms.sourcesHint}</p>{others.map((device) => <label className="toggle-row" key={device.id}><input type="checkbox" checked={current.includes(device.id)} disabled={busy} onChange={(e) => void toggle(device.id, e.target.checked)} />{device.name}</label>)}{failed && <p className="status error" role="alert">{m.sms.failed}</p>}</>}</section>;
+  const toggle = (id: string, on: boolean) => save(on ? [...current, id] : current.filter((value) => value !== id), direction);
+  return <section className="training-consent"><h3>{m.sms.sourcesTitle}</h3>{loading ? <p className="hint">{m.sms.loading}</p> : error ? <p className="status error" role="alert">{m.sms.unavailable}</p> : others.length === 0 ? <p className="hint">{m.sms.noOtherDevices}</p> : <><label>{m.sms.directionLabel}<select value={direction} disabled={busy} onChange={(e) => void save(current, e.target.value)}><option value="IN">{m.sms.directionIn}</option><option value="OUT">{m.sms.directionOut}</option></select></label><p className="hint">{m.sms.sourcesHint}</p>{others.map((device) => <label className="toggle-row" key={device.id}><input type="checkbox" checked={current.includes(device.id)} disabled={busy} onChange={(e) => void toggle(device.id, e.target.checked)} />{device.name}</label>)}{failed && <p className="status error" role="alert">{m.sms.failed}</p>}</>}</section>;
 }
 
 function TrainingConsent({ deviceId, token }: { deviceId: string; token: string }) {

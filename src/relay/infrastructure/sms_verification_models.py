@@ -25,9 +25,11 @@ class SmsSourceLinkRow(Base):
         CheckConstraint(
             "receipt_device_id <> sms_device_id", name="sms_link_distinct_devices"
         ),
+        CheckConstraint("direction IN ('IN','OUT')", name="sms_link_direction"),
         Index("ix_sms_links_sms_device", "sms_device_id"),
     )
 
+    direction: Mapped[str] = mapped_column(String(3), nullable=False, default="IN")
     receipt_device_id: Mapped[UUID] = mapped_column(
         ForeignKey("devices.id", ondelete="CASCADE"), primary_key=True
     )
@@ -70,6 +72,9 @@ class SmsVerificationRow(Base):
     sms_occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sms_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     sms_currency: Mapped[str | None] = mapped_column(String(3))
+    sms_direction: Mapped[str | None] = mapped_column(String(3))
+    # Wall-clock transfer time printed in the SMS (no timezone), when present.
+    sms_stated_at: Mapped[datetime | None] = mapped_column(DateTime)
     option_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     decided_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT")

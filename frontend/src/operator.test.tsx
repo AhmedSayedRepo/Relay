@@ -222,16 +222,18 @@ describe("Sprint 7 operator experience", () => {
   });
 
   it("links a receipt device to the phone that receives the bank SMS", async () => {
-    let saved: string[] = [];
+    let saved: string[] = []; let direction = "IN";
     vi.spyOn(globalThis, "fetch").mockImplementation((_request, init) => {
-      if (init?.method === "PUT") saved = (JSON.parse(String(init.body)) as { sms_device_ids: string[] }).sms_device_ids;
-      return json({ device_id: "device-a", sms_device_ids: saved });
+      if (init?.method === "PUT") ({ sms_device_ids: saved, direction } = JSON.parse(String(init.body)) as { sms_device_ids: string[]; direction: string });
+      return json({ device_id: "device-a", sms_device_ids: saved, direction });
     });
     renderRelay(<SmsSources deviceId="device-a" token="token" devices={[{ id: "device-a", name: "Counter phone" }, { id: "device-b", name: "Bank SMS phone" }]} />);
     const box = await screen.findByRole("checkbox", { name: "Bank SMS phone" });
     expect(box).not.toBeChecked(); expect(screen.queryByRole("checkbox", { name: "Counter phone" })).toBeNull();
     fireEvent.click(box);
     await waitFor(() => expect(box).toBeChecked()); expect(saved).toEqual(["device-b"]);
+    fireEvent.change(screen.getByLabelText("The bank SMS on the linked phone are for"), { target: { value: "OUT" } });
+    await waitFor(() => expect(direction).toBe("OUT")); expect(saved).toEqual(["device-b"]);
   });
 
   it("supports Arabic Help search with no mixed Relay-controlled labels", () => {

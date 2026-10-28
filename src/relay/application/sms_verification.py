@@ -18,11 +18,12 @@ from relay.domain.sms_verification import (
     MatchMethod,
     MatchWindow,
     ReceiptFacts,
+    SmsDirection,
     SmsFacts,
     VerificationStatus,
     compatible,
     decide,
-    parse_credit_sms,
+    parse_bank_sms,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,16 +33,17 @@ SEARCH_HOURS = WAITING_HOURS
 def _facts(events: list[SmsEvent]) -> list[SmsFacts]:
     facts = []
     for event in events:
-        parsed = parse_credit_sms(event.body)
+        parsed = parse_bank_sms(event.body)
         if parsed is not None:
-            amount, currency = parsed
             facts.append(
                 SmsFacts(
                     event.event_id,
                     event.device_id,
-                    amount,
-                    currency,
+                    parsed.amount,
+                    parsed.currency,
                     event.occurred_at,
+                    parsed.direction,
+                    parsed.stated_local,
                 )
             )
     return facts
@@ -54,6 +56,8 @@ def _sms_json(sms: SmsFacts, *, in_window: bool | None = None) -> dict[str, Json
         "amount": f"{sms.amount:.2f}",
         "currency": sms.currency,
         "occurred_at": sms.occurred_at.astimezone(UTC).isoformat(),
+        "direction": str(sms.direction),
+        "stated_time": sms.stated_local.isoformat() if sms.stated_local else None,
     }
     if in_window is not None:
         value["in_window"] = in_window
@@ -75,14 +79,21 @@ class SmsVerificationService:
         self.window = window
         self.lookback = timedelta(days=lookback_days)
 
-    async def sources(self, device_id: UUID) -> list[UUID]:
+    async def sources(self, device_id: UUID) -> tuple[list[UUID], SmsDirection]:
         if not await self.repo.existing_devices({device_id}):
             raise NotFound("Device not found.")
-        return await self.repo.sms_sources(device_id)
+        return (
+            await self.repo.sms_sources(device_id),
+            await self.repo.sms_direction(device_id),
+        )
 
     async def set_sources(
-        self, device_id: UUID, sources: list[UUID], actor_id: UUID
-    ) -> list[UUID]:
+        self,
+        device_id: UUID,
+        sources: list[UUID],
+        actor_id: UUID,
+        direction: SmsDirection = SmsDirection.IN,
+    ) -> tuple[list[UUID], SmsDirection]:
         unique = list(dict.fromkeys(sources))
         if not await self.repo.existing_devices({device_id}):
             raise NotFound("Device not found.")
@@ -92,9 +103,11 @@ class SmsVerificationService:
             raise Conflict("Too many SMS phones for one device.")
         if await self.repo.existing_devices(set(unique)) != set(unique):
             raise NotFound("SMS device not found.")
-        await self.repo.set_sms_sources(device_id, unique, actor_id, datetime.now(UTC))
+        await self.repo.set_sms_sources(
+            device_id, unique, direction, actor_id, datetime.now(UTC)
+        )
         await self.uow.commit()
-        return unique
+        return unique, direction
 
     async def run(self, now: datetime | None = None) -> dict[str, int]:
         now = now or datetime.now(UTC)
@@ -108,6 +121,7 @@ class SmsVerificationService:
                 or row.sms.amount != receipt.amount
                 or row.sms.currency != receipt.currency
                 or row.sms.device_id not in receipt.sms_devices
+                or row.sms.direction != receipt.direction
             ):
                 # The receipt was corrected or unlinked after the operator's pick.
                 await self.repo.delete(candidate_id)
@@ -159,7 +173,11 @@ class SmsVerificationService:
         for sms in _facts(events):
             if sms.event_id in held:
                 continue
-            if sms.amount != receipt.amount or sms.currency != receipt.currency:
+            if (
+                sms.amount != receipt.amount
+                or sms.currency != receipt.currency
+                or sms.direction != receipt.direction
+            ):
                 continue
             options.append((sms, compatible(receipt, sms, self.zone, self.window)))
         options.sort(key=lambda item: (not item[1], item[0].occurred_at))

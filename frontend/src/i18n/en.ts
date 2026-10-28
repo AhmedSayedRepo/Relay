@@ -113,6 +113,7 @@ export const en = {
     column: "SMS check", eyebrow: "Payment check", title: "Bank SMS verification", amount: "SMS amount", time: "SMS received", method: "Matched by",
     auto: "Relay (amount and time)", manual: "Operator", options: "SMS with the same amount", outsideWindow: "outside the time window", use: "Use this SMS",
     recheck: "Re-check now", clear: "Clear match", failed: "The change was not saved. Try again.", loading: "Checking SMS verification…", unavailable: "SMS verification could not be loaded.",
+    directionLabel: "The bank SMS on the linked phone are for", directionIn: "Money received (credit SMS)", directionOut: "Money sent (debit SMS)",
     sourcesTitle: "SMS verification", sourcesHint: "Check this device’s receipts against bank SMS received on:", noOtherDevices: "Enrol the phone that receives the bank SMS to verify this device’s receipts.",
     states: { VERIFIED: "SMS verified", AMBIGUOUS: "Choose SMS", WAITING: "Waiting for SMS", UNMATCHED: "No matching SMS", NOT_SET_UP: "Not set up", NOT_READY: "Review first", NOT_CHECKED: "Not checked" },
     explain: {

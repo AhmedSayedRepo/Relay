@@ -7,6 +7,7 @@ from relay.domain.sms_verification import (
     Decision,
     MatchMethod,
     ReceiptFacts,
+    SmsDirection,
     SmsFacts,
     VerificationStatus,
 )
@@ -36,8 +37,15 @@ class SmsVerificationRepository(Protocol):
 
     async def sms_sources(self, device_id: UUID) -> list[UUID]: ...
 
+    async def sms_direction(self, device_id: UUID) -> SmsDirection: ...
+
     async def set_sms_sources(
-        self, device_id: UUID, sources: list[UUID], actor_id: UUID, now: datetime
+        self,
+        device_id: UUID,
+        sources: list[UUID],
+        direction: SmsDirection,
+        actor_id: UUID,
+        now: datetime,
     ) -> None: ...
 
     async def candidate_device(self, candidate_id: UUID) -> UUID | None: ...

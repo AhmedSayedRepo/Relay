@@ -37,9 +37,11 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("direction", sa.String(3), nullable=False),
         sa.CheckConstraint(
             "receipt_device_id <> sms_device_id", name="sms_link_distinct_devices"
         ),
+        sa.CheckConstraint("direction IN ('IN','OUT')", name="sms_link_direction"),
     )
     op.create_index(
         "ix_sms_links_sms_device", "sms_verification_links", ["sms_device_id"]
@@ -59,6 +61,8 @@ def upgrade() -> None:
         sa.Column("sms_occurred_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("sms_amount", sa.Numeric(18, 2), nullable=True),
         sa.Column("sms_currency", sa.String(3), nullable=True),
+        sa.Column("sms_direction", sa.String(3), nullable=True),
+        sa.Column("sms_stated_at", sa.DateTime(), nullable=True),
         sa.Column("option_count", sa.Integer(), nullable=False),
         sa.Column(
             "decided_by",
