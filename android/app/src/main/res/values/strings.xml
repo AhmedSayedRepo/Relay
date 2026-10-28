@@ -38,7 +38,7 @@
     <string name="last_sent">Last sent %1$s</string>
     <string name="never_sent">Nothing sent yet</string>
     <string name="upload_problem">Upload problem: %1$s</string>
-    <string name="waiting_summary">%1$d waiting · %2$d dropped</string>
+    <string name="waiting_summary">%1$s waiting · %2$s dropped</string>
     <string name="queued_size">Encrypted on this phone: %1$s</string>
     <string name="discard_sms">Discard waiting SMS</string>
     <string name="discard_images">Discard waiting images</string>

@@ -35,13 +35,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -240,7 +240,7 @@ fun AgentContent(
                     )
                 }
                 // Keeps the last row clear of the floating button and the gesture bar.
-                Spacer(Modifier.height(if (enrolled) 72.dp else 0.dp))
+                Spacer(Modifier.height(if (enrolled) 88.dp else 0.dp))
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
         }
@@ -490,7 +490,7 @@ private fun CollectorBlock(
             Switch(checked = consent, onCheckedChange = onConsent)
         }
         val details = buildList {
-            add(stringResource(R.string.waiting_summary, waiting, dropped))
+            add(stringResource(R.string.waiting_summary, waiting.toString(), dropped.toString()))
             add(
                 lastSent?.let { stringResource(R.string.last_sent, it) }
                     ?: stringResource(R.string.never_sent)
@@ -515,9 +515,13 @@ private fun CollectorBlock(
             )
         }
         if (waiting > 0) {
-            OutlinedButton(
+            // Destructive and rarely needed: quiet, but still a full-size target.
+            TextButton(
                 onClick = onDiscard,
-                contentPadding = PaddingValues(horizontal = 16.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
             ) {
                 Text(stringResource(discardLabel))
             }
