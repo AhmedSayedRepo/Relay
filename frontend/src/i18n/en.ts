@@ -107,6 +107,10 @@ export const en = {
     transactions: "Transactions", duplicates: "Duplicates", needsReview: "Needs review", collection: "Collection configuration",
     sms: "SMS collection", images: "Image collection", smsRules: "SMS rules", imageRules: "Image rules", imageSources: "Approved image sources",
     readiness: "Pilot readiness signal", externalId: "Installation ID",
+    training: "Model training", trainingToggle: "Use this device's reviewed receipts for training",
+    trainingOn: "On. Receipts you confirm or correct are copied into the training dataset. Machine guesses are never used.",
+    trainingOff: "Off. Nothing from this device is copied into the training dataset.",
+    trainingFailed: "The training setting could not be saved. Try again.", trainingLoadFailed: "The training setting could not be loaded.",
   },
   helpUi: {
     title: "Relay help", search: "Search help", topics: "Help topics", topic: "Help topic", related: "Related topics",

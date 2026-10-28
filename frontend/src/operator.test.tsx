@@ -178,11 +178,39 @@ describe("Sprint 7 operator experience", () => {
     fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "egp" } }); fireEvent.click(screen.getByRole("button", { name: "Export Excel" }));
     expect(await screen.findByText("Workbook downloaded.")).toBeInTheDocument(); expect(click).toHaveBeenCalled();
     cleanup();
-    fetcher.mockImplementation(() => json(page([{ id: "device-1", name: "Front desk", status: "ACTIVE", last_seen_at: "2026-09-07T00:00:00Z", external_device_id: "installation-1", app_version: "0.6.0", configuration_version: 4, transaction_count: 10, duplicate_count: 2, needs_review_count: 1, configuration: { sms_enabled: true, image_rules: 2 } }])));
+    fetcher.mockImplementation((request) => String(request).includes("training-consent") ? json({ device_id: "device-1", enabled: false }) : json(page([{ id: "device-1", name: "Front desk", status: "ACTIVE", last_seen_at: "2026-09-07T00:00:00Z", external_device_id: "installation-1", app_version: "0.6.0", configuration_version: 4, transaction_count: 10, duplicate_count: 2, needs_review_count: 1, configuration: { sms_enabled: true, image_rules: 2 } }]))));
     renderRelay(<Devices token="token" />);
     expect(await screen.findByRole("heading", { name: "Front desk" })).toBeInTheDocument();
     expect(screen.getByText("SMS collection")).toBeInTheDocument(); expect(screen.getByText("Image rules")).toBeInTheDocument();
     expect(screen.queryByText("sensitive-credential-value")).not.toBeInTheDocument();
+  });
+
+  it("opts a device in to training only after an explicit operator switch", async () => {
+    const device = { id: "device-1", name: "Front desk", status: "ACTIVE", last_seen_at: null, external_device_id: "installation-1", app_version: "0.6.0", configuration_version: 4, transaction_count: 0, duplicate_count: 0, needs_review_count: 0, configuration: {} };
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
+      if (!String(request).includes("training-consent")) return json(page([device]));
+      if (init?.method === "PUT") return json({ device_id: "device-1", enabled: JSON.parse(String(init.body)).enabled });
+      return json({ device_id: "device-1", enabled: false });
+    });
+    renderRelay(<Devices token="token" />);
+    const toggle = await screen.findByRole("switch", { name: /reviewed receipts for training/i });
+    await waitFor(() => expect(toggle).toBeEnabled()); expect(toggle).not.toBeChecked();
+    expect(screen.getByText(/Nothing from this device/)).toBeInTheDocument();
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(screen.getByText(/Machine guesses are never used/)).toBeInTheDocument();
+    const put = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(String(put?.[0])).toBe("/api/v1/devices/device-1/training-consent"); expect(put?.[1]?.body).toBe(JSON.stringify({ enabled: true }));
+  });
+
+  it("keeps the training switch off and reports a failed save", async () => {
+    const device = { id: "device-1", name: "Front desk", status: "ACTIVE", last_seen_at: null, external_device_id: "installation-1", app_version: "0.6.0", configuration_version: 4, transaction_count: 0, duplicate_count: 0, needs_review_count: 0, configuration: {} };
+    vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => !String(request).includes("training-consent") ? json(page([device])) : init?.method === "PUT" ? json({ error: { message: "nope" } }, 500) : json({ device_id: "device-1", enabled: false }));
+    renderRelay(<Devices token="token" />);
+    const toggle = await screen.findByRole("switch", { name: /reviewed receipts for training/i });
+    await waitFor(() => expect(toggle).toBeEnabled()); fireEvent.click(toggle);
+    expect(await screen.findByText("The training setting could not be saved. Try again.")).toBeInTheDocument();
+    expect(toggle).not.toBeChecked();
   });
 
   it("supports Arabic Help search with no mixed Relay-controlled labels", () => {

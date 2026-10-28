@@ -7,7 +7,7 @@ Nothing is captured unless a device is explicitly opted in.
 
 | Rule | Behaviour |
 |---|---|
-| Consent | Per device, **off by default**. `PUT /api/v1/devices/{id}/training-consent {"enabled": true}` |
+| Consent | Per device, **off by default**. Turn it on with the **Model training** switch on the Devices page (or `PUT /api/v1/devices/{id}/training-consent {"enabled": true}`). Turning it off stops new captures; existing examples stay until deleted |
 | What is captured | Only InstaPay receipts where every critical field (reference, amount, currency, date, time) has an operator decision, and at least one was confirmed or corrected |
 | Labels | Only operator `CONFIRM` / `CORRECT` values become targets. `UNAVAILABLE` is stored as `UNREADABLE` and excluded from all loss (it does not say whether the field was cropped or illegible). Machine suggestions are never targets |
 | Image copy | Content-addressed copy under `TRAINING_DATASET_ROOT`; it survives the normal image/receipt retention purge |
