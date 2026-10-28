@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal, Self
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,6 +40,10 @@ class Settings(BaseSettings):
     )
     object_storage_root: Path = Path("./relay-object-storage")
     training_dataset_root: Path = Path("./relay-training-dataset")
+    # Receipts show local wall-clock time; bank SMS times are absolute.
+    receipt_timezone: str = Field(default="Africa/Cairo", min_length=1, max_length=64)
+    sms_match_before_minutes: int = Field(default=2, ge=0, le=30)
+    sms_match_after_minutes: int = Field(default=10, ge=1, le=60)
     ocr_tesseract_executable: Path = Path("tesseract")
     ocr_tessdata_dir: Path | None = None
     ocr_languages: list[str] = Field(default_factory=lambda: ["eng", "ara"])
@@ -127,6 +132,15 @@ class Settings(BaseSettings):
         ):
             raise ValueError("OCR_LANGUAGES must contain 1 to 4 unique ISO codes.")
         return languages
+
+    @field_validator("receipt_timezone")
+    @classmethod
+    def valid_receipt_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("RECEIPT_TIMEZONE must be an IANA time zone.") from None
+        return value
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:

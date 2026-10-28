@@ -203,6 +203,8 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .device-card > dl, .device-config dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: .65rem; margin: 0; }
 .device-card dt, .device-config dt { color: var(--ink-soft); font-size: .72rem; }.device-card dd, .device-config dd { margin: .12rem 0; font-weight: 750; }
 .training-consent { grid-column: 1 / -1; padding-block-start: 1rem; border-block-start: 1px solid var(--line); }.training-consent h3 { margin-block-start: 0; }
+.sms-options { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: .5rem; }.sms-options li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; padding: .55rem 0; border-block-end: 1px solid var(--line); }
+.sms-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-block-start: .75rem; }
 .toggle-row { display: flex; align-items: center; gap: .6rem; font-weight: 650; }.toggle-row input { width: 1.15rem; height: 1.15rem; margin: 0; }
 .device-config { padding-inline-start: 1rem; border-inline-start: 1px solid var(--line); }.device-config h3 { margin-block-start: 0; }
 .dialog-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(5, 20, 23, .76); }

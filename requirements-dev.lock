@@ -51,5 +51,6 @@ ruff==0.16.5
 SQLAlchemy==2.0.52
 starlette==1.6.0
 typing-inspection==0.4.4
+tzdata==2025.2
 typing_extensions==4.16.0
 uvicorn==0.52.4

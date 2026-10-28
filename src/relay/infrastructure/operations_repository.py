@@ -25,6 +25,7 @@ from relay.infrastructure.processing_models import (
     ReceiptReviewAuditRow,
 )
 from relay.infrastructure.processing_repository import to_job
+from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
 RETRYABLE_FAILURES = {
     ProcessingFailure.OCR_TIMEOUT.value,
@@ -105,12 +106,17 @@ class SqlOperationsRepository:
                 OcrResultRow.processor_version,
                 OcrResultRow.mean_confidence,
                 self._child_count().label("child_count"),
+                SmsVerificationRow.status.label("sms_verification"),
             )
             .join(ProcessingJobRow, ProcessingJobRow.id == ReceiptCandidateRow.job_id)
             .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
             .join(BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id)
             .join(DeviceRow, DeviceRow.id == ReceiptCandidateRow.device_id)
             .join(OcrResultRow, OcrResultRow.job_id == ReceiptCandidateRow.job_id)
+            .outerjoin(
+                SmsVerificationRow,
+                SmsVerificationRow.candidate_id == ReceiptCandidateRow.id,
+            )
         )
 
     @staticmethod
@@ -235,6 +241,7 @@ class SqlOperationsRepository:
             "review_status": value.review_status,
             "processing_status": row.processing_status,
             "processing_failure": row.processing_failure,
+            "sms_verification": row.sms_verification,
             "amount": amount,
             "currency": currency,
             "transaction_occurred_at": (

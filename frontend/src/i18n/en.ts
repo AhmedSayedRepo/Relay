@@ -109,6 +109,23 @@ export const en = {
     readiness: "Pilot readiness signal", externalId: "Installation ID",
     training: "Model training data", trainingToggle: "Use this device’s reviewed receipts for model training", trainingOn: "On: reviewed receipts from this device can be copied into the training dataset.", trainingOff: "Off: nothing from this device is copied into the training dataset.", trainingLoading: "Checking training consent…", trainingUnavailable: "Training consent could not be loaded.", trainingFailed: "The change was not saved. Try again.",
   },
+  sms: {
+    column: "SMS check", eyebrow: "Payment check", title: "Bank SMS verification", amount: "SMS amount", time: "SMS received", method: "Matched by",
+    auto: "Relay (amount and time)", manual: "Operator", options: "SMS with the same amount", outsideWindow: "outside the time window", use: "Use this SMS",
+    recheck: "Re-check now", clear: "Clear match", failed: "The change was not saved. Try again.", loading: "Checking SMS verification…", unavailable: "SMS verification could not be loaded.",
+    directionLabel: "The bank SMS on the linked phone are for", directionIn: "Money received (credit SMS)", directionOut: "Money sent (debit SMS)",
+    sourcesTitle: "SMS verification", sourcesHint: "Check this device’s receipts against bank SMS received on:", noOtherDevices: "Enrol the phone that receives the bank SMS to verify this device’s receipts.",
+    states: { VERIFIED: "SMS verified", AMBIGUOUS: "Choose SMS", WAITING: "Waiting for SMS", UNMATCHED: "No matching SMS", NOT_SET_UP: "Not set up", NOT_READY: "Review first", NOT_CHECKED: "Not checked" },
+    explain: {
+      VERIFIED: "One bank SMS has the same amount and a matching time. It cannot verify any other receipt.",
+      AMBIGUOUS: "More than one receipt or SMS fits. Pick the SMS that belongs to this payment.",
+      WAITING: "No matching bank SMS yet. Relay keeps checking for 24 hours.",
+      UNMATCHED: "No bank SMS matched within 24 hours. Treat this receipt as unverified.",
+      NOT_SET_UP: "Link this device to the phone that receives the bank SMS on the Devices page.",
+      NOT_READY: "Review the amount, currency, date and time first.",
+      NOT_CHECKED: "Ready to check. Use Re-check now or wait for the next scheduled check.",
+    },
+  },
   helpUi: {
     title: "Relay help", search: "Search help", topics: "Help topics", topic: "Help topic", related: "Related topics",
     noMatch: "No Help topic matches your search.", openContext: "Open contextual Help", fullGuide: "Open full guide",

@@ -22,6 +22,9 @@ from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.repositories import SqlUnitOfWork
 from relay.infrastructure.security import Argon2Passwords
+from relay.infrastructure.sms_verification_repository import (
+    build_sms_verification_service,
+)
 from relay.infrastructure.tesseract_ocr import create_tesseract_provider
 
 
@@ -79,6 +82,8 @@ async def run(
                     stale_job_minutes=settings.processing_stale_minutes,
                     evidence_extractor=InstaPayReceiptAdapter(provider),
                 ).process_pending(limit=limit or settings.processing_batch_limit)
+            elif command == "verify-sms":
+                await build_sms_verification_service(uow, settings).run()
             elif command in {"capture-training", "export-training"}:
                 training = TrainingDatasetService(
                     uow,
@@ -104,6 +109,7 @@ def main() -> int:
             "process-pending-images",
             "capture-training",
             "export-training",
+            "verify-sms",
         ],
     )
     parser.add_argument("--email")

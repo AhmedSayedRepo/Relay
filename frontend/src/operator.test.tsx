@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { Layout } from "./components/Layout";
-import { Dashboard, Devices, DuplicateDetail, HelpPage, ProcessingQueue, Reports, TransactionDetail, Transactions } from "./pages";
+import { Dashboard, Devices, DuplicateDetail, HelpPage, ProcessingQueue, Reports, SmsSources, SmsVerificationPanel, TransactionDetail, Transactions } from "./pages";
 import { contextHelp, getHelpTopics, helpRegistry, helpTopics } from "./help/topics";
 import { ar } from "./i18n/ar";
 import { en } from "./i18n/en";
@@ -204,6 +204,36 @@ describe("Sprint 7 operator experience", () => {
     fireEvent.click(toggle);
     expect(await screen.findByRole("alert")).toHaveTextContent("The change was not saved."); expect(toggle).toBeChecked();
     expect(writes).toEqual([{ enabled: true }, { enabled: false }]);
+  });
+
+  it("shows SMS verification and lets an operator pick the matching SMS", async () => {
+    const options = [{ event_id: "sms-1", device_id: "phone-b", amount: "1250.50", currency: "EGP", occurred_at: "2026-09-06T12:01:00Z", in_window: true }];
+    const writes: unknown[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((_request, init) => {
+      if (init?.method === "PUT") { writes.push(JSON.parse(String(init.body))); return json({ status: "VERIFIED", method: "MANUAL", sms: options[0], option_count: 1, options: [] }); }
+      return json({ status: "AMBIGUOUS", method: "AUTO", sms: null, option_count: 2, options });
+    });
+    renderRelay(<SmsVerificationPanel id="candidate-1" token="token" />);
+    expect(await screen.findByText("Choose SMS")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Use this SMS" }));
+    expect(await screen.findByText("SMS verified")).toBeInTheDocument();
+    expect(screen.getByText("Operator")).toBeInTheDocument();
+    expect(writes).toEqual([{ sms_event_id: "sms-1" }]);
+  });
+
+  it("links a receipt device to the phone that receives the bank SMS", async () => {
+    let saved: string[] = []; let direction = "IN";
+    vi.spyOn(globalThis, "fetch").mockImplementation((_request, init) => {
+      if (init?.method === "PUT") ({ sms_device_ids: saved, direction } = JSON.parse(String(init.body)) as { sms_device_ids: string[]; direction: string });
+      return json({ device_id: "device-a", sms_device_ids: saved, direction });
+    });
+    renderRelay(<SmsSources deviceId="device-a" token="token" devices={[{ id: "device-a", name: "Counter phone" }, { id: "device-b", name: "Bank SMS phone" }]} />);
+    const box = await screen.findByRole("checkbox", { name: "Bank SMS phone" });
+    expect(box).not.toBeChecked(); expect(screen.queryByRole("checkbox", { name: "Counter phone" })).toBeNull();
+    fireEvent.click(box);
+    await waitFor(() => expect(box).toBeChecked()); expect(saved).toEqual(["device-b"]);
+    fireEvent.change(screen.getByLabelText("The bank SMS on the linked phone are for"), { target: { value: "OUT" } });
+    await waitFor(() => expect(direction).toBe("OUT")); expect(saved).toEqual(["device-b"]);
   });
 
   it("supports Arabic Help search with no mixed Relay-controlled labels", () => {
