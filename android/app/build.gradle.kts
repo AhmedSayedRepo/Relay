@@ -20,6 +20,11 @@ require(endpoint.scheme == "https" || safeLocal) {
 }
 val releaseUrl = if (endpoint.scheme == "https") configuredUrl else "https://relay.invalid/"
 
+// Release signing comes only from the environment (CI secrets); nothing is committed.
+val releaseKeystore = providers.environmentVariable("RELAY_KEYSTORE_FILE").orNull
+val releaseVersionCode = providers.gradleProperty("relayVersionCode").orNull?.toInt()
+val releaseVersionName = providers.gradleProperty("relayVersionName").orNull
+
 android {
     namespace = "com.relay.agent"
     compileSdk = 36
@@ -28,9 +33,19 @@ android {
         applicationId = "com.relay.agent"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = releaseVersionCode ?: 4
+        versionName = releaseVersionName ?: "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.environmentVariable("RELAY_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("RELAY_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("RELAY_KEY_PASSWORD").get()
+            }
+        }
     }
     buildTypes {
         debug {
@@ -39,6 +54,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
             buildConfigField("String", "RELAY_BASE_URL", "\"$releaseUrl\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
