@@ -221,6 +221,8 @@ def main() -> int:
         if args.command in limited:
             asyncio.run(run(args.command, email, password, args.limit))
         elif args.command == "import-images":
+            if not isinstance(args.dir, Path):
+                raise ValueError("Import requires --dir.")
             images = read_images(args.dir)
             asyncio.run(
                 run(args.command, None, None, device_id=args.device, images=images)
