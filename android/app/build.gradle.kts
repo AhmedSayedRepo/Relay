@@ -71,6 +71,13 @@ android {
     testOptions.unitTests.isIncludeAndroidResources = true
 }
 kotlin.compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+// Screenshot renders run only in the "Android screenshots" workflow (-Pscreenshots),
+// so a rendering problem never fails the main CI build.
+tasks.withType<Test>().configureEach {
+    if (!providers.gradleProperty("screenshots").isPresent) {
+        exclude("**/*ScreenshotTest*")
+    }
+}
 ktlint {
     android.set(true)
     version.set("1.7.1")

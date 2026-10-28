@@ -36,7 +36,7 @@ jobs:
         run: |
           set +e
           chmod +x gradlew
-          ./gradlew --no-daemon :app:testDebugUnitTest --tests '*AgentScreenScreenshotTest*' 2>&1 | tee render.log
+          ./gradlew --no-daemon -Pscreenshots :app:testDebugUnitTest --tests '*AgentScreenScreenshotTest*' 2>&1 | tee render.log
           status=${PIPESTATUS[0]}
           grep -E "^e: |error:" render.log | head -5 | while IFS= read -r line; do
             echo "::error title=screenshots::${line}"
