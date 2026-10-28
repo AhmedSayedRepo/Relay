@@ -36,6 +36,7 @@ def settings(tmp_path: Path) -> Settings:
         allowed_hosts=["testserver"],
         readiness_timeout_seconds=0.2,
         object_storage_root=tmp_path / "objects",
+        training_dataset_root=tmp_path / "training-dataset",
     )
 
 

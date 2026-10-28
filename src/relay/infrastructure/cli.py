@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import getpass
 import sys
+from pathlib import Path
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 
@@ -12,8 +13,10 @@ from relay.application.events import EventService
 from relay.application.operations import OperationsService
 from relay.application.processing import ProcessingService
 from relay.application.receipts import InstaPayReceiptParser
+from relay.application.training import TrainingDatasetService
 from relay.infrastructure.config import load_settings
 from relay.infrastructure.database import Database
+from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
@@ -27,6 +30,9 @@ async def run(
     email: str | None,
     password: str | None,
     limit: int | None = None,
+    *,
+    out: Path | None = None,
+    include_holdout: bool = False,
 ) -> None:
     settings = load_settings()
     database = Database(settings)
@@ -73,6 +79,16 @@ async def run(
                     stale_job_minutes=settings.processing_stale_minutes,
                     evidence_extractor=InstaPayReceiptAdapter(provider),
                 ).process_pending(limit=limit or settings.processing_batch_limit)
+            elif command in {"capture-training", "export-training"}:
+                training = TrainingDatasetService(
+                    uow,
+                    FilesystemObjectStorage(settings.object_storage_root),
+                    FilesystemDatasetStore(settings.training_dataset_root),
+                )
+                if command == "capture-training":
+                    await training.capture(limit=limit or 100)
+                elif out is not None:
+                    await training.export(out, include_holdout=include_holdout)
     finally:
         await database.close()
 
@@ -86,10 +102,14 @@ def main() -> int:
             "disable-user",
             "purge-expired-events",
             "process-pending-images",
+            "capture-training",
+            "export-training",
         ],
     )
     parser.add_argument("--email")
     parser.add_argument("--limit", type=int, choices=range(1, 101))
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--include-holdout", action="store_true")
     args = parser.parse_args()
     try:
         email = None
@@ -101,8 +121,14 @@ def main() -> int:
                 raise ValueError("Email is too long.")
         elif args.email is not None:
             raise ValueError("Email is not accepted for this command.")
-        if args.command != "process-pending-images" and args.limit is not None:
-            raise ValueError("Limit is accepted only for image processing.")
+        limited = {"process-pending-images", "capture-training"}
+        if args.command not in limited and args.limit is not None:
+            raise ValueError("Limit is accepted only for bounded batch commands.")
+        if args.command == "export-training":
+            if args.out is None:
+                raise ValueError("Export requires --out.")
+        elif args.out is not None or args.include_holdout:
+            raise ValueError("Export options are accepted only for export-training.")
         password = None
         if args.command == "create-admin":
             if not sys.stdin.isatty():
@@ -113,8 +139,18 @@ def main() -> int:
                 raise ValueError("Passwords do not match.")
             if not 12 <= len(password) <= 1024:
                 raise ValueError("Password must contain 12 to 1024 characters.")
-        if args.command == "process-pending-images":
+        if args.command in limited:
             asyncio.run(run(args.command, email, password, args.limit))
+        elif args.command == "export-training":
+            asyncio.run(
+                run(
+                    args.command,
+                    None,
+                    None,
+                    out=args.out,
+                    include_holdout=args.include_holdout,
+                )
+            )
         else:
             asyncio.run(run(args.command, email, password))
     except (ValidationError, ValueError, ApplicationError, RuntimeError):

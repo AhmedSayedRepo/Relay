@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.database import Database
+from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.device_security import DeviceTokens
 from relay.infrastructure.logging import configure_logging
 from relay.infrastructure.object_storage import FilesystemObjectStorage
@@ -27,6 +28,7 @@ from relay.presentation.routes import (
     health,
     operations,
     processing,
+    training,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.device_tokens = DeviceTokens(config)
             app.state.object_storage = FilesystemObjectStorage(
                 config.object_storage_root
+            )
+            app.state.dataset_store = FilesystemDatasetStore(
+                config.training_dataset_root
             )
             logger.info("application.started")
             yield
@@ -82,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(binary_objects.device_admin_router, prefix="/api/v1")
     app.include_router(processing.router, prefix="/api/v1")
     app.include_router(operations.router, prefix="/api/v1")
+    app.include_router(training.router, prefix="/api/v1")
     frontend = config.operator_frontend_dir.expanduser().resolve()
     if frontend.is_dir():
 

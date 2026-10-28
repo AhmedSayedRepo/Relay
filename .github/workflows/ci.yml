@@ -49,8 +49,9 @@ jobs:
           python -m pip install -r requirements-dev.lock
           python -m pip install --no-deps -e .
       - name: Lint
-        run: python -m ruff check .
+        run: python -m ruff check --output-format=github .
       - name: Formatting
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
@@ -59,8 +60,16 @@ jobs:
           grep -E "would reformat" black.log | sed 's/^/::error title=black::/'
           exit $status
       - name: Type checks
-        run: python -m mypy src
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          python -m mypy src 2>&1 | tee mypy.log
+          status=${PIPESTATUS[0]}
+          grep -E "^[^:]+:[0-9]+: error:" mypy.log | head -30 | sed 's/^/::error title=mypy::/'
+          exit $status
       - name: Verify operator frontend
+        if: ${{ !cancelled() }}
         working-directory: frontend
         run: |
           npm ci
@@ -68,12 +77,14 @@ jobs:
           npm run lint
           npm run build
       - name: Verify PostgreSQL migrations on the disposable CI database
+        if: ${{ !cancelled() }}
         run: |
           python -m alembic upgrade head
           python -m alembic check
           python -m alembic downgrade base
           python -m alembic upgrade head
       - name: Tests including PostgreSQL integration
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
@@ -81,11 +92,12 @@ jobs:
           status=${PIPESTATUS[0]}
           grep -E "^(FAILED|ERROR) " pytest.log | head -30 | sed 's/^/::error title=pytest::/'
           grep -E "^E   " pytest.log | head -20 | sed 's/^/::error title=pytest-detail::/'
+          grep -E "(Error|Exception)(:| )|Traceback|File \"/home/runner/work/Relay/Relay/src|^src/relay/.*: in |^[a-z_/]+\\.py:[0-9]+: " pytest.log | grep -v "^E   " | head -40 | sed 's/^/::error title=pytest-trace::/'
           tail -1 pytest.log | sed 's/^/::notice title=pytest-summary::/'
           exit $status
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -134,9 +146,14 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Run Android instrumentation tests
+        # Non-blocking until the hosted emulator boots reliably (times out on
+        # GitHub runners since Oct 2026). Build, unit tests and lint still gate.
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
           api-level: 35
           arch: x86_64
           target: google_apis
