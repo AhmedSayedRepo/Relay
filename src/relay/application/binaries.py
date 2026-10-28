@@ -37,6 +37,8 @@ from relay.domain.processing import (
 )
 
 logger = logging.getLogger(__name__)
+IMPORT_SOURCE_ID = "operator-import"
+IMPORT_RULE_ID = "operator-import"
 
 
 @dataclass(frozen=True, slots=True)
@@ -309,6 +311,86 @@ class BinaryService:
             raise
         self._log_completed(value, event_status, duplicate_object)
         return FinalizeResult(value, event_status)
+
+    async def import_image(
+        self, device_id: UUID, installation_id: UUID, data: bytes
+    ) -> str:
+        """Operator bulk import through the same object, event and job records.
+
+        Device upload limits do not apply (an operator runs it deliberately),
+        but image validation and per-installation content deduplication do.
+        """
+        now = datetime.now(UTC)
+        if not 1 <= len(data) <= MAX_IMAGE_BYTES:
+            raise BinaryRejected("invalid_metadata")
+        content_type, width, height = inspect_image(data)
+        content_hash = hashlib.sha256(data).hexdigest()
+        if await self.uow.binaries.object_by_hash(installation_id, content_hash):
+            return "duplicate"
+        session = UploadSession(
+            uuid4(),
+            uuid4(),
+            uuid4(),
+            device_id,
+            installation_id,
+            "operator-import",
+            content_hash,
+            content_type,
+            len(data),
+            width,
+            height,
+            "saf_tree",
+            IMPORT_SOURCE_ID,
+            1,
+            IMPORT_RULE_ID,
+            now,
+            now,
+            None,
+            len(data),
+            "finalized",
+            None,
+            now,
+            now,
+        )
+        object_id = uuid4()
+        value = BinaryObject(
+            object_id,
+            device_id,
+            installation_id,
+            content_hash,
+            content_type,
+            len(data),
+            width,
+            height,
+            "saf_tree",
+            IMPORT_SOURCE_ID,
+            "filesystem",
+            f"objects/{installation_id}/{object_id}.blob",
+            now,
+            now,
+            now + timedelta(days=self.retention_days),
+        )
+        self.storage.create_upload(session.id)
+        try:
+            self.storage.append(session.id, 0, data)
+            self.storage.finalize(session.id, value.storage_key)
+        except Exception:
+            self.storage.delete_upload(session.id)
+            raise
+        try:
+            if not await self.uow.binaries.add_object(value):
+                self.storage.delete(value.storage_key)
+                await self.uow.rollback()
+                return "duplicate"
+            event_status, raw_event = await self._link_event(session, value, now)
+            await self._ensure_processing_job(value, raw_event, now)
+            await self.uow.commit()
+        except Exception:
+            await self.uow.rollback()
+            self.storage.delete(value.storage_key)
+            raise
+        self._log_completed(value, event_status, False)
+        return "imported"
 
     async def _owned_session(
         self,
