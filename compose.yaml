@@ -49,6 +49,17 @@ services:
       PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-5}
       PROCESSING_BATCH_LIMIT: ${PROCESSING_BATCH_LIMIT:-10}
       OPERATOR_AUDIT_RETENTION_DAYS: ${OPERATOR_AUDIT_RETENTION_DAYS:-365}
+      TRAINING_DATASET_ROOT: /var/lib/relay/training-dataset
+      RECEIPT_TIMEZONE: ${RECEIPT_TIMEZONE:-Africa/Cairo}
+      # Optional "Forgot password" email links (docs/account-recovery.md).
+      OPERATOR_PUBLIC_URL: ${OPERATOR_PUBLIC_URL:-}
+      PASSWORD_RESET_MINUTES: ${PASSWORD_RESET_MINUTES:-15}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -60,6 +71,7 @@ services:
       - /tmp:size=64m,mode=1777
     volumes:
       - relay_object_data:/var/lib/relay/objects
+      - relay_training_data:/var/lib/relay/training-dataset
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -69,6 +81,9 @@ services:
     cpus: "1.0"
     networks:
       - relay_internal
+      # The internal network cannot publish ports or send email; the backend
+      # alone also joins this one. The database stays internal-only.
+      - relay_edge
 
   worker:
     profiles: ["worker"]
@@ -110,7 +125,9 @@ services:
 volumes:
   relay_postgres_data:
   relay_object_data:
+  relay_training_data:
 
 networks:
   relay_internal:
     internal: true
+  relay_edge: {}
