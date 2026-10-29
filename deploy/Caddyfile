@@ -1,0 +1,9 @@
+# Caddy gets and renews the HTTPS certificate for RELAY_DOMAIN automatically.
+{$RELAY_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	redir / /operator/ 302
+	reverse_proxy backend:8000
+}
