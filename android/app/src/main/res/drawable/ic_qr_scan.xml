@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scan frame with a small QR grid, drawn on the 24dp icon grid. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M4,8V6a2,2 0,0 1,2 -2h2M16,4h2a2,2 0,0 1,2 2v2M20,16v2a2,2 0,0 1,-2 2h-2M8,20H6a2,2 0,0 1,-2 -2v-2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8,8h3v3H8zM13,8h3v3h-3zM8,13h3v3H8zM13,13h1.5v1.5H13zM14.5,14.5H16V16h-1.5z" />
+</vector>

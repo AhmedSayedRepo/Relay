@@ -2,11 +2,11 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useI18n, type Locale } from "../i18n";
 import { useTheme, type Theme } from "../preferences";
+import { Icon, RelayMark } from "./Brand";
 import { HelpDialog } from "./HelpDialog";
 
-const routes = ["dashboard", "transactions", "duplicates", "review", "processing", "reports", "devices", "help"] as const;
-const paths = ["/", "/transactions", "/duplicates", "/review", "/processing", "/reports", "/devices", "/help"];
-const glyphs = ["⌂", "⇄", "≋", "✓", "↻", "▤", "◉", "?"];
+const routes = ["dashboard", "transactions", "duplicates", "review", "processing", "reports", "devices", "account", "help"] as const;
+const paths = ["/", "/transactions", "/duplicates", "/review", "/processing", "/reports", "/devices", "/account", "/help"];
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, messages: m } = useI18n(); const { theme, setTheme } = useTheme();
@@ -19,16 +19,15 @@ export function PreferenceControls({ compact = false }: { compact?: boolean }) {
 export function Layout({ signOut }: { signOut: () => void }) {
   const { messages: m } = useI18n(); const [open, setOpen] = useState(false);
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
-    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><span aria-hidden="true">R</span><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><i aria-hidden="true">{glyphs[index]}</i><span>{m.navigation[key]}</span></NavLink>)}</nav><div className="signal-mark" aria-hidden="true"><span /><span /><span /></div></aside>
-    <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}>☰</button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
+    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><div className="signal-mark" aria-hidden="true"><span /><span /><span /></div></aside>
+    <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
     <main id="main-content"><Outlet /></main>
   </div>;
 }
 
 export function PageHeading({ title, description, help }: { title: string; description: string; help: string }) {
-  const { messages: m } = useI18n();
-  return <div className="page-heading"><div><p className="eyebrow">{m.common.workspace}</p><h1>{title}</h1><p>{description}</p></div><HelpDialog topicId={help} /></div>;
+  return <div className="page-heading"><div><h1>{title}</h1><p>{description}</p></div><HelpDialog topicId={help} /></div>;
 }
 
 export function Status({ loading, error, empty = false, emptyMessage }: { loading: boolean; error: string; empty?: boolean; emptyMessage?: string }) {

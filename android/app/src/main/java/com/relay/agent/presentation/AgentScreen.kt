@@ -53,6 +53,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -75,6 +76,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -102,7 +104,9 @@ data class AgentActions(
     val setImageConsent: (Boolean) -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val removeFolder: () -> Unit = {},
-    val discardImages: () -> Unit = {}
+    val discardImages: () -> Unit = {},
+    /** Opens the camera code scanner; null when no scanner is available. */
+    val scanCode: (() -> Unit)? = null
 )
 
 enum class CollectorState { ACTIVE, PAUSED, OFF }
@@ -263,7 +267,8 @@ fun AgentContent(
                         }
                         else -> EnrollmentCard(
                             status.enrollment == EnrollmentState.ENROLLING,
-                            actions.enroll
+                            actions.enroll,
+                            actions.scanCode
                         )
                     }
                     // Keeps the last row clear of the floating button and the gesture bar.
@@ -679,7 +684,7 @@ private fun StateChip(state: CollectorState) {
 }
 
 @Composable
-private fun EnrollmentCard(busy: Boolean, submit: (String) -> Unit) {
+private fun EnrollmentCard(busy: Boolean, submit: (String) -> Unit, scan: (() -> Unit)?) {
     // Intentionally not rememberSaveable: secrets are never written to saved instance state.
     var challenge by remember { mutableStateOf("") }
     Surface(
@@ -697,6 +702,26 @@ private fun EnrollmentCard(busy: Boolean, submit: (String) -> Unit) {
                 stringResource(R.string.enrollment_help),
                 style = MaterialTheme.typography.bodyLarge
             )
+            if (scan != null) {
+                Button(
+                    onClick = scan,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_qr_scan),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.scan_qr))
+                }
+                Text(
+                    stringResource(R.string.or_type_code),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             OutlinedTextField(
                 value = challenge,
                 onValueChange = { if (it.length <= 1024) challenge = it },
@@ -710,20 +735,24 @@ private fun EnrollmentCard(busy: Boolean, submit: (String) -> Unit) {
                     autoCorrectEnabled = false
                 )
             )
-            Button(
-                onClick = {
-                    val submitted = challenge
-                    challenge = ""
-                    submit(submitted)
-                },
-                enabled = !busy && challenge.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
-            ) {
+            val connect = {
+                val submitted = challenge
+                challenge = ""
+                submit(submitted)
+            }
+            val connectEnabled = !busy && challenge.isNotBlank()
+            val connectModifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            val connectLabel: @Composable () -> Unit = {
                 if (busy) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
                     Text(stringResource(R.string.enroll))
                 }
+            }
+            if (scan != null) {
+                OutlinedButton(connect, connectModifier, connectEnabled) { connectLabel() }
+            } else {
+                Button(connect, connectModifier, connectEnabled) { connectLabel() }
             }
             Text(
                 stringResource(R.string.privacy_promise),

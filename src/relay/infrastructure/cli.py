@@ -2,12 +2,14 @@ import argparse
 import asyncio
 import getpass
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
 
+from relay.application.account_recovery import AccountRecoveryService
 from relay.application.auth import create_admin, disable_user
 from relay.application.binaries import BinaryService
 from relay.application.errors import ApplicationError
@@ -105,8 +107,26 @@ async def run(
     try:
         async with database.session() as session:
             uow = SqlUnitOfWork(session)
+            passwords = Argon2Passwords()
+            recovery = AccountRecoveryService(uow, passwords)
             if command == "create-admin" and password is not None:
-                await create_admin(uow, Argon2Passwords(), str(email), password)
+                user = await create_admin(uow, passwords, str(email), password)
+                print_codes(await recovery.generate_codes(user.id))
+            elif command in {"reset-password", "recovery-codes"} and email:
+                found = await uow.users.get_by_email(email)
+                if found is None or not found.is_active:
+                    raise ValueError("No active account with that email.")
+                if command == "reset-password" and password is not None:
+                    await uow.users.set_password(
+                        found.id, await passwords.hash(password)
+                    )
+                    await uow.recovery.close_reset_tokens(found.id, datetime.now(UTC))
+                    await uow.commit()
+                else:
+                    print_codes(await recovery.generate_codes(found.id))
+            elif command == "list-admins":
+                for admin in await uow.users.list_active():
+                    print(admin.email)
             elif command == "disable-user" and email is not None:
                 await disable_user(uow, email)
             elif command == "purge-expired-events":
@@ -163,6 +183,12 @@ async def run(
         await database.close()
 
 
+def print_codes(codes: list[str]) -> None:
+    print("Recovery codes (each works once; store them somewhere safe):")
+    for code in codes:
+        print("  " + code)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Relay operator maintenance")
     parser.add_argument(
@@ -176,6 +202,9 @@ def main() -> int:
             "export-training",
             "verify-sms",
             "import-images",
+            "reset-password",
+            "recovery-codes",
+            "list-admins",
         ],
     )
     parser.add_argument("--email")
@@ -187,7 +216,12 @@ def main() -> int:
     args = parser.parse_args()
     try:
         email = None
-        if args.command in {"create-admin", "disable-user"}:
+        if args.command in {
+            "create-admin",
+            "disable-user",
+            "reset-password",
+            "recovery-codes",
+        }:
             if args.email is None:
                 raise ValueError("Email is required.")
             email = str(TypeAdapter(EmailStr).validate_python(args.email)).lower()
@@ -209,7 +243,7 @@ def main() -> int:
         elif args.device is not None or args.dir is not None:
             raise ValueError("Device and folder are accepted only for import-images.")
         password = None
-        if args.command == "create-admin":
+        if args.command in {"create-admin", "reset-password"}:
             if not sys.stdin.isatty():
                 raise ValueError("Use an interactive terminal for password entry.")
             password = getpass.getpass("Password (12-1024 characters): ")

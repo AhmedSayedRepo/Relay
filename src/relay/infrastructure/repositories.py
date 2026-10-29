@@ -15,6 +15,7 @@ from relay.infrastructure.event_repository import SqlEventRepository
 from relay.infrastructure.models import DeviceRow, UserRow
 from relay.infrastructure.operations_repository import SqlOperationsRepository
 from relay.infrastructure.processing_repository import SqlProcessingRepository
+from relay.infrastructure.recovery_repository import SqlRecoveryRepository
 from relay.infrastructure.sms_verification_repository import (
     SqlSmsVerificationRepository,
 )
@@ -86,6 +87,19 @@ class SqlUserRepository:
         await self.session.execute(
             update(UserRow).where(UserRow.id == user_id).values(is_active=False)
         )
+
+    async def set_password(self, user_id: UUID, password_hash: str) -> None:
+        await self.session.execute(
+            update(UserRow)
+            .where(UserRow.id == user_id)
+            .values(password_hash=password_hash)
+        )
+
+    async def list_active(self) -> list[User]:
+        rows = await self.session.scalars(
+            select(UserRow).where(UserRow.is_active.is_(True)).order_by(UserRow.email)
+        )
+        return [to_user(row) for row in rows]
 
 
 class SqlDeviceRepository:
@@ -159,6 +173,7 @@ class SqlUnitOfWork:
         self.operations = SqlOperationsRepository(session)
         self.training = SqlTrainingRepository(session)
         self.sms_verification = SqlSmsVerificationRepository(session)
+        self.recovery = SqlRecoveryRepository(session)
 
     async def commit(self) -> None:
         await self.session.commit()

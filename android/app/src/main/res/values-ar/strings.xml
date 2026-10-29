@@ -47,8 +47,8 @@
     <string name="cancel">إلغاء</string>
 
     <string name="enroll_title">ربط هذا الهاتف</string>
-    <string name="enrollment_help">اطلب من المسؤول رمز تسجيل لمرة واحدة، ثم الصقه هنا.</string>
-    <string name="enrollment_token">رمز التسجيل</string>
+    <string name="enrollment_help">اطلب من المسؤول فتح الأجهزة ثم ربط هاتف في موقع Relay، ثم امسح رمز QR الظاهر.</string>
+    <string name="enrollment_token">رمز لمرة واحدة</string>
     <string name="enroll">ربط الهاتف</string>
     <string name="privacy_promise">لا يُجمع أي شيء حتى تسمح به هنا، ويسمح به Android، ويفعّله المسؤول.</string>
 
@@ -80,4 +80,7 @@
     <string name="msg_folder_removed">تم إلغاء الوصول إلى المجلد.</string>
     <string name="msg_events_discarded">تم حذف الرسائل المنتظرة.</string>
     <string name="msg_enrollment_required">يجب ربط هذا الهاتف مرة أخرى. تواصل مع المسؤول.</string>
+    <string name="scan_qr">مسح رمز QR</string>
+    <string name="or_type_code">أو اكتب الرمز الظاهر في موقع Relay</string>
+    <string name="scan_unavailable">ماسح الكاميرا غير متاح على هذا الهاتف. اكتب الرمز بدلاً من ذلك.</string>
 </resources>

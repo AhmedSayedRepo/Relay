@@ -35,11 +35,12 @@ def test_migration_upgrade_check_downgrade_roundtrip(tmp_path):
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
         assert {"users", "devices", "alembic_version"} <= tables
         assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0010",
+            "0011",
         )
         assert "receipt_reviewed_fields" in tables
         assert {"training_examples", "training_capture_consents"} <= tables
         assert {"sms_verification_links", "receipt_sms_verifications"} <= tables
+        assert {"user_recovery_codes", "password_reset_tokens"} <= tables
         columns = {
             row[1] for row in conn.execute("PRAGMA table_info(receipt_candidates)")
         }
@@ -91,7 +92,7 @@ def test_sprint_1_database_upgrades_in_place_to_sprint_3(tmp_path):
             "raw_events",
         } <= after
         assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0010",
+            "0011",
         )
 
 
@@ -127,7 +128,7 @@ def test_sprint_2_database_upgrades_without_modifying_prior_schema(tmp_path):
         after = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
         assert "device_installations" in after and "raw_events" in after
         assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0010",
+            "0011",
         )
 
 
