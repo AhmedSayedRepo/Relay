@@ -69,6 +69,7 @@ jobs:
           grep -E "^[^:]+:[0-9]+: error:" mypy.log | head -30 | sed 's/^/::error title=mypy::/'
           exit $status
       - name: Verify operator frontend
+        id: frontend
         if: ${{ !cancelled() }}
         working-directory: frontend
         run: |
@@ -76,6 +77,13 @@ jobs:
           npm test
           npm run lint
           npm run build
+      - name: Keep the built operator console for visual review
+        if: ${{ !cancelled() && steps.frontend.outcome == 'success' && github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: operator-dist
+          path: frontend/dist
+          retention-days: 3
       - name: Verify PostgreSQL migrations on the disposable CI database
         if: ${{ !cancelled() }}
         run: |

@@ -55,3 +55,23 @@ export async function downloadExport(path: string, token: string): Promise<void>
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+/** JSON request that may run without a token (sign-in recovery) and may return 204. */
+export async function send<T = null>(
+  path: string,
+  body: unknown,
+  { token, method = "POST" }: { token?: string; method?: string } = {},
+): Promise<T> {
+  const response = await fetch(`/api/v1${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw new ApiError(response.status, `Request failed (${response.status}).`);
+  if (response.status === 204) return null as T;
+  return (await response.json()) as T;
+}
