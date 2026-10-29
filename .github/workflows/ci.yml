@@ -80,7 +80,9 @@ jobs:
           set +e
           npm test 2>&1 | tee vitest.log
           status=${PIPESTATUS[0]}
-          grep -E "FAIL |AssertionError|TestingLibraryElementError|Unable to find|Error: |expected " vitest.log | grep -v "^ *at " | head -9 | sed 's/^ */::error title=vitest::/'
+          if [ "$status" -ne 0 ]; then
+            { grep -E "FAIL|Error|expected|Unable" vitest.log | grep -v "^ *at " | head -5; grep -v "^\s*$" vitest.log | tail -4; } | sed 's/^ */::error title=vitest::/'
+          fi
           [ "$status" -eq 0 ] || exit "$status"
           set -e
           npm run lint
