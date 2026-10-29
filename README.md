@@ -142,7 +142,7 @@ docker compose --profile worker run --rm worker
 
 The worker processes one bounded batch and exits. An operator or scheduler controls cadence.
 
-Both published ports are bound to `127.0.0.1`. Port 5432 exists for local development and may be removed from Compose when only containers need the database. This is local development support, not an internet-ready production deployment.
+Both published ports are bound to `127.0.0.1`. Port 5432 exists for local development and may be removed from Compose when only containers need the database. This is local development support, not an internet-ready production deployment. For an always-on server with HTTPS (free Oracle Cloud VM, DuckDNS address, Caddy, scheduled worker and backups), follow [docs/cloud-deploy.md](docs/cloud-deploy.md).
 
 ```text
 docker compose logs --tail 100 backend
