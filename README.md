@@ -113,7 +113,7 @@ python -m relay.infrastructure.cli create-admin --email admin@example.com
 uvicorn relay.presentation.app:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log --no-proxy-headers
 ```
 
-The administrator command prompts for a password and its confirmation without displaying either. There is no default administrator password, public registration endpoint, or committed bootstrap account. The CLI is an operator action that requires access to the configured database.
+The administrator command prompts for a password and its confirmation without displaying either. There is no default administrator password, public registration endpoint, or committed bootstrap account. The CLI is an operator action that requires access to the configured database. It also prints 10 one-time recovery codes; see [docs/account-recovery.md](docs/account-recovery.md) for forgotten usernames or passwords (recovery codes, optional email link, `reset-password` and `list-admins`).
 
 Use [liveness](http://127.0.0.1:8000/health) and [readiness](http://127.0.0.1:8000/ready) to inspect the running local service. Readiness checks database access; it is not a guarantee that migrations have been applied or that every future dependency is healthy.
 
