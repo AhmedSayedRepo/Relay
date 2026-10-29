@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.EnrollmentState
@@ -107,6 +108,27 @@ class AgentScreenScreenshotTest {
         compose.onNodeWithText("Allow SMS access", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Choose folder", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Offline · will retry", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun discardAsksBeforeRemovingQueuedImages() {
+        var discarded = 0
+        compose.setContent {
+            RelayTheme(dark = false) {
+                AgentContent(
+                    needsAttention,
+                    AgentActions(discardImages = { discarded++ }),
+                    now = now
+                )
+            }
+        }
+        compose.onNodeWithText("Discard waiting images", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Discard 3 waiting images?", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Cancel", useUnmergedTree = true).performClick()
+        assertEquals(0, discarded)
+        compose.onNodeWithText("Discard waiting images", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Discard", useUnmergedTree = true).performClick()
+        assertEquals(1, discarded)
     }
 
     @Test

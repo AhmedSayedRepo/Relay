@@ -5,7 +5,14 @@ package com.relay.agent.presentation
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -39,6 +47,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,9 +61,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,6 +73,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -177,6 +189,7 @@ private fun absolute(value: String?): String? = value?.let {
     }.getOrDefault(it)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentContent(
     status: AgentStatus,
@@ -219,43 +232,104 @@ fun AgentContent(
         // FAB and snackbar sit above the navigation bar; content scrolls edge to edge.
         contentWindowInsets = WindowInsets.navigationBars
     ) { padding ->
-        Column(
-            Modifier
+        val scroll = rememberScrollState()
+        var headerHeight by remember { mutableIntStateOf(0) }
+        // The counts stay readable as a compact bar once the header scrolls away.
+        val pinned = enrolled && headerHeight > 0 && scroll.value > headerHeight * 0.7f
+        PullToRefreshBox(
+            isRefreshing = syncing,
+            onRefresh = { if (enrolled && !syncing) actions.sync() },
+            modifier = Modifier
                 .fillMaxSize()
                 // Only the (zero) top inset applies; the bottom inset is a spacer below.
                 .padding(top = padding.calculateTopPadding())
                 .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
         ) {
-            Header(status, now)
             Column(
-                Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
             ) {
-                when (status.enrollment) {
-                    EnrollmentState.LOADING -> Unit
-                    EnrollmentState.ENROLLED -> {
-                        Collectors(status, actions, now)
-                        DeviceDetails(status, appVersion)
+                Header(status, now, Modifier.onSizeChanged { headerHeight = it.height })
+                Column(
+                    Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    when (status.enrollment) {
+                        EnrollmentState.LOADING -> Unit
+                        EnrollmentState.ENROLLED -> {
+                            Collectors(status, actions, now)
+                            DeviceDetails(status, appVersion)
+                        }
+                        else -> EnrollmentCard(
+                            status.enrollment == EnrollmentState.ENROLLING,
+                            actions.enroll
+                        )
                     }
-                    else -> EnrollmentCard(
-                        status.enrollment == EnrollmentState.ENROLLING,
-                        actions.enroll
-                    )
+                    // Keeps the last row clear of the floating button and the gesture bar.
+                    Spacer(Modifier.height(if (enrolled) 88.dp else 0.dp))
+                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                 }
-                // Keeps the last row clear of the floating button and the gesture bar.
-                Spacer(Modifier.height(if (enrolled) 88.dp else 0.dp))
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
+            AnimatedVisibility(
+                visible = pinned,
+                enter = slideInVertically { -it } + fadeIn(),
+                exit = slideOutVertically { -it } + fadeOut()
+            ) { CompactCounts(status) }
         }
     }
 }
 
 @Composable
-private fun Header(status: AgentStatus, now: Instant) {
+private fun CompactCounts(status: AgentStatus) {
+    val relay = LocalRelayColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(relay.header)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CompactCount(status.queuedEventCount.toLong(), R.string.count_sms_waiting, relay.waiting)
+        CompactCount(status.queuedImageCount.toLong(), R.string.count_images_waiting, relay.waiting)
+        CompactCount(
+            status.droppedEventCount + status.droppedImageCount,
+            R.string.count_dropped,
+            relay.dropped
+        )
+    }
+}
+
+@Composable
+private fun RowScope.CompactCount(value: Long, @StringRes label: Int, alert: Color) {
+    val relay = LocalRelayColors.current
+    Row(
+        Modifier.weight(1f),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            value.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            color = if (value > 0) alert else relay.onHeader
+        )
+        Text(
+            stringResource(label),
+            style = MaterialTheme.typography.labelMedium,
+            color = relay.onHeaderSoft,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun Header(status: AgentStatus, now: Instant, modifier: Modifier = Modifier) {
     val relay = LocalRelayColors.current
     Column(
-        Modifier
+        modifier
             .fillMaxWidth()
             .background(relay.header)
             .statusBarsPadding()
@@ -352,12 +426,24 @@ private fun Count(
 ) {
     val relay = LocalRelayColors.current
     Column(modifier) {
-        Text(
-            value.toString(),
-            style = MaterialTheme.typography.displayMedium,
-            color = if (value > 0) alert else relay.onHeader,
-            maxLines = 1
-        )
+        // The one motion on the screen: a count rolls up when it grows, down when it shrinks.
+        AnimatedContent(
+            targetState = value,
+            transitionSpec = {
+                val up = targetState > initialState
+                (slideInVertically { if (up) it / 2 else -it / 2 } + fadeIn()) togetherWith
+                    (slideOutVertically { if (up) -it / 2 else it / 2 } + fadeOut()) using
+                    SizeTransform(clip = false)
+            },
+            label = "count"
+        ) { shown ->
+            Text(
+                shown.toString(),
+                style = MaterialTheme.typography.displayMedium,
+                color = if (shown > 0) alert else relay.onHeader,
+                maxLines = 1
+            )
+        }
         Text(
             stringResource(label),
             style = MaterialTheme.typography.labelLarge,
