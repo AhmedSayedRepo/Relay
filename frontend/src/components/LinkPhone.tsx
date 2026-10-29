@@ -78,7 +78,7 @@ export function LinkPhoneDialog({ deviceId, name, token, open, onOpenChange }: {
     <Dialog.Portal>
       <Dialog.Overlay className="dialog-overlay" />
       <Dialog.Content className="dialog link-dialog" aria-describedby={undefined}>
-        <div className="dialog-heading"><Dialog.Title>{formatMessage(m.link.title, { name })}</Dialog.Title><Dialog.Close asChild><button className="icon-button" type="button" aria-label={m.common.close}><Icon name="close" /></button></Dialog.Close></div>
+        <div className="dialog-heading"><Dialog.Title>{m.link.title.split("{name}")[0]}<bdi>{name}</bdi>{m.link.title.split("{name}")[1]}</Dialog.Title><Dialog.Close asChild><button className="icon-button" type="button" aria-label={m.common.close}><Icon name="close" /></button></Dialog.Close></div>
         {/* Mounting only while open means every opening asks for a fresh code. */}
         {open && <LinkBody deviceId={deviceId} token={token} />}
         <div className="dialog-actions"><Dialog.Close asChild><button className="quiet-button" type="button">{m.link.done}</button></Dialog.Close></div>

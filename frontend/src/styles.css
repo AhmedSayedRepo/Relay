@@ -31,6 +31,7 @@
   --radius: .8rem;
   --radius-lg: 1.15rem;
   --rail-width: 15.5rem;
+  --panel-brand: #103e46;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -58,6 +59,7 @@
   --focus: #ffba74;
   --shadow: 0 12px 32px rgba(0, 0, 0, .2);
   --shadow-strong: 0 22px 65px rgba(0, 0, 0, .48);
+  --panel-brand: #143238;
 }
 * { box-sizing: border-box; }
 ::selection { color: var(--ink); background: color-mix(in srgb, var(--signal) 32%, transparent); }
@@ -231,10 +233,10 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .related-links { display: flex; flex-wrap: wrap; gap: .45rem; }.related-links button { color: var(--ink); background: var(--surface-soft); border-color: var(--line); }
 .help-search { max-width: 38rem; margin-block-end: 1rem; }.help-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 .help-card { line-height: 1.6; }.help-card ol { padding-inline-start: 1.4rem; }
-.login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); max-width: none; margin: 0; padding: 0; background: var(--canvas); }
-.login-brand { display: flex; flex-direction: column; justify-content: flex-end; gap: 1.25rem; padding: clamp(2rem, 6vw, 5rem); color: #e7f2ef; background: var(--brand); }
+.login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(18rem, 5fr) minmax(0, 7fr); max-width: none; margin: 0; padding: 0; background: var(--canvas); }
+.login-brand { display: flex; flex-direction: column; justify-content: flex-end; gap: 1.25rem; padding: clamp(2rem, 6vw, 5rem); color: #e7f2ef; background: var(--panel-brand); }
 .login-brand p { max-width: 22rem; margin: 0; color: #aac2bf; font-size: 1.35rem; line-height: 1.35; letter-spacing: -.01em; }
-.login-card { align-self: center; width: 100%; max-width: 34rem; padding: clamp(1.5rem, 5vw, 3.25rem); }
+.login-card { align-self: center; justify-self: center; width: 100%; max-width: 34rem; padding: clamp(1.5rem, 5vw, 3.25rem); }
 .login-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-block-end: 2.25rem; }
 .login-card h1 { margin-block: 0 .5rem; font-size: clamp(1.9rem, 4vw, 2.5rem); line-height: 1.1; letter-spacing: -.03em; text-wrap: balance; }
 [dir="rtl"] .login-card h1 { letter-spacing: 0; }
@@ -266,7 +268,8 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .stack-form { display: grid; gap: .85rem; }
 .stack-form button { justify-self: start; }
 .signed-in { margin-block: -.5rem 1.25rem; color: var(--ink-soft); }
-.account-panel h2 { margin-block-end: .5rem; }
+.account-panel h2 { margin-block-end: .75rem; }
+.account-panel .stack-form { margin-block-start: 1rem; }
 .code-count { margin-block: .5rem 1rem; font-weight: 720; }
 .code-count.low { color: var(--warning); }
 .fresh-codes { margin-block-end: 1.25rem; padding: 1rem; background: var(--warning-soft); border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); border-radius: var(--radius-sm); }

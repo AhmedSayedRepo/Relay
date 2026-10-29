@@ -72,9 +72,17 @@ jobs:
         id: frontend
         if: ${{ !cancelled() }}
         working-directory: frontend
+        shell: bash
+        env:
+          NO_COLOR: "1"
         run: |
           npm ci
-          npm test
+          set +e
+          npm test 2>&1 | tee vitest.log
+          status=${PIPESTATUS[0]}
+          grep -E "FAIL |AssertionError|TestingLibraryElementError|Unable to find|Error: |expected " vitest.log | grep -v "^ *at " | head -9 | sed 's/^ */::error title=vitest::/'
+          [ "$status" -eq 0 ] || exit "$status"
+          set -e
           npm run lint
           npm run build
       - name: Keep the built operator console for visual review
