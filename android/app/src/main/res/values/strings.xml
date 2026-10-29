@@ -51,7 +51,7 @@
     <!-- Enrolment -->
     <string name="enroll_title">Connect this phone</string>
     <string name="enrollment_help">Ask your administrator to open Devices, then Link phone, on the Relay website. Scan the QR code it shows.</string>
-    <string name="enrollment_token">Enrollment token</string>
+    <string name="enrollment_token">One-time code</string>
     <string name="enroll">Connect phone</string>
     <string name="privacy_promise">Nothing is collected until you allow it here, Android allows it, and your administrator turns it on.</string>
 

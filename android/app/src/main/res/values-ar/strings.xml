@@ -48,7 +48,7 @@
 
     <string name="enroll_title">ربط هذا الهاتف</string>
     <string name="enrollment_help">اطلب من المسؤول فتح الأجهزة ثم ربط هاتف في موقع Relay، ثم امسح رمز QR الظاهر.</string>
-    <string name="enrollment_token">رمز التسجيل</string>
+    <string name="enrollment_token">رمز لمرة واحدة</string>
     <string name="enroll">ربط الهاتف</string>
     <string name="privacy_promise">لا يُجمع أي شيء حتى تسمح به هنا، ويسمح به Android، ويفعّله المسؤول.</string>
 
