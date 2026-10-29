@@ -75,10 +75,15 @@ class AgentScreenScreenshotTest {
         enrollment = EnrollmentState.REQUIRED
     )
 
-    private fun shoot(name: String, status: AgentStatus, dark: Boolean = false) {
+    private fun shoot(
+        name: String,
+        status: AgentStatus,
+        dark: Boolean = false,
+        actions: AgentActions = AgentActions()
+    ) {
         compose.setContent {
             RelayTheme(dark = dark) {
-                AgentContent(status, AgentActions(), now = now, appVersion = "0.4.0")
+                AgentContent(status, actions, now = now, appVersion = "0.4.0")
             }
         }
         compose.waitForIdle()
@@ -133,8 +138,11 @@ class AgentScreenScreenshotTest {
 
     @Test
     fun notEnrolledLight() {
-        shoot("not-enrolled-light", notEnrolled)
+        var scans = 0
+        shoot("not-enrolled-light", notEnrolled, actions = AgentActions(scanCode = { scans++ }))
         compose.onNodeWithText("Connect phone", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Scan QR code", useUnmergedTree = true).performClick()
+        assertEquals(1, scans)
     }
 
     @Test

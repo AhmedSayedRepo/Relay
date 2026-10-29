@@ -50,7 +50,7 @@
 
     <!-- Enrolment -->
     <string name="enroll_title">Connect this phone</string>
-    <string name="enrollment_help">Ask your administrator for a one-time enrollment token, then paste it here.</string>
+    <string name="enrollment_help">Ask your administrator to open Devices, then Link phone, on the Relay website. Scan the QR code it shows.</string>
     <string name="enrollment_token">Enrollment token</string>
     <string name="enroll">Connect phone</string>
     <string name="privacy_promise">Nothing is collected until you allow it here, Android allows it, and your administrator turns it on.</string>
@@ -85,4 +85,7 @@
     <string name="msg_folder_removed">Folder access removed.</string>
     <string name="msg_events_discarded">Waiting SMS discarded.</string>
     <string name="msg_enrollment_required">This phone needs to be connected again. Contact your administrator.</string>
+    <string name="scan_qr">Scan QR code</string>
+    <string name="or_type_code">Or type the code from the Relay website</string>
+    <string name="scan_unavailable">The camera scanner isn’t available on this phone. Type the code instead.</string>
 </resources>

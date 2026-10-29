@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,7 +20,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.relay.agent.BuildConfig
+import com.relay.agent.R
 import com.relay.agent.presentation.theme.RelayTheme
 
 class MainActivity : ComponentActivity() {
@@ -82,7 +87,19 @@ private fun AgentScreen(model: AgentViewModel = viewModel()) {
                 }
                 model.clearImageSource()
             },
-            discardImages = model::discardQueuedImages
+            discardImages = model::discardQueuedImages,
+            scanCode = {
+                GmsBarcodeScanning.getClient(
+                    context,
+                    GmsBarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .build()
+                ).startScan()
+                    .addOnSuccessListener { code -> code.rawValue?.let(model::enroll) }
+                    .addOnFailureListener {
+                        Toast.makeText(context, R.string.scan_unavailable, Toast.LENGTH_LONG).show()
+                    }
+            }
         )
     )
 }

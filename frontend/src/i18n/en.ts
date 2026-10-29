@@ -165,7 +165,7 @@ export const en = {
   link: {
     addDevice: "Add device", addTitle: "Add a phone", name: "Name", namePlaceholder: "Cashier phone 2", deviceId: "Device ID",
     deviceIdHint: "Any unique label. Keep the suggestion if you’re unsure.", create: "Add and link", cancel: "Cancel", createFailed: "The device wasn’t added. The device ID may already exist.",
-    linkPhone: "Link phone", title: "Link {name}", step1: "Install Relay Agent on the phone and open it.", step2: "Tap Scan QR and point the camera at this code.",
+    linkPhone: "Link phone", title: "Link {name}", step1: "Install Relay Agent on the phone and open it.", step2: "Tap Scan QR code and point the phone’s camera at this code.",
     step3: "Or type the code below into the app.", code: "One-time code", copy: "Copy code", copied: "Copied",
     expiresIn: "Expires in {time}", expired: "This code expired.", newCode: "Create a new code", working: "Creating code…",
     replace: "Replace the phone that is linked now", replaceHint: "A phone is already linked to this device. Linking a new one disconnects the old phone right away.",
