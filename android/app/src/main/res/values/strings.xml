@@ -1,43 +1,88 @@
 <resources>
     <string name="app_name">Relay Agent</string>
+
+    <!-- Header counts -->
+    <string name="count_sms_waiting">SMS waiting</string>
+    <string name="count_images_waiting">Images waiting</string>
+    <string name="count_dropped">Dropped</string>
+    <string name="synced_ago">Synced %1$s</string>
+    <string name="never_synced">Not synced yet</string>
+    <string name="syncing">Syncing…</string>
+    <string name="state_offline">Offline · will retry</string>
+    <string name="state_error">Last sync failed</string>
+    <string name="not_enrolled_header">This phone is not connected to Relay yet</string>
+    <string name="sync_now">Sync now</string>
+
+    <!-- Collectors -->
+    <string name="collection_title">Collection</string>
+    <string name="sms_title">Bank SMS</string>
+    <string name="images_title">Receipt images</string>
+    <string name="chip_active">Active</string>
+    <string name="chip_paused">Paused</string>
+    <string name="chip_off">Off</string>
+    <string name="sms_active">New bank SMS are collected and sent to Relay.</string>
+    <string name="images_active">New images in %1$s are collected and sent to Relay.</string>
+    <string name="reason_local_off">Turned off on this phone.</string>
+    <string name="reason_sms_permission">Android hasn\'t allowed Relay to read SMS.</string>
+    <string name="reason_server_off">Turned off by your administrator.</string>
+    <string name="reason_folder">Choose the one folder Relay may read.</string>
+    <string name="reason_folder_lost">Relay lost access to the chosen folder. Choose it again.</string>
+    <string name="reason_waiting_sync">Waiting for the next sync.</string>
+    <string name="allow_sms_switch">Collect bank SMS on this phone</string>
+    <string name="allow_images_switch">Collect receipt images on this phone</string>
+    <string name="allow_sms_access">Allow SMS access</string>
+    <string name="choose_folder">Choose folder</string>
+    <string name="change_folder">Change folder</string>
+    <string name="remove_folder">Remove folder access</string>
+    <string name="the_chosen_folder">the chosen folder</string>
+    <string name="last_sent">Last sent %1$s</string>
+    <string name="never_sent">Nothing sent yet</string>
+    <string name="upload_problem">Upload problem: %1$s</string>
+    <string name="waiting_summary">%1$s waiting · %2$s dropped</string>
+    <string name="queued_size">Encrypted on this phone: %1$s</string>
+    <string name="discard_sms">Discard waiting SMS</string>
+    <string name="discard_images">Discard waiting images</string>
+    <string name="discard_sms_title">Discard %1$s waiting SMS?</string>
+    <string name="discard_images_title">Discard %1$s waiting images?</string>
+    <string name="discard_body">They have not reached Relay yet and cannot be recovered.</string>
+    <string name="discard">Discard</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Enrolment -->
+    <string name="enroll_title">Connect this phone</string>
+    <string name="enrollment_help">Ask your administrator for a one-time enrollment token, then paste it here.</string>
     <string name="enrollment_token">Enrollment token</string>
-    <string name="enroll">Enroll device</string>
-    <string name="manual_sync">Sync now</string>
-    <string name="agent_description">A privacy-controlled device agent. New SMS and approved-folder images are collected only when local consent, Android access, remote configuration, and active enrollment all allow it.</string>
-    <string name="enrollment_help">Ask your administrator for a new one-time enrollment token.</string>
-    <string name="connection">Connection: %1$s</string>
-    <string name="enrollment">Enrollment: %1$s</string>
-    <string name="device_name">Device: %1$s</string>
-    <string name="device_id">Device ID: %1$s</string>
-    <string name="installation_id">Installation: %1$s</string>
-    <string name="configuration_version">Configuration version: %1$d</string>
-    <string name="app_version">App version: %1$s</string>
-    <string name="last_sync">Last successful sync: %1$s</string>
+    <string name="enroll">Connect phone</string>
+    <string name="privacy_promise">Nothing is collected until you allow it here, Android allows it, and your administrator turns it on.</string>
+
+    <!-- Device details -->
+    <string name="device_title">This phone</string>
+    <string name="device_name">Name</string>
+    <string name="device_id">Device ID</string>
+    <string name="installation_id">Installation</string>
+    <string name="configuration_version">Configuration version</string>
+    <string name="app_version">App version</string>
+    <string name="last_sync">Last successful sync</string>
     <string name="not_yet">Not yet</string>
-    <string name="privacy_title">Collection and privacy</string>
-    <string name="sms_consent">SMS collection locally allowed: %1$s</string>
-    <string name="sms_permission">SMS permission granted: %1$s</string>
-    <string name="request_sms_permission">Grant SMS permission</string>
-    <string name="server_sms">Server SMS collector enabled: %1$s</string>
-    <string name="effective_sms">Effective SMS collection: %1$s</string>
-    <string name="queued_events">Queued events: %1$d</string>
-    <string name="dropped_events">Events dropped by local limits: %1$d</string>
-    <string name="last_upload">Last successful upload: %1$s</string>
-    <string name="last_upload_error">Last upload error: %1$s</string>
-    <string name="discard_queued_events">Discard queued events</string>
-    <string name="images_title">Approved-folder images</string>
-    <string name="image_consent">Image collection locally allowed: %1$s</string>
-    <string name="image_access">Selected-folder access available: %1$s</string>
-    <string name="server_images">Server image collector enabled: %1$s</string>
-    <string name="effective_images">Effective image collection: %1$s</string>
-    <string name="approved_image_source">Approved source: %1$s</string>
-    <string name="none_selected">None selected</string>
-    <string name="select_image_folder">Select image folder</string>
-    <string name="remove_image_folder">Remove image folder access</string>
-    <string name="queued_images">Queued images: %1$d</string>
-    <string name="queued_image_bytes">Encrypted queued bytes: %1$d</string>
-    <string name="dropped_images">Images dropped or rejected by local limits: %1$d</string>
-    <string name="last_image_upload">Last successful image upload: %1$s</string>
-    <string name="last_image_upload_error">Last image upload error: %1$s</string>
-    <string name="discard_queued_images">Discard queued images</string>
+    <string name="show_details">Show details</string>
+    <string name="hide_details">Hide details</string>
+
+    <!-- Messages from the agent -->
+    <string name="msg_storage">Local storage could not be read. Restart the app and try again.</string>
+    <string name="msg_invalid_token">Enter a valid enrollment token.</string>
+    <string name="msg_enrolled">Phone connected. Syncing settings…</string>
+    <string name="msg_config_current">Settings are up to date.</string>
+    <string name="msg_offline">No connection. Relay keeps the last settings and will retry.</string>
+    <string name="msg_rejected">The server rejected the sync. Relay keeps the last settings.</string>
+    <string name="msg_upload_done">Waiting SMS were sent.</string>
+    <string name="msg_upload_retry">Sending SMS will retry.</string>
+    <string name="msg_invalid_discarded">Unreadable waiting SMS were removed.</string>
+    <string name="msg_sms_on">SMS collection turned on.</string>
+    <string name="msg_sms_off">SMS collection turned off.</string>
+    <string name="msg_images_on">Image collection turned on. Choose a folder next.</string>
+    <string name="msg_images_off">Image collection turned off and waiting images removed.</string>
+    <string name="msg_folder_approved">Folder approved. Only new images will be collected.</string>
+    <string name="msg_folder_removed">Folder access removed.</string>
+    <string name="msg_events_discarded">Waiting SMS discarded.</string>
+    <string name="msg_enrollment_required">This phone needs to be connected again. Contact your administrator.</string>
 </resources>

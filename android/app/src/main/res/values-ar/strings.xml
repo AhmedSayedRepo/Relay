@@ -1,0 +1,83 @@
+<resources>
+    <string name="app_name">Relay Agent</string>
+
+    <string name="count_sms_waiting">رسائل بانتظار الإرسال</string>
+    <string name="count_images_waiting">صور بانتظار الإرسال</string>
+    <string name="count_dropped">محذوفة</string>
+    <string name="synced_ago">آخر مزامنة %1$s</string>
+    <string name="never_synced">لم تتم المزامنة بعد</string>
+    <string name="syncing">جارٍ المزامنة…</string>
+    <string name="state_offline">غير متصل · ستتم إعادة المحاولة</string>
+    <string name="state_error">فشلت آخر مزامنة</string>
+    <string name="not_enrolled_header">هذا الهاتف غير متصل بـ Relay بعد</string>
+    <string name="sync_now">مزامنة الآن</string>
+
+    <string name="collection_title">الجمع</string>
+    <string name="sms_title">رسائل البنك</string>
+    <string name="images_title">صور الإيصالات</string>
+    <string name="chip_active">يعمل</string>
+    <string name="chip_paused">متوقف مؤقتاً</string>
+    <string name="chip_off">مغلق</string>
+    <string name="sms_active">تُجمع رسائل البنك الجديدة وتُرسل إلى Relay.</string>
+    <string name="images_active">تُجمع الصور الجديدة في %1$s وتُرسل إلى Relay.</string>
+    <string name="reason_local_off">مغلق على هذا الهاتف.</string>
+    <string name="reason_sms_permission">لم يسمح Android لـ Relay بقراءة الرسائل.</string>
+    <string name="reason_server_off">أوقفه المسؤول.</string>
+    <string name="reason_folder">اختر المجلد الوحيد الذي يمكن لـ Relay قراءته.</string>
+    <string name="reason_folder_lost">فقد Relay الوصول إلى المجلد المختار. اختره مرة أخرى.</string>
+    <string name="reason_waiting_sync">بانتظار المزامنة القادمة.</string>
+    <string name="allow_sms_switch">جمع رسائل البنك على هذا الهاتف</string>
+    <string name="allow_images_switch">جمع صور الإيصالات على هذا الهاتف</string>
+    <string name="allow_sms_access">السماح بالوصول إلى الرسائل</string>
+    <string name="choose_folder">اختيار مجلد</string>
+    <string name="change_folder">تغيير المجلد</string>
+    <string name="remove_folder">إلغاء الوصول إلى المجلد</string>
+    <string name="the_chosen_folder">المجلد المختار</string>
+    <string name="last_sent">آخر إرسال %1$s</string>
+    <string name="never_sent">لم يُرسل شيء بعد</string>
+    <string name="upload_problem">مشكلة في الإرسال: %1$s</string>
+    <string name="waiting_summary">%1$s بانتظار الإرسال · %2$s محذوفة</string>
+    <string name="queued_size">مشفّر على هذا الهاتف: %1$s</string>
+    <string name="discard_sms">حذف الرسائل المنتظرة</string>
+    <string name="discard_images">حذف الصور المنتظرة</string>
+    <string name="discard_sms_title">حذف %1$s من الرسائل المنتظرة؟</string>
+    <string name="discard_images_title">حذف %1$s من الصور المنتظرة؟</string>
+    <string name="discard_body">لم تصل إلى Relay بعد، ولا يمكن استرجاعها.</string>
+    <string name="discard">حذف</string>
+    <string name="cancel">إلغاء</string>
+
+    <string name="enroll_title">ربط هذا الهاتف</string>
+    <string name="enrollment_help">اطلب من المسؤول رمز تسجيل لمرة واحدة، ثم الصقه هنا.</string>
+    <string name="enrollment_token">رمز التسجيل</string>
+    <string name="enroll">ربط الهاتف</string>
+    <string name="privacy_promise">لا يُجمع أي شيء حتى تسمح به هنا، ويسمح به Android، ويفعّله المسؤول.</string>
+
+    <string name="device_title">هذا الهاتف</string>
+    <string name="device_name">الاسم</string>
+    <string name="device_id">معرّف الجهاز</string>
+    <string name="installation_id">التثبيت</string>
+    <string name="configuration_version">إصدار الإعدادات</string>
+    <string name="app_version">إصدار التطبيق</string>
+    <string name="last_sync">آخر مزامنة ناجحة</string>
+    <string name="not_yet">ليس بعد</string>
+    <string name="show_details">عرض التفاصيل</string>
+    <string name="hide_details">إخفاء التفاصيل</string>
+
+    <string name="msg_storage">تعذرت قراءة التخزين المحلي. أعد تشغيل التطبيق وحاول مرة أخرى.</string>
+    <string name="msg_invalid_token">أدخل رمز تسجيل صالحاً.</string>
+    <string name="msg_enrolled">تم ربط الهاتف. جارٍ مزامنة الإعدادات…</string>
+    <string name="msg_config_current">الإعدادات محدّثة.</string>
+    <string name="msg_offline">لا يوجد اتصال. يحتفظ Relay بآخر إعدادات وسيعيد المحاولة.</string>
+    <string name="msg_rejected">رفض الخادم المزامنة. يحتفظ Relay بآخر إعدادات.</string>
+    <string name="msg_upload_done">تم إرسال الرسائل المنتظرة.</string>
+    <string name="msg_upload_retry">ستتم إعادة محاولة إرسال الرسائل.</string>
+    <string name="msg_invalid_discarded">حُذفت رسائل منتظرة غير مقروءة.</string>
+    <string name="msg_sms_on">تم تشغيل جمع الرسائل.</string>
+    <string name="msg_sms_off">تم إيقاف جمع الرسائل.</string>
+    <string name="msg_images_on">تم تشغيل جمع الصور. اختر مجلداً بعد ذلك.</string>
+    <string name="msg_images_off">تم إيقاف جمع الصور وحذف الصور المنتظرة.</string>
+    <string name="msg_folder_approved">تمت الموافقة على المجلد. ستُجمع الصور الجديدة فقط.</string>
+    <string name="msg_folder_removed">تم إلغاء الوصول إلى المجلد.</string>
+    <string name="msg_events_discarded">تم حذف الرسائل المنتظرة.</string>
+    <string name="msg_enrollment_required">يجب ربط هذا الهاتف مرة أخرى. تواصل مع المسؤول.</string>
+</resources>
