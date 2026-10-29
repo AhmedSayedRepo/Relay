@@ -1,0 +1,99 @@
+name: Android release
+
+# Builds a signed Relay Agent APK and publishes it as a GitHub Release.
+# Start it by pushing a tag like agent-v0.5.0, or manually with a version.
+on:
+  push:
+    tags: ["agent-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name, e.g. 0.5.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release settings
+        env:
+          KEYSTORE: ${{ secrets.RELAY_KEYSTORE_BASE64 }}
+          BASE_URL: ${{ vars.RELAY_BASE_URL }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE" ] || missing="$missing secret RELAY_KEYSTORE_BASE64;"
+          [ -n "$BASE_URL" ] || missing="$missing variable RELAY_BASE_URL;"
+          if [ -n "$missing" ]; then
+            echo "::error title=release-settings::Missing:$missing see docs/android-release.md"
+            exit 1
+          fi
+          case "$BASE_URL" in https://*/) ;; *)
+            echo "::error title=release-settings::RELAY_BASE_URL must be an https origin ending with /"
+            exit 1 ;;
+          esac
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Install pinned Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Build signed APK
+        working-directory: android
+        env:
+          RELAY_KEYSTORE_BASE64: ${{ secrets.RELAY_KEYSTORE_BASE64 }}
+          RELAY_KEYSTORE_PASSWORD: ${{ secrets.RELAY_KEYSTORE_PASSWORD }}
+          RELAY_KEY_ALIAS: ${{ secrets.RELAY_KEY_ALIAS }}
+          RELAY_KEY_PASSWORD: ${{ secrets.RELAY_KEY_PASSWORD }}
+          RELAY_BASE_URL: ${{ vars.RELAY_BASE_URL }}
+        run: |
+          set -euo pipefail
+          version="${VERSION#agent-v}"
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          export RELAY_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          printf '%s' "$RELAY_KEYSTORE_BASE64" | base64 --decode > "$RELAY_KEYSTORE_FILE"
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assembleRelease \
+            -PrelayBaseUrl="$RELAY_BASE_URL" \
+            -PrelayVersionName="$version" \
+            -PrelayVersionCode="$((1000 + GITHUB_RUN_NUMBER))" 2>&1 | tee release.log
+          rm -f "$RELAY_KEYSTORE_FILE"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$apk" "$RUNNER_TEMP/out/relay-agent-$version.apk"
+          (cd "$RUNNER_TEMP/out" && sha256sum "relay-agent-$version.apk" > "relay-agent-$version.apk.sha256")
+          cat "$RUNNER_TEMP/out/relay-agent-$version.apk.sha256"
+      - name: Report build errors
+        if: failure()
+        working-directory: android
+        run: |
+          grep -E "^e: |error:|FAILED|What went wrong" release.log 2>/dev/null | head -10 | while IFS= read -r line; do
+            echo "::error title=release-build::${line}"
+          done
+      - name: Publish GitHub Release
+        env:
+          # Optional: a public repo (owner/name) and a token that can write to it,
+          # so people without access to this private repo can download the APK.
+          RELEASE_REPO: ${{ vars.RELAY_RELEASE_REPO || github.repository }}
+          GH_TOKEN: ${{ secrets.RELAY_RELEASE_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          tag="agent-v$APP_VERSION"
+          sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-$APP_VERSION.apk.sha256")
+          notes="Relay Agent $APP_VERSION for Android 8.0 or newer. SHA-256: $sha"
+          gh release create "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" \
+            --title "Relay Agent $APP_VERSION" --notes "$notes" --target "$GITHUB_SHA" 2>/dev/null \
+          || gh release upload "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" --clobber
+          echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-$APP_VERSION.apk"
+          echo "::notice title=sha256::$sha"
