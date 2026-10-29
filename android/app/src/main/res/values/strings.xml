@@ -42,6 +42,11 @@
     <string name="queued_size">Encrypted on this phone: %1$s</string>
     <string name="discard_sms">Discard waiting SMS</string>
     <string name="discard_images">Discard waiting images</string>
+    <string name="discard_sms_title">Discard %1$s waiting SMS?</string>
+    <string name="discard_images_title">Discard %1$s waiting images?</string>
+    <string name="discard_body">They have not reached Relay yet and cannot be recovered.</string>
+    <string name="discard">Discard</string>
+    <string name="cancel">Cancel</string>
 
     <!-- Enrolment -->
     <string name="enroll_title">Connect this phone</string>

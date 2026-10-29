@@ -40,6 +40,11 @@
     <string name="queued_size">مشفّر على هذا الهاتف: %1$s</string>
     <string name="discard_sms">حذف الرسائل المنتظرة</string>
     <string name="discard_images">حذف الصور المنتظرة</string>
+    <string name="discard_sms_title">حذف %1$s من الرسائل المنتظرة؟</string>
+    <string name="discard_images_title">حذف %1$s من الصور المنتظرة؟</string>
+    <string name="discard_body">لم تصل إلى Relay بعد، ولا يمكن استرجاعها.</string>
+    <string name="discard">حذف</string>
+    <string name="cancel">إلغاء</string>
 
     <string name="enroll_title">ربط هذا الهاتف</string>
     <string name="enrollment_help">اطلب من المسؤول رمز تسجيل لمرة واحدة، ثم الصقه هنا.</string>

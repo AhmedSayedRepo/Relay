@@ -91,6 +91,7 @@ data class RelayColors(
     val onHeaderSoft: Color,
     val headerRule: Color,
     val waiting: Color,
+    val dropped: Color,
     val success: Color,
     val successContainer: Color,
     val warning: Color,
@@ -103,6 +104,7 @@ private val LightRelay = RelayColors(
     onHeaderSoft = Color(0xFFB8CCC8),
     headerRule = Color(0xFF2B5A62),
     waiting = Color(0xFFF2A97A),
+    dropped = Color(0xFFFF9C8C),
     success = Color(0xFF1E6C58),
     successContainer = Color(0xFFDCEFE8),
     warning = Color(0xFF8C531D),
@@ -110,11 +112,12 @@ private val LightRelay = RelayColors(
 )
 
 private val DarkRelay = RelayColors(
-    header = Color(0xFF0A1C20),
+    header = Color(0xFF143238),
     onHeader = Color(0xFFEDF5F1),
-    onHeaderSoft = Color(0xFF91A9A7),
-    headerRule = Color(0xFF254147),
+    onHeaderSoft = Color(0xFFA3BAB7),
+    headerRule = Color(0xFF2E5258),
     waiting = Color(0xFFEDA06D),
+    dropped = Color(0xFFFF9C8C),
     success = Color(0xFF79D5B5),
     successContainer = Color(0xFF21443B),
     warning = Color(0xFFF4BF76),

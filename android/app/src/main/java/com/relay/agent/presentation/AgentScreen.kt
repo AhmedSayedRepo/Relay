@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -214,12 +216,14 @@ fun AgentContent(
                 )
             }
         },
-        contentWindowInsets = WindowInsets(0)
+        // FAB and snackbar sit above the navigation bar; content scrolls edge to edge.
+        contentWindowInsets = WindowInsets.navigationBars
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
+                // Only the (zero) top inset applies; the bottom inset is a spacer below.
+                .padding(top = padding.calculateTopPadding())
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -291,7 +295,7 @@ private fun Header(status: AgentStatus, now: Instant) {
                         status.droppedEventCount + status.droppedImageCount,
                         R.string.count_dropped,
                         Modifier.weight(1f),
-                        waitingTone = false
+                        alert = LocalRelayColors.current.dropped
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -344,14 +348,14 @@ private fun Count(
     value: Long,
     @StringRes label: Int,
     modifier: Modifier,
-    waitingTone: Boolean = true
+    alert: Color = LocalRelayColors.current.waiting
 ) {
     val relay = LocalRelayColors.current
     Column(modifier) {
         Text(
             value.toString(),
             style = MaterialTheme.typography.displayMedium,
-            color = if (waitingTone && value > 0) relay.waiting else relay.onHeader,
+            color = if (value > 0) alert else relay.onHeader,
             maxLines = 1
         )
         Text(
@@ -397,6 +401,7 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                     lastSent = relative(status.lastSuccessfulUpload, now),
                     error = status.lastUploadError,
                     discardLabel = R.string.discard_sms,
+                    discardTitle = R.string.discard_sms_title,
                     onDiscard = actions.discardSms
                 ) {
                     if (sms == Blocker.SMS_PERMISSION) {
@@ -421,6 +426,7 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                     lastSent = relative(status.lastSuccessfulImageUpload, now),
                     error = status.lastImageUploadError,
                     discardLabel = R.string.discard_images,
+                    discardTitle = R.string.discard_images_title,
                     onDiscard = actions.discardImages,
                     queuedBytes = status.queuedImageBytes
                 ) {
@@ -429,10 +435,17 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                             Text(stringResource(R.string.choose_folder))
                         }
                     } else if (status.approvedImageSourceId != null && status.localImageConsent) {
-                        TextButton(onClick = actions.chooseFolder) {
+                        // Text buttons pad their label; pull them back onto the content edge.
+                        TextButton(
+                            onClick = actions.chooseFolder,
+                            modifier = Modifier.offset(x = (-12).dp)
+                        ) {
                             Text(stringResource(R.string.change_folder))
                         }
-                        TextButton(onClick = actions.removeFolder) {
+                        TextButton(
+                            onClick = actions.removeFolder,
+                            modifier = Modifier.offset(x = (-12).dp)
+                        ) {
                             Text(stringResource(R.string.remove_folder))
                         }
                     }
@@ -455,6 +468,7 @@ private fun CollectorBlock(
     lastSent: String?,
     error: String?,
     @StringRes discardLabel: Int,
+    @StringRes discardTitle: Int,
     onDiscard: () -> Unit,
     queuedBytes: Long = 0,
     fix: @Composable () -> Unit
@@ -515,15 +529,40 @@ private fun CollectorBlock(
             )
         }
         if (waiting > 0) {
+            var confirming by remember { mutableStateOf(false) }
             // Destructive and rarely needed: quiet, but still a full-size target.
             TextButton(
-                onClick = onDiscard,
+                onClick = { confirming = true },
+                modifier = Modifier.offset(x = (-12).dp),
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 )
             ) {
                 Text(stringResource(discardLabel))
+            }
+            if (confirming) {
+                AlertDialog(
+                    onDismissRequest = { confirming = false },
+                    title = { Text(stringResource(discardTitle, waiting.toString())) },
+                    text = { Text(stringResource(R.string.discard_body)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                confirming = false
+                                onDiscard()
+                            },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) { Text(stringResource(R.string.discard)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirming = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                )
             }
         }
     }
