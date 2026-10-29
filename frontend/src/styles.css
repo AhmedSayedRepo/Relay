@@ -250,7 +250,7 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .text-button.danger { color: var(--danger); }
 .forgot { margin-block-start: .75rem; }
 .choice-list { display: grid; gap: .75rem; margin-block: 1.5rem 1rem; }
-.choice { display: grid; justify-items: start; gap: .3rem; padding: 1rem 1.1rem; color: var(--ink); background: var(--surface); border-color: var(--line-strong); text-align: start; font-weight: 400; }
+.choice { display: grid; justify-content: stretch; justify-items: start; gap: .3rem; padding: 1rem 1.1rem; color: var(--ink); background: var(--surface); border-color: var(--line-strong); text-align: start; font-weight: 400; }
 .choice:hover { background: var(--surface-soft); border-color: var(--brand-2); }
 .choice strong { font-size: 1.02rem; }
 .choice span { color: var(--ink-soft); font-size: .88rem; line-height: 1.45; }
