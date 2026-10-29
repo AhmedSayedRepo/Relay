@@ -58,6 +58,15 @@ class Settings(BaseSettings):
     operator_audit_retention_days: int = Field(default=365, ge=30, le=2555)
     operator_frontend_dir: Path = Path("./frontend/dist")
     cors_origins: list[str] = Field(default_factory=list)
+    # Account recovery by email is optional; recovery codes always work.
+    operator_public_url: str | None = Field(default=None, max_length=200)
+    password_reset_minutes: int = Field(default=15, ge=5, le=60)
+    smtp_host: str | None = Field(default=None, max_length=253)
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_security: Literal["starttls", "ssl"] = "starttls"
+    smtp_username: str | None = Field(default=None, max_length=254)
+    smtp_password: SecretStr | None = None
+    smtp_from: str | None = Field(default=None, max_length=254)
     allowed_hosts: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver"]
     )
@@ -65,6 +74,18 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5, ge=1, le=50)
     db_max_overflow: int = Field(default=5, ge=0, le=50)
     db_pool_timeout_seconds: float = Field(default=5, gt=0, le=30)
+
+    @field_validator(
+        "operator_public_url",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from",
+        mode="before",
+    )
+    @classmethod
+    def blank_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("jwt_secret")
     @classmethod
@@ -142,6 +163,10 @@ class Settings(BaseSettings):
             raise ValueError("RECEIPT_TIMEZONE must be an IANA time zone.") from None
         return value
 
+    @property
+    def email_reset_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from and self.operator_public_url)
+
     @model_validator(mode="after")
     def validate_environment(self) -> Self:
         if self.extraction_auto_trust_enabled:
@@ -173,6 +198,19 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Production ALLOWED_HOSTS must name the actual service."
                 )
+        if self.operator_public_url is not None:
+            public = urlsplit(self.operator_public_url)
+            local = public.hostname in {"localhost", "127.0.0.1"}
+            if public.scheme not in {"https", "http"} or not public.hostname:
+                raise ValueError("OPERATOR_PUBLIC_URL must be an absolute URL.")
+            if public.scheme != "https" and not (
+                local and self.app_env != "production"
+            ):
+                raise ValueError("OPERATOR_PUBLIC_URL must use HTTPS.")
+            if public.query or public.fragment:
+                raise ValueError("OPERATOR_PUBLIC_URL cannot have a query.")
+        if bool(self.smtp_host) != bool(self.smtp_from):
+            raise ValueError("SMTP_HOST and SMTP_FROM must be set together.")
         resolved_storage = self.object_storage_root.expanduser().resolve()
         if resolved_storage == Path(resolved_storage.anchor):
             raise ValueError("OBJECT_STORAGE_ROOT cannot be a filesystem root.")

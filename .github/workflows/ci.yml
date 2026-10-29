@@ -141,13 +141,15 @@ jobs:
           fi
           exit $status
       - name: Enable KVM for the Android emulator
+        if: github.event_name == 'workflow_dispatch'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Run Android instrumentation tests
-        # Non-blocking until the hosted emulator boots reliably (times out on
-        # GitHub runners since Oct 2026). Build, unit tests and lint still gate.
+        # Manual runs only: the hosted emulator often fails to boot (Oct 2026)
+        # and held every push for ~15 minutes. Build, unit tests and lint gate.
+        if: github.event_name == 'workflow_dispatch'
         continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:

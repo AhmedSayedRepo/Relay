@@ -115,3 +115,58 @@ def test_processing_command_is_bounded_and_needs_no_email(monkeypatch, capsys):
     )
     with pytest.raises(SystemExit):
         cli.main()
+
+
+def test_operator_can_reset_password_list_admins_and_issue_codes(
+    tmp_path, monkeypatch, capsys
+):
+    path = tmp_path / "operator.sqlite"
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{path}")
+    monkeypatch.setenv("JWT_SECRET", secrets.token_urlsafe(48))
+
+    async def initialize():
+        database = Database(load_settings())
+        try:
+            async with database.engine.begin() as connection:
+                await connection.run_sync(Base.metadata.create_all)
+        finally:
+            await database.close()
+
+    asyncio.run(initialize())
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    first, second = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: first)
+    monkeypatch.setattr(
+        sys, "argv", ["relay", "create-admin", "--email", "admin@example.com"]
+    )
+    assert cli.main() == 0
+    created = capsys.readouterr().out
+    assert created.count("-") >= 20  # ten XXXX-XXXX-XXXX recovery codes
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: second)
+    monkeypatch.setattr(
+        sys, "argv", ["relay", "reset-password", "--email", "admin@example.com"]
+    )
+    assert cli.main() == 0
+    with sqlite3.connect(path) as connection:
+        (stored_hash,) = connection.execute(
+            "SELECT password_hash FROM users"
+        ).fetchone()
+    assert PasswordHasher().verify(stored_hash, second)
+    monkeypatch.setattr(sys, "argv", ["relay", "list-admins"])
+    assert cli.main() == 0
+    assert "admin@example.com" in capsys.readouterr().out
+    monkeypatch.setattr(
+        sys, "argv", ["relay", "recovery-codes", "--email", "admin@example.com"]
+    )
+    assert cli.main() == 0
+    with sqlite3.connect(path) as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM user_recovery_codes"
+        ).fetchone() == (10,)
+    monkeypatch.setattr(
+        sys, "argv", ["relay", "reset-password", "--email", "nobody@example.com"]
+    )
+    assert cli.main() == 1
+    output = capsys.readouterr()
+    assert second not in output.out + output.err
