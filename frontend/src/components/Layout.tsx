@@ -27,7 +27,6 @@ export function Layout({ signOut }: { signOut: () => void }) {
 }
 
 export function PageHeading({ title, description, help }: { title: string; description: string; help: string }) {
-  const { messages: m } = useI18n();
   return <div className="page-heading"><div><h1>{title}</h1><p>{description}</p></div><HelpDialog topicId={help} /></div>;
 }
 
