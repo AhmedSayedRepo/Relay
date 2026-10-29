@@ -30,7 +30,7 @@ COPY src ./src
 RUN pip install --no-deps . \
     && groupadd --system relay \
     && useradd --system --gid relay --no-create-home relay \
-    && install -d -o relay -g relay /var/lib/relay/objects
+    && install -d -o relay -g relay /var/lib/relay/objects /var/lib/relay/training-dataset
 
 COPY alembic.ini ./
 COPY migrations ./migrations
