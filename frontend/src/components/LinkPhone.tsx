@@ -49,6 +49,8 @@ function LinkBody({ deviceId, token }: { deviceId: string; token: string }) {
       else setError(m.link.failed);
     } finally { setBusy(false); }
   }, [deviceId, token, m.link.failed]);
+  // Each opening asks the server for a fresh one-time code.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void create(false); }, [create]);
   function copy(value: string) { void navigator.clipboard?.writeText(value).then(() => setCopied(true)).catch(() => undefined); }
 

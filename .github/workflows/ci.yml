@@ -84,8 +84,13 @@ jobs:
             { grep -E "FAIL|Error|expected|Unable" vitest.log | grep -v "^ *at " | head -5; grep -v "^\s*$" vitest.log | tail -4; } | sed 's/^ */::error title=vitest::/'
           fi
           [ "$status" -eq 0 ] || exit "$status"
+          npm run lint 2>&1 | tee lint.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            grep -E "^\s+[0-9]+:[0-9]+ |^/" lint.log | head -9 | sed 's/^ */::error title=eslint::/'
+            exit "$status"
+          fi
           set -e
-          npm run lint
           npm run build
       - name: Keep the built operator console for visual review
         if: ${{ !cancelled() && steps.frontend.outcome == 'success' && github.event_name == 'push' }}
