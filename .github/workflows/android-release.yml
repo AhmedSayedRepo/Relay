@@ -92,8 +92,14 @@ jobs:
           tag="agent-v$APP_VERSION"
           sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-$APP_VERSION.apk.sha256")
           notes="Relay Agent $APP_VERSION for Android 8.0 or newer. SHA-256: $sha"
-          gh release create "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" \
-            --title "Relay Agent $APP_VERSION" --notes "$notes" --target "$GITHUB_SHA" 2>/dev/null \
-          || gh release upload "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" --clobber
+          # This commit only exists in this repo; a separate release repo tags its own default branch.
+          target=()
+          [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ] && target=(--target "$GITHUB_SHA")
+          if gh release view "$tag" --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+            gh release upload "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" --clobber
+          else
+            gh release create "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" \
+              --title "Relay Agent $APP_VERSION" --notes "$notes" "${target[@]}"
+          fi
           echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-$APP_VERSION.apk"
           echo "::notice title=sha256::$sha"
