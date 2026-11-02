@@ -181,16 +181,24 @@ class AgentService:
             raise AuthenticationFailed("Invalid or expired enrollment challenge.")
         if platform != "android" or device.platform != platform:
             raise Conflict("Enrollment platform does not match the device.")
-        if await self.uow.agents.installation(installation_id):
+        known = await self.uow.agents.installation(installation_id)
+        if known and known.device_id != device.id:
             raise Conflict("Installation identity is already registered.")
         existing = await self.uow.agents.current_installation(device.id)
         if existing and not challenge.replace_existing:
             raise Conflict("Replacing an installation requires explicit authorization.")
         if existing:
             await self.uow.agents.revoke(device.id, now, challenges=False)
-        await self.uow.agents.add_installation(
-            Installation(installation_id, device.id, now)
-        )
+        if known:
+            # The same phone linking again (after disable, or with a new code):
+            # reactivate its identity; earlier credentials stay revoked.
+            await self.uow.agents.save_installation(
+                replace(known, enrolled_at=now, revoked_at=None)
+            )
+        else:
+            await self.uow.agents.add_installation(
+                Installation(installation_id, device.id, now)
+            )
         challenge.consumed_at = now
         await self.uow.agents.save_challenge(challenge)
         refresh_secret = self.tokens.random_secret()
