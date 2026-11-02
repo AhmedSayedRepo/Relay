@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, downloadExport, query } from "./api";
+import { api, ApiError, downloadExport, query } from "./api";
 import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
 import { Bidi, ReceiptJourney, StatusBadge } from "./components/Product";
 import { AddDevice, DeviceActions } from "./components/DeviceAdmin";
@@ -166,6 +166,36 @@ export function SmsSources({ deviceId, token, devices }: { deviceId: string; tok
   return <section className="training-consent"><h3>{m.sms.sourcesTitle}</h3>{loading ? <p className="hint">{m.sms.loading}</p> : error ? <p className="status error" role="alert">{m.sms.unavailable}</p> : others.length === 0 ? <p className="hint">{m.sms.noOtherDevices}</p> : <><label>{m.sms.directionLabel}<select value={direction} disabled={busy} onChange={(e) => void save(current, e.target.value)}><option value="IN">{m.sms.directionIn}</option><option value="OUT">{m.sms.directionOut}</option></select></label><p className="hint">{m.sms.sourcesHint}</p>{others.map((device) => <label className="toggle-row" key={device.id}><input type="checkbox" checked={current.includes(device.id)} disabled={busy} onChange={(e) => void toggle(device.id, e.target.checked)} />{device.name}</label>)}{failed && <p className="status error" role="alert">{m.sms.failed}</p>}</>}</section>;
 }
 
+type DeviceConfig = { version: number; schema_version: number; settings: Record<string, Json> };
+const IMAGE_SOURCE = "receipts";
+function collectors(settings: Record<string, Json>): Record<string, Json> { const value = settings.collectors; return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, Json> : {}; }
+function senderList(settings: Record<string, Json>): string { const sms = collectors(settings).sms as Record<string, Json> | undefined; const rules = Array.isArray(sms?.rules) ? sms.rules : []; return rules.map((rule) => (rule as { sender?: { value?: string } })?.sender?.value || "").filter(Boolean).join(", "); }
+export function CollectionSettings({ deviceId, token }: { deviceId: string; token: string }) {
+  const { messages: m } = useI18n(); const path = "/devices/" + encodeURIComponent(deviceId) + "/configuration";
+  const { data, error, loading, reload } = useApi<DeviceConfig>(path, token);
+  const [saved, setSaved] = useState<DeviceConfig | null>(null); const [busy, setBusy] = useState(false); const [failed, setFailed] = useState(""); const [senders, setSenders] = useState<string | null>(null);
+  const current = saved ?? data; const settings = current?.settings ?? {}; const parts = collectors(settings);
+  const imagesOn = (parts.images as { enabled?: boolean } | undefined)?.enabled === true; const smsOn = (parts.sms as { enabled?: boolean } | undefined)?.enabled === true;
+  const senderText = senders ?? senderList(settings);
+  async function save(images: boolean, sms: boolean, names: string) {
+    if (!current) return;
+    const list = names.split(/[,\n]/).map((value) => value.trim()).filter(Boolean).slice(0, 20);
+    if (sms && list.length === 0) { setFailed(m.devices.sendersNeeded); return; }
+    const next: Record<string, Json> = { ...parts };
+    next.images = { enabled: images, sources: [{ id: IMAGE_SOURCE, type: "saf_tree" }], rules: [{ id: "all-images", enabled: true, source_id: IMAGE_SOURCE, mime_types: ["image/jpeg", "image/png", "image/webp"] }] };
+    next.sms = { enabled: sms, rules: list.map((value, index) => ({ id: "sender-" + (index + 1), enabled: true, sender: { mode: "contains", value } })) };
+    setBusy(true); setFailed("");
+    try { setSaved(await api<DeviceConfig>(path, token, { method: "PUT", body: JSON.stringify({ expected_version: current.version, schema_version: 1, settings: { ...settings, collectors: next } }) })); setSenders(null); }
+    catch (err) { setFailed(err instanceof ApiError && err.status === 409 ? m.devices.collectionChanged : m.devices.trainingFailed); if (err instanceof ApiError && err.status === 409) { setSaved(null); reload(); } }
+    finally { setBusy(false); }
+  }
+  return <section className="training-consent"><h3>{m.devices.collectionTitle}</h3>{loading && !current ? <p className="hint">{m.devices.trainingLoading}</p> : error || !current ? <p className="status error" role="alert">{m.devices.collectionUnavailable}</p> : <>
+    <label className="toggle-row"><input type="checkbox" checked={imagesOn} disabled={busy} onChange={(e) => void save(e.target.checked, smsOn, senderText)} />{m.devices.imagesToggle}</label>
+    <label className="toggle-row"><input type="checkbox" checked={smsOn} disabled={busy} onChange={(e) => void save(imagesOn, e.target.checked, senderText)} />{m.devices.smsToggle}</label>
+    <label>{m.devices.senders}<span className="inline-field"><input dir="ltr" value={senderText} maxLength={600} placeholder="CIB, NBE, InstaPay" onChange={(e) => setSenders(e.target.value)} /><button type="button" className="quiet-button" disabled={busy || senders === null} onClick={() => void save(imagesOn, smsOn, senderText)}>{m.devices.saveSenders}</button></span></label>
+    <p className="hint">{m.devices.collectionHint}</p>{failed && <p className="status error" role="alert">{failed}</p>}</>}</section>;
+}
+
 function TrainingConsent({ deviceId, token }: { deviceId: string; token: string }) {
   const { messages: m } = useI18n(); const path = "/devices/" + encodeURIComponent(deviceId) + "/training-consent";
   const { data, error, loading } = useApi<{ enabled: boolean }>(path, token);
@@ -183,7 +213,7 @@ function TrainingConsent({ deviceId, token }: { deviceId: string; token: string 
 export function Devices({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const { data, error, loading, reload } = useApi<Page<Record<string, Json>>>("/operations/devices?limit=100", token);
   const [linking, setLinking] = useState("");
-  return <section><PageHeading title={m.pages.devices[0]} description={m.pages.devices[1]} help={contextHelp.devices} /><div className="page-actions"><AddDevice token={token} added={(device) => { reload(); setLinking(device.id); }} /></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noDevices} />{data && <div className="card-list">{data.items.map((item) => { const config = item.configuration && typeof item.configuration === "object" && !Array.isArray(item.configuration) ? Object.entries(item.configuration) : []; return <article className="record-card device-card" key={String(item.id)}><div><h2>{display(item.name)}</h2><p className="subhead"><StatusBadge value={String(item.status)} /> · {m.devices.lastSeen} <Timestamp value={item.last_seen_at as string | null} locale={locale} /></p><p>{m.devices.externalId} <Bidi>{display(item.external_device_id)}</Bidi> · {m.devices.appVersion} <Bidi>{display(item.app_version)}</Bidi></p></div><dl><div><dt>{m.devices.configVersion}</dt><dd><Bidi>{display(item.configuration_version)}</Bidi></dd></div><div><dt>{m.devices.transactions}</dt><dd><Bidi>{display(item.transaction_count)}</Bidi></dd></div><div><dt>{m.devices.duplicates}</dt><dd><Bidi>{display(item.duplicate_count)}</Bidi></dd></div><div><dt>{m.devices.needsReview}</dt><dd><Bidi>{display(item.needs_review_count)}</Bidi></dd></div></dl><section className="device-config"><h3>{m.devices.collection}</h3><dl>{config.map(([key, value]) => <div key={key}><dt>{configurationLabel(key, m)}</dt><dd>{typeof value === "boolean" ? value ? m.common.yes : m.common.no : <Bidi>{display(value)}</Bidi>}</dd></div>)}</dl></section><DeviceActions id={String(item.id)} name={display(item.name)} status={String(item.status)} token={token} changed={reload} linkOpen={linking === String(item.id)} setLinkOpen={(open) => setLinking(open ? String(item.id) : "")} /><TrainingConsent deviceId={String(item.id)} token={token} /><SmsSources deviceId={String(item.id)} token={token} devices={data.items.map((device) => ({ id: String(device.id), name: display(device.name) }))} /></article>; })}</div>}</section>;
+  return <section><PageHeading title={m.pages.devices[0]} description={m.pages.devices[1]} help={contextHelp.devices} /><div className="page-actions"><AddDevice token={token} added={(device) => { reload(); setLinking(device.id); }} /></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noDevices} />{data && <div className="card-list">{data.items.map((item) => { const config = item.configuration && typeof item.configuration === "object" && !Array.isArray(item.configuration) ? Object.entries(item.configuration) : []; return <article className="record-card device-card" key={String(item.id)}><div><h2>{display(item.name)}</h2><p className="subhead"><StatusBadge value={String(item.status)} /> · {m.devices.lastSeen} <Timestamp value={item.last_seen_at as string | null} locale={locale} /></p><p>{m.devices.externalId} <Bidi>{display(item.external_device_id)}</Bidi> · {m.devices.appVersion} <Bidi>{display(item.app_version)}</Bidi></p></div><dl><div><dt>{m.devices.configVersion}</dt><dd><Bidi>{display(item.configuration_version)}</Bidi></dd></div><div><dt>{m.devices.transactions}</dt><dd><Bidi>{display(item.transaction_count)}</Bidi></dd></div><div><dt>{m.devices.duplicates}</dt><dd><Bidi>{display(item.duplicate_count)}</Bidi></dd></div><div><dt>{m.devices.needsReview}</dt><dd><Bidi>{display(item.needs_review_count)}</Bidi></dd></div></dl><section className="device-config"><h3>{m.devices.collection}</h3><dl>{config.map(([key, value]) => <div key={key}><dt>{configurationLabel(key, m)}</dt><dd>{typeof value === "boolean" ? value ? m.common.yes : m.common.no : <Bidi>{display(value)}</Bidi>}</dd></div>)}</dl></section><DeviceActions id={String(item.id)} name={display(item.name)} status={String(item.status)} token={token} changed={reload} linkOpen={linking === String(item.id)} setLinkOpen={(open) => setLinking(open ? String(item.id) : "")} /><CollectionSettings deviceId={String(item.id)} token={token} /><TrainingConsent deviceId={String(item.id)} token={token} /><SmsSources deviceId={String(item.id)} token={token} devices={data.items.map((device) => ({ id: String(device.id), name: display(device.name) }))} /></article>; })}</div>}</section>;
 }
 
 export function HelpPage() {
