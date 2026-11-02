@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import Text, and_, delete, func, or_, select
+from sqlalchemy import cast as sql_cast
 from sqlalchemy.orm import aliased
 
 from relay.domain.agent import JsonValue
@@ -312,7 +313,14 @@ class SqlOperationsRepository:
         reviewed_count = await self.db.scalar(
             select(func.count())
             .select_from(ReceiptCandidateRow)
-            .where(*receipt_range, ReceiptCandidateRow.reviewed_result.is_not(None))
+            .where(
+                *receipt_range,
+                # JSON columns store Python None as JSON null, not SQL NULL.
+                func.coalesce(
+                    sql_cast(ReceiptCandidateRow.reviewed_result, Text), "null"
+                )
+                != "null",
+            )
         )
         needs_review = await self.db.scalar(
             select(func.count())

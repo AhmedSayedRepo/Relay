@@ -19,6 +19,8 @@ from relay.application.processing import ProcessingService
 from relay.application.receipts import InstaPayReceiptParser
 from relay.application.training import TrainingDatasetService
 from relay.domain.binary_objects import MAX_IMAGE_BYTES, BinaryRejected
+from relay.domain.processing import ReceiptType, ReviewStatus
+from relay.domain.review_trust import initial_resolution
 from relay.infrastructure.agent_models import InstallationRow
 from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.database import Database
@@ -26,6 +28,7 @@ from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
+from relay.infrastructure.processing_models import ReceiptCandidateRow
 from relay.infrastructure.repositories import SqlUnitOfWork
 from relay.infrastructure.security import Argon2Passwords
 from relay.infrastructure.sms_verification_repository import (
@@ -89,6 +92,44 @@ async def import_images(
         f"rejected {counts['rejected']}. Next: process-pending-images."
     )
     return counts
+
+
+async def reopen_rejected(uow: SqlUnitOfWork, device_id: UUID | None) -> int:
+    """Send receipts the reader could not classify back to manual review.
+
+    The operator asserts they are InstaPay receipts; every critical field then
+    needs an operator decision, exactly like any other receipt under review.
+    """
+    query = select(ReceiptCandidateRow).where(
+        ReceiptCandidateRow.review_status == ReviewStatus.REJECTED.value,
+        ReceiptCandidateRow.receipt_type == ReceiptType.UNKNOWN_RECEIPT.value,
+    )
+    if device_id is not None:
+        query = query.where(ReceiptCandidateRow.device_id == device_id)
+    now = datetime.now(UTC)
+    # An operator's own rejection is kept; only machine rejections reopen.
+    rows = [
+        row
+        for row in await uow.session.scalars(query.with_for_update())
+        if row.reviewed_result is None
+    ]
+    for row in rows:
+        resolution = initial_resolution(row.machine_result, supported_receipt=True)
+        resolution["classification_resolved"] = True
+        resolution["supported_layout"] = True
+        resolution["reopened_by"] = "operator_cli"
+        blocking = resolution.get("blocking_fields")
+        if isinstance(blocking, list):
+            resolution["blocking_fields"] = [
+                item for item in blocking if item not in ("classification", "layout")
+            ]
+        row.receipt_type = ReceiptType.INSTAPAY_TRANSFER_RECEIPT.value
+        row.review_status = ReviewStatus.NEEDS_REVIEW.value
+        row.resolution_result = resolution
+        row.updated_at = now
+    await uow.commit()
+    print(f"Reopened {len(rows)} receipts for review.")
+    return len(rows)
 
 
 async def run(
@@ -165,6 +206,8 @@ async def run(
                     stale_job_minutes=settings.processing_stale_minutes,
                     evidence_extractor=InstaPayReceiptAdapter(provider),
                 ).process_pending(limit=limit or settings.processing_batch_limit)
+            elif command == "reopen-rejected":
+                await reopen_rejected(uow, device_id)
             elif command == "import-images" and device_id is not None:
                 await import_images(uow, settings, device_id, images or [])
             elif command == "verify-sms":
@@ -202,6 +245,7 @@ def main() -> int:
             "export-training",
             "verify-sms",
             "import-images",
+            "reopen-rejected",
             "reset-password",
             "recovery-codes",
             "list-admins",

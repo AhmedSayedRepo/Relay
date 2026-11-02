@@ -48,3 +48,13 @@ python -m relay.infrastructure.cli process-pending-images --limit 100   # repeat
 - Byte-identical files are imported once; re-running the command is safe.
 - Imported images follow normal image retention (`IMAGE_OBJECT_RETENTION_DAYS`),
   so review them and run `capture-training` before they expire.
+
+If the reader could not recognise some receipts (status **Rejected**, type
+**Unknown**), and you know they are InstaPay receipts, send them to Review so
+they can be labelled too:
+
+```
+python -m relay.infrastructure.cli reopen-rejected --device <device-id>
+```
+
+Receipts you rejected yourself in Review are left alone.
