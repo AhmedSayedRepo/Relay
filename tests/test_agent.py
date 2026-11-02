@@ -595,3 +595,56 @@ async def test_configuration_bounds_reject_unsafe_documents(
 def test_non_finite_configuration_number_is_rejected() -> None:
     with pytest.raises(InvalidDevice):
         validate_settings({"unsafe": float("inf")})
+
+
+@pytest.mark.asyncio
+async def test_same_phone_relinks_after_disable_and_with_replacement(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    device, old = await provision(client, auth_headers, external_id="relink")
+    phone = UUID(old["installation_id"])
+    for status in ("DISABLED", "ACTIVE"):
+        response = await client.patch(
+            f"/api/v1/devices/{device['id']}",
+            headers=auth_headers,
+            json={"status": status},
+        )
+        assert response.status_code == 200
+    again = await enroll(
+        client,
+        (await challenge(client, auth_headers, device["id"]))["challenge"],
+        installation_id=phone,
+    )
+    assert again["installation_id"] == old["installation_id"]
+    assert (
+        await client.get("/api/v1/device/configuration", headers=agent_headers(old))
+    ).status_code == 401
+    assert (
+        await client.get("/api/v1/device/configuration", headers=agent_headers(again))
+    ).status_code == 200
+    replaced = await enroll(
+        client,
+        (await challenge(client, auth_headers, device["id"], replace_existing=True))[
+            "challenge"
+        ],
+        installation_id=phone,
+    )
+    assert (
+        await client.get(
+            "/api/v1/device/configuration", headers=agent_headers(replaced)
+        )
+    ).status_code == 200
+    other = await create_device(client, auth_headers, external_id="relink-other")
+    response = await client.post(
+        "/api/v1/device/enroll",
+        json={
+            "challenge": (await challenge(client, auth_headers, other["id"]))[
+                "challenge"
+            ],
+            "installation_id": str(phone),
+            "name": "Android supplied name",
+            "platform": "android",
+            "app_version": "0.2.0",
+        },
+    )
+    assert response.status_code == 409
