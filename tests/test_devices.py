@@ -273,7 +273,11 @@ async def test_sql_metacharacters_are_stored_as_data_not_executed(
     identifier = "device'; DROP TABLE devices; --"
     response = await client.post(
         "/api/v1/devices",
-        json={**device_input, "external_device_id": identifier},
+        json={
+            **device_input,
+            "external_device_id": identifier,
+            "name": "Unicode device",
+        },
         headers=auth_headers,
     )
     assert response.status_code == 201
