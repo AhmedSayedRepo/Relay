@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from relay.application.agent_ports import AgentUnitOfWork
-from relay.application.errors import NotFound
+from relay.application.errors import Conflict, NotFound
 from relay.domain.devices import Device, DeviceStatus
 
 
@@ -28,7 +28,14 @@ class DeviceService:
     def __init__(self, uow: AgentUnitOfWork) -> None:
         self.uow = uow
 
+    async def _unique_name(self, name: str, exclude: UUID | None = None) -> None:
+        # One active record per phone: a second device with the same name is
+        # almost always the same phone added twice.
+        if await self.uow.devices.name_in_use(name, exclude):
+            raise Conflict("A device with this name already exists.")
+
     async def create(self, command: CreateDevice) -> Device:
+        await self._unique_name(command.name)
         now = datetime.now(UTC)
         device = Device(
             id=uuid4(),
@@ -58,6 +65,13 @@ class DeviceService:
         device = await self.uow.devices.get(device_id, for_update=True)
         if device is None:
             raise NotFound("Device not found.")
+        reactivating = (
+            device.status == DeviceStatus.DISABLED
+            and command.status not in (None, DeviceStatus.DISABLED)
+        )
+        if command.name is not None or reactivating:
+            if (command.status or device.status) != DeviceStatus.DISABLED:
+                await self._unique_name(command.name or device.name, device.id)
         updated = replace(
             device,
             name=command.name if command.name is not None else device.name,

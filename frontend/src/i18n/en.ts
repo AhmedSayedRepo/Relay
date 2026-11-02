@@ -172,7 +172,7 @@ export const en = {
     replace: "Replace the phone that is linked now", replaceHint: "A phone is already linked to this device. Linking a new one disconnects the old phone right away.",
     failed: "A code couldn’t be created.", done: "Done", qrLabel: "QR code for the one-time enrollment code",
     disable: "Disable", disableConfirm: "Disable this device? Its phone stops uploading right away.", confirmDisable: "Yes, disable",
-    enable: "Turn back on", disabledNote: "Disabled: this device can’t upload. Turn it back on, then link a phone.", actionFailed: "The change wasn’t saved.",
+    enable: "Turn back on", disabledNote: "Disabled: this device can’t upload. Turn it back on, then link a phone.", actionFailed: "The change wasn’t saved.", alreadyExists: "A device with this name or ID already exists. Use that one: click Link phone on it (or turn it back on), instead of adding the phone again.", nameInUse: "Another device in use has this name. Disable that one, or rename one of them first.",
   },
   failures: {
     OCR_TIMEOUT: "OCR took longer than the safe limit.", OCR_FAILED: "OCR could not read the image.", INTERNAL_ERROR: "Processing stopped because of an internal error.",
