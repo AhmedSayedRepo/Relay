@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { Layout } from "./components/Layout";
-import { Dashboard, Devices, DuplicateDetail, HelpPage, ProcessingQueue, Reports, SmsSources, SmsVerificationPanel, TransactionDetail, Transactions } from "./pages";
+import { Dashboard, Devices, DuplicateDetail, HelpPage, ProcessingQueue, Reports, CollectionSettings, SmsSources, SmsVerificationPanel, TransactionDetail, Transactions } from "./pages";
 import { contextHelp, getHelpTopics, helpRegistry, helpTopics } from "./help/topics";
 import { ar } from "./i18n/ar";
 import { en } from "./i18n/en";
@@ -183,6 +183,25 @@ describe("Sprint 7 operator experience", () => {
     expect(await screen.findByRole("heading", { name: "Front desk" })).toBeInTheDocument();
     expect(screen.getByText("SMS collection")).toBeInTheDocument(); expect(screen.getByText("Image rules")).toBeInTheDocument();
     expect(screen.queryByText("sensitive-credential-value")).not.toBeInTheDocument();
+  });
+
+  it("turns on receipt-image and bank SMS collection for a device", async () => {
+    const writes: { expected_version: number; settings: { collectors: Record<string, { enabled: boolean; rules: unknown[] }> } }[] = []; let version = 1;
+    vi.spyOn(globalThis, "fetch").mockImplementation((_request, init) => {
+      if (init?.method === "PUT") { const body = JSON.parse(String(init.body)); writes.push(body); version += 1; return json({ version, schema_version: 1, settings: body.settings }); }
+      return json({ version, schema_version: 1, settings: {} });
+    });
+    renderRelay(<CollectionSettings deviceId="device-1" token="token" />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Receipt images from a folder" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].expected_version).toBe(1); expect(writes[0].settings.collectors.images.enabled).toBe(true); expect(writes[0].settings.collectors.sms.enabled).toBe(false);
+    expect(await screen.findByRole("checkbox", { name: "Receipt images from a folder" })).toBeChecked();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bank SMS" }));
+    expect(await screen.findByText("Add at least one bank SMS sender first.")).toBeInTheDocument(); expect(writes).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText(/Bank SMS senders/), { target: { value: "CIB, NBE" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bank SMS" }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1].expected_version).toBe(2); expect(writes[1].settings.collectors.sms.rules).toHaveLength(2); expect(writes[1].settings.collectors.images.enabled).toBe(true);
   });
 
   it("lets an operator opt a device in and out of training capture", async () => {

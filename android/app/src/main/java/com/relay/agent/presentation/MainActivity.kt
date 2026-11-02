@@ -6,7 +6,6 @@ import android.Manifest
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -30,7 +29,6 @@ import com.relay.agent.presentation.theme.RelayTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         // The header is deep teal in both themes, so status-bar icons stay light.
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
         setContent { RelayTheme { AgentScreen() } }

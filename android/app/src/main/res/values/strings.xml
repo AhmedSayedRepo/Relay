@@ -24,7 +24,7 @@
     <string name="images_active">New images in %1$s are collected and sent to Relay.</string>
     <string name="reason_local_off">Turned off on this phone.</string>
     <string name="reason_sms_permission">Android hasn\'t allowed Relay to read SMS.</string>
-    <string name="reason_server_off">Turned off by your administrator.</string>
+    <string name="reason_server_off">Not turned on for this phone yet. In the admin portal, open Devices and turn it on under “What this phone collects”.</string>
     <string name="reason_folder">Choose the one folder Relay may read.</string>
     <string name="reason_folder_lost">Relay lost access to the chosen folder. Choose it again.</string>
     <string name="reason_waiting_sync">Waiting for the next sync.</string>

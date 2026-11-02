@@ -22,7 +22,7 @@
     <string name="images_active">تُجمع الصور الجديدة في %1$s وتُرسل إلى Relay.</string>
     <string name="reason_local_off">مغلق على هذا الهاتف.</string>
     <string name="reason_sms_permission">لم يسمح Android لـ Relay بقراءة الرسائل.</string>
-    <string name="reason_server_off">أوقفه المسؤول.</string>
+    <string name="reason_server_off">لم يُفعَّل لهذا الهاتف بعد. في بوابة الإدارة افتح الأجهزة وفعّله من “ما يجمعه هذا الهاتف”.</string>
     <string name="reason_folder">اختر المجلد الوحيد الذي يمكن لـ Relay قراءته.</string>
     <string name="reason_folder_lost">فقد Relay الوصول إلى المجلد المختار. اختره مرة أخرى.</string>
     <string name="reason_waiting_sync">بانتظار المزامنة القادمة.</string>
