@@ -173,27 +173,35 @@ function senderList(settings: Record<string, Json>): string { const sms = collec
 export function CollectionSettings({ deviceId, token }: { deviceId: string; token: string }) {
   const { messages: m } = useI18n(); const path = "/devices/" + encodeURIComponent(deviceId) + "/configuration";
   const { data, error, loading, reload } = useApi<DeviceConfig>(path, token);
-  const [saved, setSaved] = useState<DeviceConfig | null>(null); const [busy, setBusy] = useState(false); const [failed, setFailed] = useState(""); const [senders, setSenders] = useState<string | null>(null);
+  const [saved, setSaved] = useState<DeviceConfig | null>(null); const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  const [draft, setDraft] = useState<{ images: boolean; sms: boolean; senders: string } | null>(null);
   const current = saved ?? data; const settings = current?.settings ?? {}; const parts = collectors(settings);
-  const imagesOn = (parts.images as { enabled?: boolean } | undefined)?.enabled === true; const smsOn = (parts.sms as { enabled?: boolean } | undefined)?.enabled === true;
-  const senderText = senders ?? senderList(settings);
-  async function save(images: boolean, sms: boolean, names: string) {
+  const stored = { images: (parts.images as { enabled?: boolean } | undefined)?.enabled === true, sms: (parts.sms as { enabled?: boolean } | undefined)?.enabled === true, senders: senderList(settings) };
+  const form = draft ?? stored; const dirty = draft !== null && (draft.images !== stored.images || draft.sms !== stored.sms || draft.senders.trim() !== stored.senders);
+  const change = (next: Partial<typeof form>) => { setDraft({ ...form, ...next }); setNotice(null); };
+  async function save() {
     if (!current) return;
-    const list = names.split(/[,\n]/).map((value) => value.trim()).filter(Boolean).slice(0, 20);
-    if (sms && list.length === 0) { setFailed(m.devices.sendersNeeded); return; }
+    const list = form.senders.split(/[,\n]/).map((value) => value.trim()).filter(Boolean).slice(0, 20);
+    if (form.sms && list.length === 0) { setNotice({ text: m.devices.sendersNeeded, error: true }); return; }
     const next: Record<string, Json> = { ...parts };
-    next.images = { enabled: images, sources: [{ id: IMAGE_SOURCE, type: "saf_tree" }], rules: [{ id: "all-images", enabled: true, source_id: IMAGE_SOURCE, mime_types: ["image/jpeg", "image/png", "image/webp"] }] };
-    next.sms = { enabled: sms, rules: list.map((value, index) => ({ id: "sender-" + (index + 1), enabled: true, sender: { mode: "contains", value } })) };
-    setBusy(true); setFailed("");
-    try { setSaved(await api<DeviceConfig>(path, token, { method: "PUT", body: JSON.stringify({ expected_version: current.version, schema_version: 1, settings: { ...settings, collectors: next } }) })); setSenders(null); }
-    catch (err) { setFailed(err instanceof ApiError && err.status === 409 ? m.devices.collectionChanged : m.devices.trainingFailed); if (err instanceof ApiError && err.status === 409) { setSaved(null); reload(); } }
+    next.images = { enabled: form.images, sources: [{ id: IMAGE_SOURCE, type: "saf_tree" }], rules: [{ id: "all-images", enabled: true, source_id: IMAGE_SOURCE, mime_types: ["image/jpeg", "image/png", "image/webp"] }] };
+    next.sms = { enabled: form.sms, rules: list.map((value, index) => ({ id: "sender-" + (index + 1), enabled: true, sender: { mode: "contains", value } })) };
+    setBusy(true); setNotice(null);
+    try { setSaved(await api<DeviceConfig>(path, token, { method: "PUT", body: JSON.stringify({ expected_version: current.version, schema_version: 1, settings: { ...settings, collectors: next } }) })); setDraft(null); setNotice({ text: m.devices.collectionSaved, error: false }); }
+    catch (err) {
+      const conflict = err instanceof ApiError && err.status === 409;
+      setNotice({ text: conflict ? m.devices.collectionChanged : m.devices.collectionFailed + (err instanceof Error && err.message ? " (" + err.message + ")" : ""), error: true });
+      if (conflict) { setSaved(null); setDraft(null); reload(); }
+    }
     finally { setBusy(false); }
   }
   return <section className="training-consent"><h3>{m.devices.collectionTitle}</h3>{loading && !current ? <p className="hint">{m.devices.trainingLoading}</p> : error || !current ? <p className="status error" role="alert">{m.devices.collectionUnavailable}</p> : <>
-    <label className="toggle-row"><input type="checkbox" checked={imagesOn} disabled={busy} onChange={(e) => void save(e.target.checked, smsOn, senderText)} />{m.devices.imagesToggle}</label>
-    <label className="toggle-row"><input type="checkbox" checked={smsOn} disabled={busy} onChange={(e) => void save(imagesOn, e.target.checked, senderText)} />{m.devices.smsToggle}</label>
-    <label>{m.devices.senders}<span className="inline-field"><input dir="ltr" value={senderText} maxLength={600} placeholder="CIB, NBE, InstaPay" onChange={(e) => setSenders(e.target.value)} /><button type="button" className="quiet-button" disabled={busy || senders === null} onClick={() => void save(imagesOn, smsOn, senderText)}>{m.devices.saveSenders}</button></span></label>
-    <p className="hint">{m.devices.collectionHint}</p>{failed && <p className="status error" role="alert">{failed}</p>}</>}</section>;
+    <label className="toggle-row"><input type="checkbox" checked={form.images} disabled={busy} onChange={(e) => change({ images: e.target.checked })} />{m.devices.imagesToggle}</label>
+    <label className="toggle-row"><input type="checkbox" checked={form.sms} disabled={busy} onChange={(e) => change({ sms: e.target.checked })} />{m.devices.smsToggle}</label>
+    {form.sms && <label>{m.devices.senders}<input dir="ltr" value={form.senders} maxLength={600} placeholder="CIB, NBE, InstaPay" disabled={busy} onChange={(e) => change({ senders: e.target.value })} /></label>}
+    <div className="button-row"><button type="button" disabled={busy || !dirty} onClick={() => void save()}>{busy ? m.devices.collectionSaving : m.devices.collectionSave}</button>{dirty && !busy && <button type="button" className="quiet-button" onClick={() => { setDraft(null); setNotice(null); }}>{m.link.cancel}</button>}</div>
+    {notice ? <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p> : <p className="hint">{m.devices.collectionHint}</p>}</>}</section>;
 }
 
 function TrainingConsent({ deviceId, token }: { deviceId: string; token: string }) {
