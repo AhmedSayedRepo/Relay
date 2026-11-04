@@ -75,7 +75,7 @@ async def pg_sessions():
 async def create_device(sessions, external_id="generic-source-001"):
     async with sessions() as session:
         return await DeviceService(SqlUnitOfWork(session)).create(
-            CreateDevice(external_id, "Test workstation", "linux", "1.0")
+            CreateDevice(external_id, f"Test workstation {external_id}", "linux", "1.0")
         )
 
 

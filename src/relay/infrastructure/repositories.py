@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.errors import Conflict
-from relay.domain.devices import Device
+from relay.domain.devices import Device, DeviceStatus
 from relay.domain.users import User
 from relay.infrastructure.agent_models import ConfigurationRow
 from relay.infrastructure.agent_repository import SqlAgentRepository
@@ -121,6 +121,15 @@ class SqlDeviceRepository:
             .offset(offset)
         )
         return [to_device(row) for row in rows]
+
+    async def name_in_use(self, name: str, exclude: UUID | None = None) -> bool:
+        query = select(DeviceRow.id).where(
+            func.lower(func.trim(DeviceRow.name)) == name.strip().lower(),
+            DeviceRow.status != DeviceStatus.DISABLED,
+        )
+        if exclude is not None:
+            query = query.where(DeviceRow.id != exclude)
+        return await self.session.scalar(query.limit(1)) is not None
 
     async def add(self, device: Device) -> None:
         self.session.add(
