@@ -80,3 +80,61 @@ async def test_bulk_import_requires_an_enrolled_device(client, auth_headers, app
             assert "Enrol" in str(exc)
         else:
             raise AssertionError("import without an installation must fail")
+
+
+async def test_reopen_rejected_sends_unrecognised_receipts_to_review(
+    client, auth_headers, app
+):
+    from dataclasses import replace
+
+    from relay.domain.processing import ReceiptType
+    from relay.infrastructure.cli import reopen_rejected
+    from tests.review_helpers import review_critical_fields
+    from tests.test_processing import upload_fixture
+
+    class NotRecognised(EvidenceFixture):
+        async def extract(self, data, **kwargs):
+            evidence = await super().extract(data, **kwargs)
+            return replace(
+                evidence,
+                document=replace(evidence.document, normalized_text="", lines=()),
+                candidates=(),
+                receipt_type=ReceiptType.UNKNOWN_RECEIPT,
+                classification_resolved=False,
+                supported_layout=False,
+                receipt_possible=False,
+                metadata={"recognition_skipped": "visual_registration_not_admitted"},
+            )
+
+    app.state.settings.receipt_evidence_enabled = True
+    _, bundle = await provision(client, auth_headers, "reopen")
+    await upload_fixture(client, bundle, "clean_instapay.png")
+    async with app.state.database.session() as session:
+        await ProcessingService(
+            SqlUnitOfWork(session),
+            app.state.object_storage,
+            PillowImagePreprocessor(),
+            FakeOcr(),
+            InstaPayReceiptParser(),
+            evidence_extractor=NotRecognised(),
+        ).process_pending()
+    receipts = (await client.get("/api/v1/receipts", headers=auth_headers)).json()
+    assert receipts["items"][0]["review_status"] == "REJECTED"
+
+    async with app.state.database.session() as session:
+        assert await reopen_rejected(SqlUnitOfWork(session), None) == 1
+    async with app.state.database.session() as session:
+        assert await reopen_rejected(SqlUnitOfWork(session), None) == 0
+
+    item = (await client.get("/api/v1/receipts", headers=auth_headers)).json()["items"][
+        0
+    ]
+    assert item["review_status"] == "NEEDS_REVIEW"
+    assert item["receipt_type"] == "INSTAPAY_TRANSFER_RECEIPT"
+    detail = (
+        await client.get(f"/api/v1/receipts/{item['id']}", headers=auth_headers)
+    ).json()
+    blocking = detail["resolution_result"]["blocking_fields"]
+    assert "classification" not in blocking and "reference_number" in blocking
+    final = await review_critical_fields(client, auth_headers, detail)
+    assert final["review_status"] == "AUTO_ACCEPTED"

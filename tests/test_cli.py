@@ -170,3 +170,18 @@ def test_operator_can_reset_password_list_admins_and_issue_codes(
     assert cli.main() == 1
     output = capsys.readouterr()
     assert second not in output.out + output.err
+
+
+def test_reopen_rejected_accepts_an_optional_device(monkeypatch):
+    calls = []
+
+    async def fake_run(command, email, password, limit=None, **kwargs):
+        calls.append((command, kwargs.get("device_id")))
+
+    monkeypatch.setattr(cli, "run", fake_run)
+    device = "72d01536-ba2b-4bd0-8139-586270618b24"
+    monkeypatch.setattr(sys, "argv", ["relay", "reopen-rejected", "--device", device])
+    assert cli.main() == 0
+    monkeypatch.setattr(sys, "argv", ["relay", "reopen-rejected"])
+    assert cli.main() == 0
+    assert [str(value) if value else None for _, value in calls] == [device, None]
