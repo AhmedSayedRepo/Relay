@@ -63,7 +63,11 @@ async def test_duplicate_external_id_is_conflict_and_does_not_poison_next_reques
     )
     assert_error(duplicate, 409)
     assert device_input["external_device_id"] not in duplicate.text
-    different = {**device_input, "external_device_id": "independent-device"}
+    different = {
+        **device_input,
+        "external_device_id": "independent-device",
+        "name": "Independent device",
+    }
     assert (
         await client.post("/api/v1/devices", json=different, headers=auth_headers)
     ).status_code == 201
@@ -223,7 +227,11 @@ async def test_device_list_pagination_has_no_duplicates_or_missing_rows(
     for number in range(5):
         response = await client.post(
             "/api/v1/devices",
-            json={**device_input, "external_device_id": f"pagination-{number}"},
+            json={
+                **device_input,
+                "external_device_id": f"pagination-{number}",
+                "name": f"Device {number}",
+            },
             headers=auth_headers,
         )
         assert response.status_code == 201
@@ -265,7 +273,11 @@ async def test_sql_metacharacters_are_stored_as_data_not_executed(
     identifier = "device'; DROP TABLE devices; --"
     response = await client.post(
         "/api/v1/devices",
-        json={**device_input, "external_device_id": identifier},
+        json={
+            **device_input,
+            "external_device_id": identifier,
+            "name": "Unicode device",
+        },
         headers=auth_headers,
     )
     assert response.status_code == 201
@@ -278,3 +290,42 @@ async def test_sql_metacharacters_are_stored_as_data_not_executed(
         len((await client.get("/api/v1/devices", headers=auth_headers)).json()["items"])
         == 2
     )
+
+
+@pytest.mark.asyncio
+async def test_device_names_are_unique_among_devices_in_use(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    device_input: dict[str, str],
+) -> None:
+    first = await client.post(
+        "/api/v1/devices", json=device_input, headers=auth_headers
+    )
+    assert first.status_code == 201
+    same = {
+        **device_input,
+        "external_device_id": "second-phone",
+        "name": "LAB DEVICE",
+    }
+    assert (
+        await client.post("/api/v1/devices", json=same, headers=auth_headers)
+    ).status_code == 409
+    path = f"/api/v1/devices/{first.json()['id']}"
+    assert (
+        await client.patch(path, json={"status": "DISABLED"}, headers=auth_headers)
+    ).status_code == 200
+    second = await client.post(
+        "/api/v1/devices",
+        json={**same, "name": device_input["name"]},
+        headers=auth_headers,
+    )
+    assert second.status_code == 201
+    # The disabled one cannot come back while its name is taken.
+    assert (
+        await client.patch(path, json={"status": "PENDING"}, headers=auth_headers)
+    ).status_code == 409
+    assert (
+        await client.patch(
+            path, json={"status": "PENDING", "name": "Old phone"}, headers=auth_headers
+        )
+    ).status_code == 200

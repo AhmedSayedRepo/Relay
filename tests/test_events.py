@@ -19,7 +19,7 @@ async def provision(
         headers=auth_headers,
         json={
             "external_device_id": external_id,
-            "name": "SMS test device",
+            "name": f"SMS test device {external_id}",
             "platform": "android",
             "app_version": "0.3.0",
         },

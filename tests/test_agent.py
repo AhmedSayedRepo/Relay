@@ -24,7 +24,11 @@ async def create_device(
         headers=auth_headers,
         json={
             "external_device_id": external_id,
-            "name": "Administrator name",
+            "name": (
+                "Administrator name"
+                if external_id == "agent-lab-001"
+                else f"Administrator {external_id}"
+            ),
             "platform": "android",
             "app_version": "0.1.0",
         },
