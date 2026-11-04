@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import copy
 import getpass
 import json
 import sys
@@ -165,7 +166,9 @@ async def prefill_suggestions(
     counts = {"receipts": 0, "fields": 0, "skipped": 0}
     now = datetime.now(UTC)
     for row, digest in rows:
-        resolution = row.resolution_result
+        # Work on a copy: editing the loaded JSON in place would make the old
+        # and new values compare equal, and SQLAlchemy would skip the UPDATE.
+        resolution = copy.deepcopy(row.resolution_result)
         values = receipts.get(digest)
         if not isinstance(resolution, dict) or not isinstance(values, dict):
             continue
@@ -209,8 +212,7 @@ async def prefill_suggestions(
             counts["fields"] += 1
             changed = True
         if changed:
-            # Reassign so SQLAlchemy sees the JSON change.
-            row.resolution_result = {**resolution, "fields": dict(fields)}
+            row.resolution_result = resolution
             row.updated_at = now
             counts["receipts"] += 1
     await uow.commit()
