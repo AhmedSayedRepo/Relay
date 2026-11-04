@@ -138,3 +138,50 @@ async def test_reopen_rejected_sends_unrecognised_receipts_to_review(
     assert "classification" not in blocking and "reference_number" in blocking
     final = await review_critical_fields(client, auth_headers, detail)
     assert final["review_status"] == "AUTO_ACCEPTED"
+
+
+async def test_prefill_suggestions_are_confirmable_but_not_trusted(
+    client, auth_headers, app
+):
+    import hashlib
+
+    from relay.infrastructure.cli import prefill_suggestions
+    from tests.review_helpers import review_field
+    from tests.test_processing import upload_fixture
+
+    app.state.settings.receipt_evidence_enabled = True
+    _, bundle = await provision(client, auth_headers, "prefill")
+    await upload_fixture(client, bundle, "clean_instapay.png")
+    async with app.state.database.session() as session:
+        await ProcessingService(
+            SqlUnitOfWork(session),
+            app.state.object_storage,
+            PillowImagePreprocessor(),
+            FakeOcr(),
+            InstaPayReceiptParser(),
+            evidence_extractor=EvidenceFixture(None, "fixture"),
+        ).process_pending()
+    digest = hashlib.sha256((FIXTURES / "clean_instapay.png").read_bytes()).hexdigest()
+    document = {
+        "source": "test-prefill",
+        "receipts": {digest: {"amount": "777", "date": "not-a-date"}},
+    }
+    async with app.state.database.session() as session:
+        counts = await prefill_suggestions(SqlUnitOfWork(session), document)
+    assert counts == {"receipts": 1, "fields": 1, "skipped": 1}
+    item = (await client.get("/api/v1/receipts", headers=auth_headers)).json()["items"][
+        0
+    ]
+    assert item["review_status"] == "NEEDS_REVIEW"
+    detail = (
+        await client.get(f"/api/v1/receipts/{item['id']}", headers=auth_headers)
+    ).json()
+    amount = detail["resolution_result"]["fields"]["amount"]
+    assert amount["value"] == "777.00" and amount["trust"] == "MACHINE_ONLY"
+    assert [c["normalized_value"] for c in amount["candidates"]] == ["777.00"]
+    if "amount" in detail["resolution_result"]["blocking_fields"]:
+        confirmed = await review_field(
+            client, auth_headers, detail, "amount", "CONFIRM", "777.00"
+        )
+        field = confirmed["resolution_result"]["fields"]["amount"]
+        assert field["trust"] == "OPERATOR_CONFIRMED"

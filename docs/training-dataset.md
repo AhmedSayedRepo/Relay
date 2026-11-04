@@ -58,3 +58,13 @@ python -m relay.infrastructure.cli reopen-rejected --device <device-id>
 ```
 
 Receipts you rejected yourself in Review are left alone.
+
+To speed up review, suggested values can be attached from a JSON file keyed by
+image SHA-256 (`{"source": "...", "receipts": {"<sha256>": {"amount": "490",
+"currency": "EGP", "reference_number": "...", "date": "2026-10-27", "time": "19:06:00"}}}`):
+
+```
+python -m relay.infrastructure.cli prefill-suggestions --file prefill.json
+```
+
+They appear as the suggestion in Review; nothing is trusted until you Confirm it.

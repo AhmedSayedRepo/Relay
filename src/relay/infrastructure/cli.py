@@ -1,9 +1,11 @@
 import argparse
 import asyncio
 import getpass
+import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
@@ -22,6 +24,7 @@ from relay.domain.binary_objects import MAX_IMAGE_BYTES, BinaryRejected
 from relay.domain.processing import ReceiptType, ReviewStatus
 from relay.domain.review_trust import initial_resolution
 from relay.infrastructure.agent_models import InstallationRow
+from relay.infrastructure.binary_models import BinaryObjectRow
 from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
@@ -132,6 +135,92 @@ async def reopen_rejected(uow: SqlUnitOfWork, device_id: UUID | None) -> int:
     return len(rows)
 
 
+PREFILL_FIELDS = ("amount", "currency", "reference_number", "date", "time")
+
+
+async def prefill_suggestions(
+    uow: SqlUnitOfWork, document: dict[str, Any]
+) -> dict[str, int]:
+    """Attach suggested values (keyed by image SHA-256) to receipts under review.
+
+    Suggestions are machine-only: every field still needs an operator to
+    Confirm or Correct it, and fields an operator already decided are kept.
+    """
+    from relay.application.errors import Conflict
+    from relay.application.processing import _exception_value
+
+    receipts = document.get("receipts")
+    if not isinstance(receipts, dict):
+        raise ValueError("Prefill file needs a receipts object.")
+    source = str(document.get("source") or "prefill")[:64]
+    rows = await uow.session.execute(
+        select(ReceiptCandidateRow, BinaryObjectRow.content_hash)
+        .join(BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id)
+        .where(
+            ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value,
+            BinaryObjectRow.content_hash.in_(list(receipts)),
+        )
+        .with_for_update(of=ReceiptCandidateRow)
+    )
+    counts = {"receipts": 0, "fields": 0, "skipped": 0}
+    now = datetime.now(UTC)
+    for row, digest in rows:
+        resolution = row.resolution_result
+        values = receipts.get(digest)
+        if not isinstance(resolution, dict) or not isinstance(values, dict):
+            continue
+        fields = resolution.get("fields")
+        if not isinstance(fields, dict):
+            continue
+        adapter = resolution.get("adapter")
+        changed = False
+        for name in PREFILL_FIELDS:
+            raw = values.get(name)
+            field = fields.get(name)
+            if not isinstance(raw, str) or not isinstance(field, dict):
+                continue
+            if field.get("trust") in {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}:
+                continue
+            try:
+                value = _exception_value(
+                    name, raw, adapter=adapter if isinstance(adapter, str) else None
+                )
+            except Conflict:
+                counts["skipped"] += 1
+                continue
+            previous = field.get("candidates")
+            if isinstance(previous, list) and previous:
+                field.setdefault("candidates_before_prefill", previous)
+            field.update(
+                value=value,
+                trust="MACHINE_ONLY",
+                candidates=[
+                    {
+                        "field": name,
+                        "value": value,
+                        "normalized_value": value,
+                        "original_text": raw,
+                        "source": "prefill",
+                        "adapter": source,
+                        "adapter_version": "v1",
+                    }
+                ],
+            )
+            counts["fields"] += 1
+            changed = True
+        if changed:
+            # Reassign so SQLAlchemy sees the JSON change.
+            row.resolution_result = {**resolution, "fields": dict(fields)}
+            row.updated_at = now
+            counts["receipts"] += 1
+    await uow.commit()
+    print(
+        f"Prefilled {counts['fields']} fields on {counts['receipts']} receipts; "
+        f"skipped {counts['skipped']} invalid values."
+    )
+    return counts
+
+
 async def run(
     command: str,
     email: str | None,
@@ -142,6 +231,7 @@ async def run(
     include_holdout: bool = False,
     device_id: UUID | None = None,
     images: list[tuple[str, bytes]] | None = None,
+    prefill: dict[str, Any] | None = None,
 ) -> None:
     settings = load_settings()
     database = Database(settings)
@@ -208,6 +298,8 @@ async def run(
                 ).process_pending(limit=limit or settings.processing_batch_limit)
             elif command == "reopen-rejected":
                 await reopen_rejected(uow, device_id)
+            elif command == "prefill-suggestions" and prefill is not None:
+                await prefill_suggestions(uow, prefill)
             elif command == "import-images" and device_id is not None:
                 await import_images(uow, settings, device_id, images or [])
             elif command == "verify-sms":
@@ -246,6 +338,7 @@ def main() -> int:
             "verify-sms",
             "import-images",
             "reopen-rejected",
+            "prefill-suggestions",
             "reset-password",
             "recovery-codes",
             "list-admins",
@@ -257,6 +350,7 @@ def main() -> int:
     parser.add_argument("--include-holdout", action="store_true")
     parser.add_argument("--device", type=UUID)
     parser.add_argument("--dir", type=Path)
+    parser.add_argument("--file", type=Path)
     args = parser.parse_args()
     try:
         email = None
@@ -288,6 +382,8 @@ def main() -> int:
             args.device is not None and args.command != "reopen-rejected"
         ):
             raise ValueError("Device and folder are accepted only for import-images.")
+        if args.file is not None and args.command != "prefill-suggestions":
+            raise ValueError("--file is accepted only for prefill-suggestions.")
         password = None
         if args.command in {"create-admin", "reset-password"}:
             if not sys.stdin.isatty():
@@ -319,6 +415,13 @@ def main() -> int:
             )
         elif args.command == "reopen-rejected":
             asyncio.run(run(args.command, None, None, device_id=args.device))
+        elif args.command == "prefill-suggestions":
+            if not isinstance(args.file, Path):
+                raise ValueError("Prefill requires --file.")
+            document = json.loads(args.file.read_text(encoding="utf-8"))
+            if not isinstance(document, dict):
+                raise ValueError("Prefill file must be a JSON object.")
+            asyncio.run(run(args.command, None, None, prefill=document))
         else:
             asyncio.run(run(args.command, email, password))
     except (ValidationError, ValueError, ApplicationError, RuntimeError):
