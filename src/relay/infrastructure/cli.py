@@ -284,7 +284,9 @@ def main() -> int:
         if args.command == "import-images":
             if args.device is None or args.dir is None:
                 raise ValueError("Import requires --device and --dir.")
-        elif args.device is not None or args.dir is not None:
+        elif args.dir is not None or (
+            args.device is not None and args.command != "reopen-rejected"
+        ):
             raise ValueError("Device and folder are accepted only for import-images.")
         password = None
         if args.command in {"create-admin", "reset-password"}:
@@ -315,6 +317,8 @@ def main() -> int:
                     include_holdout=args.include_holdout,
                 )
             )
+        elif args.command == "reopen-rejected":
+            asyncio.run(run(args.command, None, None, device_id=args.device))
         else:
             asyncio.run(run(args.command, email, password))
     except (ValidationError, ValueError, ApplicationError, RuntimeError):
