@@ -16,9 +16,10 @@ const IDLE_LIMIT_MS = 30 * 60 * 1000;
 /** Keep an active operator signed in: renew the short-lived token while
  * they are using the portal; let it lapse after 30 minutes of no activity. */
 export function useSessionKeepAlive(token: string, setToken: (value: string) => void) {
-  const lastActive = useRef(Date.now());
+  const lastActive = useRef(0);
   useEffect(() => {
     const mark = () => { lastActive.current = Date.now(); };
+    mark();
     const events = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
     events.forEach((name) => window.addEventListener(name, mark, { passive: true }));
     return () => events.forEach((name) => window.removeEventListener(name, mark));
