@@ -42,7 +42,9 @@ async function nextInQueue(token: string, current: string): Promise<string | nul
     const found = Array.isArray(page?.items) ? page.items.find((item) => item.id !== current) : undefined;
     if (found) return String(found.id);
   }
-  return null;
+  // Fallback when the categorized queue has nothing (or is unavailable).
+  const fallback = await api<Transaction | null>("/receipts/next-exception", token);
+  return fallback && fallback.id !== current ? String(fallback.id) : null;
 }
 
 export function ExceptionReview({ receipt, evidence, token, reload, focus }: { receipt: Transaction; evidence: EvidenceFirst; token: string; reload: () => void; focus: (polygon: number[][]) => void }) {
