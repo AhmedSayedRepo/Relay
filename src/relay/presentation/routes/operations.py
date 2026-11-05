@@ -166,7 +166,7 @@ async def resolve_duplicate(
     )
 
 
-ReviewCategory = Literal["ready", "missing", "duplicate", "in_progress"]
+ReviewCategory = Literal["ready", "missing", "duplicate", "in_progress", "done"]
 MAX_CATEGORIZED = 5000
 
 

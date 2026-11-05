@@ -24,12 +24,20 @@ def row(identifier, reference=None, date=None, trust="MACHINE_ONLY"):
 
 
 def test_categories_follow_the_work_needed() -> None:
+    done = row("done", None, None)
+    for name in done["resolution_result"]["blocking_fields"]:
+        if name in ("reference_number", "date", "time"):
+            done["resolution_result"]["fields"][name]["reason"] = "operator_unavailable"
+        else:
+            done["resolution_result"]["fields"][name]["trust"] = "OPERATOR_CONFIRMED"
+    done["resolution_result"]["blocking_fields"] = ["reference_number", "date", "time"]
     rows = [
         row("ready", "111111111111", "2026-10-27"),
         row("missing", None, None),
         row("dup-a", "222222222222", "2026-10-27"),
         row("dup-b", "222222222222", "2026-10-27"),
         row("started", None, None, trust="OPERATOR_CONFIRMED"),
+        done,
     ]
     assert categorize(rows) == {
         "ready": "ready",
@@ -37,4 +45,5 @@ def test_categories_follow_the_work_needed() -> None:
         "dup-a": "duplicate",
         "dup-b": "duplicate",
         "started": "in_progress",
+        "done": "done",
     }
