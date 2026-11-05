@@ -39,7 +39,7 @@ function allDecided(evidence: EvidenceFirst | null): boolean {
 async function nextInQueue(token: string, current: string): Promise<string | null> {
   for (const category of NEXT_ORDER) {
     const page = await api<Page<Transaction>>("/review-queue" + query({ category, sort_direction: "asc", limit: 2 }), token);
-    const found = page.items.find((item) => item.id !== current);
+    const found = Array.isArray(page?.items) ? page.items.find((item) => item.id !== current) : undefined;
     if (found) return String(found.id);
   }
   return null;
