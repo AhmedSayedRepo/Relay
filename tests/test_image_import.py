@@ -185,3 +185,32 @@ async def test_prefill_suggestions_are_confirmable_but_not_trusted(
         )
         field = confirmed["resolution_result"]["fields"]["amount"]
         assert field["trust"] == "OPERATOR_CONFIRMED"
+
+
+async def test_review_queue_category_filter_and_counts(client, auth_headers, app):
+    app.state.settings.receipt_evidence_enabled = True
+    _, bundle = await provision(client, auth_headers, "categories")
+    from tests.test_processing import upload_fixture
+
+    await upload_fixture(client, bundle, "clean_instapay.png")
+    async with app.state.database.session() as session:
+        await ProcessingService(
+            SqlUnitOfWork(session),
+            app.state.object_storage,
+            PillowImagePreprocessor(),
+            FakeOcr(),
+            InstaPayReceiptParser(),
+            evidence_extractor=EvidenceFixture(None, "fixture"),
+        ).process_pending()
+    counts = (
+        await client.get("/api/v1/review-queue/categories", headers=auth_headers)
+    ).json()
+    assert set(counts) == {"ready", "missing", "duplicate", "in_progress"}
+    assert sum(counts.values()) == 1
+    category = next(name for name, value in counts.items() if value)
+    page = (
+        await client.get(
+            f"/api/v1/review-queue?category={category}", headers=auth_headers
+        )
+    ).json()
+    assert page["total"] == 1 and page["items"][0]["review_category"] == category

@@ -16,3 +16,8 @@ def test_legacy_parser_fields_get_a_readable_shape() -> None:
         assert field["reason"] == "legacy_parser_field"
         assert isinstance(field["candidates"], list)
     assert "transaction_date" not in resolution["blocking_fields"]
+
+
+def test_critical_fields_always_carry_a_value_key() -> None:
+    resolution = initial_resolution({"fields": []}, supported_receipt=True)
+    assert resolution["fields"]["reference_number"]["value"] is None

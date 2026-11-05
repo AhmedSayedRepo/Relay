@@ -6,7 +6,7 @@ export type EvidenceFirst = { schema_version: 1 | 2; state: string; classificati
 function object(value: Json | undefined): Record<string, Json> | null { return value && typeof value === "object" && !Array.isArray(value) ? value : null; }
 function validField(value: Json | undefined): boolean {
   const field = object(value);
-  if (!field || !["RESOLVED", "UNRESOLVED"].includes(String(field.state)) || typeof field.reason !== "string" || !Array.isArray(field.candidates) || !(field.value === null || typeof field.value === "string")) return false;
+  if (!field || !["RESOLVED", "UNRESOLVED"].includes(String(field.state)) || typeof field.reason !== "string" || !Array.isArray(field.candidates) || !(field.value == null || typeof field.value === "string")) return false;
   return field.candidates.every((item) => {
     const candidate = object(item);
     if (!candidate || typeof candidate.value !== "string" || typeof candidate.normalized_value !== "string" || typeof candidate.original_text !== "string" || typeof candidate.source !== "string") return false;

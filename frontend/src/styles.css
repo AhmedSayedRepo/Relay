@@ -330,3 +330,8 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 }
 @media (max-width: 430px) { .metric-grid { grid-template-columns: 1fr; }.preferences:not(.compact) { width: 100%; justify-content: flex-end; }.top-actions { width: 100%; }}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+.category-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0 1rem; }
+.category-tabs button { border-radius: 999px; padding: .45rem .9rem; background: var(--surface, transparent); border: 1px solid var(--line); color: inherit; display: inline-flex; gap: .5rem; align-items: center; }
+.category-tabs button.active { background: var(--brand, #103e46); color: #fff; border-color: transparent; }
+.category-tabs .count { font-weight: 800; font-size: .8rem; opacity: .85; }
