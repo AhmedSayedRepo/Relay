@@ -17,6 +17,10 @@ function FieldCard({ resolution, field, busy, submit, focus }: { resolution?: Fi
   const { messages: m } = useI18n(); const [selected, setSelected] = useState(""); const [correcting, setCorrecting] = useState(false); const [value, setValue] = useState("");
   const candidates = resolution?.candidates || []; const unique = [...new Set(candidates.map((candidate) => candidate.normalized_value || candidate.value))]; const suggested = unique.length === 1 ? unique[0] : selected;
   const label = (m.exceptions.fields as Record<string, string>)[field] || field;
+  if (resolution?.reason === "operator_unavailable") return <article className="exception-field decided"><h3>{label}</h3><p className="status" role="status">{m.exceptions.markedUnavailable}</p>
+    <div className="exception-actions"><button type="button" disabled={busy} onClick={() => setCorrecting(!correcting)}>{m.exceptions.enterValue}</button></div>
+    {correcting && <form onSubmit={(event) => { event.preventDefault(); if (value.trim()) submit(field, "CORRECT", value.trim()); }}><label>{m.exceptions.corrected} {label}<input value={value} maxLength={160} onChange={(event) => setValue(event.target.value)} required /></label><button disabled={busy || !value.trim()} type="submit">{m.exceptions.save}</button></form>}
+  </article>;
   return <article className="exception-field"><h3>{label}</h3><p className="hint">{resolution?.reason || m.exceptions.missing}</p>
     {candidates.length > 0 && <fieldset disabled={busy}><legend>{m.exceptions.candidates}</legend>{candidates.map((candidate, index) => <div className="candidate-evidence" key={index}>
       {unique.length > 1 ? <label><input type="radio" name={field} value={candidate.normalized_value || candidate.value} checked={selected === (candidate.normalized_value || candidate.value)} onChange={() => setSelected(candidate.normalized_value || candidate.value)} /><Bidi>{candidate.value}</Bidi></label> : <Bidi>{candidate.value}</Bidi>}
@@ -27,6 +31,20 @@ function FieldCard({ resolution, field, busy, submit, focus }: { resolution?: Fi
   </article>;
 }
 
+const NEXT_ORDER = ["in_progress", "ready", "duplicate", "missing"];
+/** Every field still blocking was marked unavailable: nothing left to decide here. */
+function allDecided(evidence: EvidenceFirst | null): boolean {
+  return Boolean(evidence) && (evidence as EvidenceFirst).blocking_fields.every((name) => (evidence as EvidenceFirst).fields[name]?.reason === "operator_unavailable");
+}
+async function nextInQueue(token: string, current: string): Promise<string | null> {
+  for (const category of NEXT_ORDER) {
+    const page = await api<Page<Transaction>>("/review-queue" + query({ category, sort_direction: "asc", limit: 2 }), token);
+    const found = page.items.find((item) => item.id !== current);
+    if (found) return String(found.id);
+  }
+  return null;
+}
+
 export function ExceptionReview({ receipt, evidence, token, reload, focus }: { receipt: Transaction; evidence: EvidenceFirst; token: string; reload: () => void; focus: (polygon: number[][]) => void }) {
   const { messages: m } = useI18n(); const navigate = useNavigate(); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const pending = useRef<{ signature: string; id: string } | null>(null); const inFlight = useRef(false);
@@ -35,12 +53,12 @@ export function ExceptionReview({ receipt, evidence, token, reload, focus }: { r
     inFlight.current = true; setBusy(true); setMessage("");
     const payload = { expected_updated_at: receipt.updated_at, field, action, value }; const signature = JSON.stringify(payload);
     if (pending.current?.signature !== signature) pending.current = { signature, id: crypto.randomUUID() };
-    try { const saved = await api<Transaction>(`/receipts/${receipt.id}/exceptions`, token, { method: "POST", body: JSON.stringify({ command_id: pending.current.id, ...payload }) }); pending.current = null; if (evidenceFirst(saved)?.state === "REVIEW_FINALIZED" || action === "REJECT") { const nextReceipt = await api<Transaction | null>("/receipts/next-exception", token); if (nextReceipt && nextReceipt.id !== receipt.id) navigate(`/transactions/${nextReceipt.id}`); else { reload(); setMessage(m.exceptions.noNext); } } else reload(); }
+    try { const saved = await api<Transaction>(`/receipts/${receipt.id}/exceptions`, token, { method: "POST", body: JSON.stringify({ command_id: pending.current.id, ...payload }) }); pending.current = null; const after = evidenceFirst(saved); if (after?.state === "REVIEW_FINALIZED" || action === "REJECT" || allDecided(after)) { const nextId = await nextInQueue(token, String(receipt.id)); if (nextId) navigate(`/transactions/${nextId}`); else { reload(); setMessage(m.exceptions.noNext); } } else reload(); }
     catch { inFlight.current = false; setBusy(false); setMessage(m.exceptions.failed); }
   }
   async function next() {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); setMessage(""); pending.current = null;
-    try { const queue = await api<Page<Transaction>>("/review-queue" + query({ sort_direction: "asc", limit: 100 }), token); const index = queue.items.findIndex((item) => item.id === receipt.id); const nextReceipt = queue.items.slice(index + 1).find((item) => item.id !== receipt.id) || queue.items.find((item) => item.id !== receipt.id); if (nextReceipt) navigate(`/transactions/${nextReceipt.id}`); else { setMessage(m.exceptions.noNext); inFlight.current = false; setBusy(false); } }
+    try { const nextId = await nextInQueue(token, String(receipt.id)); if (nextId) navigate(`/transactions/${nextId}`); else { setMessage(m.exceptions.noNext); inFlight.current = false; setBusy(false); } }
     catch { setMessage(m.exceptions.failed); inFlight.current = false; setBusy(false); }
   }
   const resolved = Object.entries(evidence.fields).filter(([, field]) => field.state === "RESOLVED");

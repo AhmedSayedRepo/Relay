@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from relay.domain.agent import JsonValue
 from relay.domain.evidence import CRITICAL_FIELDS
 
-CATEGORIES = ("ready", "missing", "duplicate", "in_progress")
+CATEGORIES = ("ready", "missing", "duplicate", "in_progress", "done")
 OPERATOR_TRUST = {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}
 
 
@@ -45,11 +45,21 @@ def suggestion(field: JsonValue) -> str | None:
     return values.pop() if len(values) == 1 else None
 
 
+def _handled(fields: dict[str, JsonValue], name: str) -> bool:
+    """An operator decided the field: confirmed, corrected or unavailable."""
+    field = fields.get(name)
+    return isinstance(field, dict) and (
+        field.get("trust") in OPERATOR_TRUST
+        or field.get("reason") == "operator_unavailable"
+    )
+
+
 def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
     """Map receipt id to one category, checked in this order:
-    in_progress (an operator already decided a field), duplicate (another
-    waiting receipt suggests the same reference), missing (a field to decide
-    has no suggestion), ready (every field to decide has one suggestion)."""
+    done (every remaining field was marked unavailable), in_progress (an
+    operator already decided a field), duplicate (another waiting receipt
+    suggests the same reference), missing (a field to decide has no
+    suggestion), ready (every field to decide has one suggestion)."""
     rows = list(rows)
     references = {
         str(row["id"]): suggestion(_fields(row).get("reference_number")) for row in rows
@@ -59,13 +69,13 @@ def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
     for row in rows:
         identifier = str(row["id"])
         fields = _fields(row)
-        decided = any(
-            isinstance(field := fields.get(name), dict)
-            and field.get("trust") in OPERATOR_TRUST
-            for name in CRITICAL_FIELDS
-        )
+
+        decided = any(_handled(fields, name) for name in CRITICAL_FIELDS)
         reference = references[identifier]
-        if decided:
+        if all(_handled(fields, name) for name in _blocking(row)):
+            # Everything left was marked unavailable: nothing more to decide.
+            result[identifier] = "done"
+        elif decided:
             result[identifier] = "in_progress"
         elif reference and counts[reference] > 1:
             result[identifier] = "duplicate"

@@ -205,7 +205,7 @@ async def test_review_queue_category_filter_and_counts(client, auth_headers, app
     counts = (
         await client.get("/api/v1/review-queue/categories", headers=auth_headers)
     ).json()
-    assert set(counts) == {"ready", "missing", "duplicate", "in_progress"}
+    assert set(counts) == {"ready", "missing", "duplicate", "in_progress", "done"}
     assert sum(counts.values()) == 1
     category = next(name for name, value in counts.items() if value)
     page = (
