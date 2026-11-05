@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
 from uuid import UUID
@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from relay.application.operations import date_window
 from relay.domain.agent import JsonValue
 from relay.domain.operations import DuplicateGroupQuery, TransactionQuery
+from relay.domain.review_categories import CATEGORIES, categorize
 from relay.presentation.dependencies import AuthenticatedUser, current_user
 from relay.presentation.operations_dependencies import Service
 from relay.presentation.operations_schemas import (
@@ -165,21 +166,21 @@ async def resolve_duplicate(
     )
 
 
-@router.get("/review-queue", response_model=OperationPage)
-async def review_queue(
-    service: Service,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
-    device_id: UUID | None = None,
-    sort_by: Literal[
-        "created_at", "transaction_occurred_at", "amount", "reference"
-    ] = "created_at",
-    sort_direction: Literal["asc", "desc"] = "asc",
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
-) -> OperationPage:
-    query = _transaction_query(
+ReviewCategory = Literal["ready", "missing", "duplicate", "in_progress"]
+MAX_CATEGORIZED = 5000
+
+
+def _review_query(
+    date_from: date | None,
+    date_to: date | None,
+    search: str | None,
+    device_id: UUID | None,
+    sort_by: str,
+    sort_direction: str,
+    limit: int,
+    offset: int,
+) -> TransactionQuery:
+    return _transaction_query(
         date_from=date_from,
         date_to=date_to,
         search=search,
@@ -195,8 +196,69 @@ async def review_queue(
         limit=limit,
         offset=offset,
     )
-    rows, total = await service.transactions(query)
-    return OperationPage(items=rows, total=total, limit=limit, offset=offset)
+
+
+async def _categorized(
+    service: Service, query: TransactionQuery
+) -> tuple[list[dict[str, JsonValue]], dict[str, str]]:
+    rows: list[dict[str, JsonValue]] = []
+    while len(rows) < MAX_CATEGORIZED:
+        page, total = await service.transactions(
+            replace(query, limit=100, offset=len(rows))
+        )
+        rows.extend(page)
+        if not page or len(rows) >= total:
+            break
+    return rows, categorize(rows)
+
+
+@router.get("/review-queue", response_model=OperationPage)
+async def review_queue(
+    service: Service,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    device_id: UUID | None = None,
+    category: ReviewCategory | None = None,
+    sort_by: Literal[
+        "created_at", "transaction_occurred_at", "amount", "reference"
+    ] = "created_at",
+    sort_direction: Literal["asc", "desc"] = "asc",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+) -> OperationPage:
+    query = _review_query(
+        date_from, date_to, search, device_id, sort_by, sort_direction, limit, offset
+    )
+    if category is None:
+        rows, total = await service.transactions(query)
+        return OperationPage(items=rows, total=total, limit=limit, offset=offset)
+    everything, categories = await _categorized(service, query)
+    matching = [row for row in everything if categories[str(row["id"])] == category]
+    for row in matching:
+        row["review_category"] = category
+    return OperationPage(
+        items=matching[offset : offset + limit],
+        total=len(matching),
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/review-queue/categories", response_model=OperationData)
+async def review_categories(
+    service: Service,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    device_id: UUID | None = None,
+) -> dict[str, JsonValue]:
+    query = _review_query(
+        date_from, date_to, search, device_id, "created_at", "asc", 100, 0
+    )
+    _, categories = await _categorized(service, query)
+    values = list(categories.values())
+    return {name: values.count(name) for name in CATEGORIES}
 
 
 @router.post("/processing/jobs/{job_id}/retry", response_model=RetryResponse)
