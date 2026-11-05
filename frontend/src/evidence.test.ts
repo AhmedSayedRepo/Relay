@@ -12,6 +12,12 @@ describe("evidenceFirst", () => {
     expect(parsed?.fields.transaction_date).toBeUndefined();
   });
 
+  it("accepts a blocking field with no machine value yet", () => {
+    const empty = { field: "reference_number", state: "UNRESOLVED", reason: "operator_review_required", candidates: [] };
+    const receipt = { id: "r3", resolution_result: { schema_version: 2, state: "NEEDS_REVIEW", blocking_fields: ["reference_number"], fields: { reference_number: empty } } } as unknown as Transaction;
+    expect(evidenceFirst(receipt)?.fields.reference_number).toBeDefined();
+  });
+
   it("still rejects a malformed blocking field", () => {
     const receipt = { id: "r2", resolution_result: { schema_version: 2, state: "NEEDS_REVIEW", blocking_fields: ["amount"], fields: { amount: { field: "amount", value: 5 } } } } as unknown as Transaction;
     expect(evidenceFirst(receipt)).toBeNull();
