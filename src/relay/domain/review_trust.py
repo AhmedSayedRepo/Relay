@@ -86,6 +86,15 @@ def initial_resolution(
             }
         )
         fields[name] = current
+    for name, extra in fields.items():
+        # Legacy parser extras (e.g. transaction_date) are kept for audit but
+        # shaped like any field, so clients can read the record.
+        if name not in (*CRITICAL_FIELDS, *OPTIONAL_FIELDS) and isinstance(extra, dict):
+            extra.setdefault("field", name)
+            extra.setdefault("state", "UNRESOLVED")
+            extra.setdefault("reason", "legacy_parser_field")
+            if not isinstance(extra.get("candidates"), list):
+                extra["candidates"] = []
     transfer_failed = metadata.get("state") == "TRANSFER_FAILED"
     blocking: list[JsonValue] = (
         list(CRITICAL_FIELDS) if supported_receipt and not transfer_failed else []
