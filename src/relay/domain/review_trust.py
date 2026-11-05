@@ -68,6 +68,7 @@ def initial_resolution(
         field = fields.get(name)
         current: dict[str, JsonValue] = field if isinstance(field, dict) else {}
         suggestion = current.get("value")
+        current.setdefault("value", None)
         current.update(
             {
                 "field": name,
