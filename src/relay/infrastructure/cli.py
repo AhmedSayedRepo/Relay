@@ -232,7 +232,9 @@ async def model_suggest(
             resolution = copy.deepcopy(row.resolution_result)
             try:
                 values = reader.read(storage.read(storage_key, MAX_IMAGE_BYTES))
-            except Exception as error:  # noqa: BLE001 - one bad image must not stop the batch
+            except (
+                Exception
+            ) as error:  # noqa: BLE001 - one bad image must not stop the batch
                 counts["failed"] += 1
                 values = {}
                 print(f"Could not read {candidate_id}: {type(error).__name__}")
