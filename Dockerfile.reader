@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE}
 USER root
 RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.6,<3" \
     && pip install "transformers>=4.57,<6" "peft>=0.21,<1" "huggingface_hub>=0.30,<2" \
-    && python -c "from huggingface_hub import snapshot_download; snapshot_download('naver-clova-ix/donut-base', revision='a959cf33c20e09215873e338299c900f57047c61', local_dir='/opt/donut-base', allow_patterns=['*.json', '*.safetensors', '*.model', '*.txt'])"
+    && python -c "from huggingface_hub import snapshot_download; snapshot_download('naver-clova-ix/donut-base', revision='a959cf33c20e09215873e338299c900f57047c61', local_dir='/opt/donut-base', allow_patterns=['*.json', '*.safetensors', '*.bin', '*.model', '*.txt'])"
 
 USER relay
 ENV HF_HUB_OFFLINE=1 \

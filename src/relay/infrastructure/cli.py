@@ -821,10 +821,12 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    except Exception:
-        # Driver exceptions can contain database passwords or SQL parameters.
+    except Exception as error:
+        # Driver exceptions can contain database passwords or SQL parameters,
+        # so only the error type is shown.
         print(
-            "Operation failed. Check database availability and migrations.",
+            "Operation failed. Check database availability and migrations. "
+            f"({type(error).__name__})",
             file=sys.stderr,
         )
         return 1
