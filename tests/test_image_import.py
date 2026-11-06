@@ -259,3 +259,46 @@ async def test_confirm_suggestions_decides_every_field_as_the_operator(
         if fields[name].get("reason") != "operator_unavailable"
     ]
     assert remaining == []
+
+
+async def test_model_suggest_reads_each_receipt_once(client, auth_headers, app):
+    from relay.infrastructure.cli import model_suggest
+    from tests.test_processing import upload_fixture
+
+    class FakeReader:
+        version = "test-reader"
+        calls = 0
+
+        def read(self, image: bytes) -> dict[str, str]:
+            FakeReader.calls += 1
+            return {"amount": "1165.00", "reference_number": "455106702850"}
+
+    app.state.settings.receipt_evidence_enabled = True
+    _, bundle = await provision(client, auth_headers, "model")
+    await upload_fixture(client, bundle, "clean_instapay.png")
+    async with app.state.database.session() as session:
+        await ProcessingService(
+            SqlUnitOfWork(session),
+            app.state.object_storage,
+            PillowImagePreprocessor(),
+            FakeOcr(),
+            InstaPayReceiptParser(),
+            evidence_extractor=EvidenceFixture(None, "fixture"),
+        ).process_pending()
+    first = await model_suggest(
+        app.state.database, app.state.object_storage, FakeReader(), 10
+    )
+    again = await model_suggest(
+        app.state.database, app.state.object_storage, FakeReader(), 10
+    )
+    assert first["receipts"] == 1 and again["receipts"] == 0 and FakeReader.calls == 1
+    item = (await client.get("/api/v1/receipts", headers=auth_headers)).json()["items"][
+        0
+    ]
+    detail = (
+        await client.get(f"/api/v1/receipts/{item['id']}", headers=auth_headers)
+    ).json()
+    assert detail["resolution_result"]["model_reader"]["version"] == "test-reader"
+    amount = detail["resolution_result"]["fields"].get("amount")
+    if amount and amount.get("trust") == "MACHINE_ONLY":
+        assert amount["value"] == "1165.00"
