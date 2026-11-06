@@ -3,6 +3,7 @@ import asyncio
 import copy
 import getpass
 import json
+import os
 import random
 import sys
 from datetime import UTC, datetime
@@ -140,6 +141,121 @@ async def reopen_rejected(uow: SqlUnitOfWork, device_id: UUID | None) -> int:
 PREFILL_FIELDS = ("amount", "currency", "reference_number", "date", "time")
 
 
+def apply_suggestions(
+    resolution: dict[str, Any], values: dict[str, Any], adapter_name: str, kind: str
+) -> tuple[int, int]:
+    """Set one machine-only suggestion per field on a resolution (in place).
+
+    Returns (fields set, values skipped as invalid). Operator decisions stay.
+    """
+    from relay.application.errors import Conflict
+    from relay.application.processing import _exception_value
+
+    fields = resolution.get("fields")
+    if not isinstance(fields, dict):
+        return 0, 0
+    adapter = resolution.get("adapter")
+    applied = skipped = 0
+    for name in PREFILL_FIELDS:
+        raw = values.get(name)
+        field = fields.get(name)
+        if not isinstance(raw, str) or not isinstance(field, dict):
+            continue
+        if field.get("trust") in {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}:
+            continue
+        if field.get("reason") == "operator_unavailable":
+            continue
+        try:
+            value = _exception_value(
+                name, raw, adapter=adapter if isinstance(adapter, str) else None
+            )
+        except Conflict:
+            skipped += 1
+            continue
+        previous = field.get("candidates")
+        if isinstance(previous, list) and previous:
+            field.setdefault("candidates_before_prefill", previous)
+        field.update(
+            value=value,
+            trust="MACHINE_ONLY",
+            candidates=[
+                {
+                    "field": name,
+                    "value": value,
+                    "normalized_value": value,
+                    "original_text": raw,
+                    "source": kind,
+                    "adapter": adapter_name,
+                    "adapter_version": "v1",
+                }
+            ],
+        )
+        applied += 1
+    return applied, skipped
+
+
+async def model_suggest(
+    database: Database,
+    storage: FilesystemObjectStorage,
+    reader: Any,
+    limit: int,
+) -> dict[str, int]:
+    """Read receipts waiting for review with the trained model, once each,
+    and offer its readings as suggestions."""
+    counts = {"receipts": 0, "fields": 0, "failed": 0}
+    async with database.session() as session:
+        rows = (
+            await session.execute(
+                select(ReceiptCandidateRow.id, BinaryObjectRow.storage_key)
+                .join(
+                    BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id
+                )
+                .where(
+                    ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value
+                )
+                .order_by(ReceiptCandidateRow.created_at)
+            )
+        ).all()
+    for candidate_id, storage_key in rows:
+        if counts["receipts"] + counts["failed"] >= limit:
+            break
+        async with database.session() as session:
+            row = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == candidate_id)
+                .with_for_update()
+            )
+            if row is None or not isinstance(row.resolution_result, dict):
+                continue
+            if "model_reader" in row.resolution_result:
+                continue
+            resolution = copy.deepcopy(row.resolution_result)
+            try:
+                values = reader.read(storage.read(storage_key, MAX_IMAGE_BYTES))
+            except (
+                Exception
+            ) as error:  # noqa: BLE001 - one bad image must not stop the batch
+                counts["failed"] += 1
+                values = {}
+                print(f"Could not read {candidate_id}: {type(error).__name__}")
+            applied, _ = apply_suggestions(resolution, values, reader.version, "model")
+            resolution["model_reader"] = {
+                "version": reader.version,
+                "read_at": datetime.now(UTC).isoformat(),
+                "fields": applied,
+            }
+            row.resolution_result = resolution
+            row.updated_at = datetime.now(UTC)
+            await session.commit()
+            counts["receipts"] += 1
+            counts["fields"] += applied
+    print(
+        f"Model read {counts['receipts']} receipts, suggested {counts['fields']} "
+        f"fields; {counts['failed']} failed."
+    )
+    return counts
+
+
 async def prefill_suggestions(
     uow: SqlUnitOfWork, document: dict[str, Any]
 ) -> dict[str, int]:
@@ -148,9 +264,6 @@ async def prefill_suggestions(
     Suggestions are machine-only: every field still needs an operator to
     Confirm or Correct it, and fields an operator already decided are kept.
     """
-    from relay.application.errors import Conflict
-    from relay.application.processing import _exception_value
-
     receipts = document.get("receipts")
     if not isinstance(receipts, dict):
         raise ValueError("Prefill file needs a receipts object.")
@@ -173,45 +286,10 @@ async def prefill_suggestions(
         values = receipts.get(digest)
         if not isinstance(resolution, dict) or not isinstance(values, dict):
             continue
-        fields = resolution.get("fields")
-        if not isinstance(fields, dict):
-            continue
-        adapter = resolution.get("adapter")
-        changed = False
-        for name in PREFILL_FIELDS:
-            raw = values.get(name)
-            field = fields.get(name)
-            if not isinstance(raw, str) or not isinstance(field, dict):
-                continue
-            if field.get("trust") in {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}:
-                continue
-            try:
-                value = _exception_value(
-                    name, raw, adapter=adapter if isinstance(adapter, str) else None
-                )
-            except Conflict:
-                counts["skipped"] += 1
-                continue
-            previous = field.get("candidates")
-            if isinstance(previous, list) and previous:
-                field.setdefault("candidates_before_prefill", previous)
-            field.update(
-                value=value,
-                trust="MACHINE_ONLY",
-                candidates=[
-                    {
-                        "field": name,
-                        "value": value,
-                        "normalized_value": value,
-                        "original_text": raw,
-                        "source": "prefill",
-                        "adapter": source,
-                        "adapter_version": "v1",
-                    }
-                ],
-            )
-            counts["fields"] += 1
-            changed = True
+        fields, skipped = apply_suggestions(resolution, values, source, "prefill")
+        counts["skipped"] += skipped
+        counts["fields"] += fields
+        changed = fields > 0
         if changed:
             row.resolution_result = resolution
             row.updated_at = now
@@ -419,6 +497,26 @@ async def run(
                 ).process_pending(limit=limit or settings.processing_batch_limit)
             elif command == "reopen-rejected":
                 await reopen_rejected(uow, device_id)
+            elif command == "model-suggest":
+                from relay.infrastructure.donut_reader import DonutReader
+
+                model_dir = Path(os.environ.get("RELAY_MODEL_DIR", "/model"))
+                if not (model_dir / "reader-config.json").exists():
+                    print("No trained model found; nothing to do.")
+                else:
+                    await model_suggest(
+                        database,
+                        FilesystemObjectStorage(settings.object_storage_root),
+                        DonutReader(
+                            model_dir,
+                            Path(
+                                os.environ.get(
+                                    "RELAY_BASE_MODEL_DIR", "/opt/donut-base"
+                                )
+                            ),
+                        ),
+                        limit or 20,
+                    )
             elif command == "prefill-suggestions" and prefill is not None:
                 await prefill_suggestions(uow, prefill)
             elif command == "confirm-suggestions" and prefill is not None and email:
@@ -472,6 +570,7 @@ def main() -> int:
             "reopen-rejected",
             "prefill-suggestions",
             "confirm-suggestions",
+            "model-suggest",
             "reset-password",
             "recovery-codes",
             "list-admins",
@@ -501,7 +600,7 @@ def main() -> int:
                 raise ValueError("Email is too long.")
         elif args.email is not None:
             raise ValueError("Email is not accepted for this command.")
-        limited = {"process-pending-images", "capture-training"}
+        limited = {"process-pending-images", "capture-training", "model-suggest"}
         if args.command not in limited and args.limit is not None:
             raise ValueError("Limit is accepted only for bounded batch commands.")
         if args.command == "export-training":

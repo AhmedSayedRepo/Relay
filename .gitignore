@@ -38,3 +38,6 @@ ocr-spike/results/*
 ocr-spike/diagnostics/*
 !ocr-spike/diagnostics/.gitkeep
 frontend/*.tsbuildinfo
+
+# Trained receipt reader (private; trained on real receipts)
+/model/

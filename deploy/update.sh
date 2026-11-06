@@ -7,4 +7,6 @@ git pull --ff-only
 ./deploy/dc.sh up -d db
 ./deploy/dc.sh run --rm backend python -m alembic upgrade head
 ./deploy/dc.sh up -d
+# Rebuild the reader too once it is enabled (model present).
+if [ -f model/reader-config.json ]; then ./deploy/dc.sh --profile reader build reader; fi
 ./deploy/dc.sh ps

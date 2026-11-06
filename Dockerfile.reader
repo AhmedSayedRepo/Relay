@@ -1,0 +1,16 @@
+# Relay backend plus the trained receipt reader (CPU). Built on top of the
+# backend image so both share code; only the `model-suggest` command uses it.
+ARG BASE_IMAGE=relay-backend
+FROM ${BASE_IMAGE}
+
+USER root
+RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.6,<3" \
+    && pip install "transformers>=4.57,<6" "peft>=0.21,<1" "huggingface_hub>=0.30,<2" \
+    && python -c "from huggingface_hub import snapshot_download; snapshot_download('naver-clova-ix/donut-base', revision='a959cf33c20e09215873e338299c900f57047c61', local_dir='/opt/donut-base', allow_patterns=['*.json', '*.safetensors', '*.model', '*.txt'])"
+
+USER relay
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    HOME=/tmp \
+    RELAY_MODEL_DIR=/model \
+    RELAY_BASE_MODEL_DIR=/opt/donut-base

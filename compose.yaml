@@ -122,6 +122,40 @@ services:
     networks:
       - relay_internal
 
+  reader:
+    profiles: ["reader"]
+    build:
+      context: .
+      dockerfile: Dockerfile.reader
+    command: ["python", "-m", "relay.infrastructure.cli", "model-suggest", "--limit", "20"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-Relay Reader}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env using hostname db}
+      JWT_SECRET: ${WORKER_JWT_SECRET:?Set an independent WORKER_JWT_SECRET in .env}
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
+      OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    volumes:
+      - relay_object_data:/var/lib/relay/objects:ro
+      - ./model:/model:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 6g
+    pids_limit: 128
+    cpus: "2.0"
+    networks:
+      - relay_internal
+
 volumes:
   relay_postgres_data:
   relay_object_data:
