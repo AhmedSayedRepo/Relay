@@ -180,9 +180,8 @@ class ProcessingService:
                 for event in await self.uow.processing.nearby_sms(
                     job.device_id, job.created_at
                 ):
-                    sender, body = (
-                        event.payload.get("sender"),
-                        event.payload.get("body"),
+                    sender, body = event.payload.get("sender"), event.payload.get(
+                        "body"
                     )
                     if isinstance(sender, str) and isinstance(body, str):
                         sms_groups.append(
@@ -310,9 +309,7 @@ class ProcessingService:
             status=status, object_id=object_id, limit=limit, offset=offset
         )
 
-    async def get_candidate(
-        self, candidate_id: UUID
-    ) -> tuple[
+    async def get_candidate(self, candidate_id: UUID) -> tuple[
         ReceiptCandidate,
         dict[str, JsonValue],
         list[dict[str, JsonValue]],

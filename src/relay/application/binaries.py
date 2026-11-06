@@ -136,10 +136,9 @@ class BinaryService:
             >= self.max_active_uploads
         ):
             raise Conflict("Active upload session limit reached.")
-        reserved, stored = (
-            await self.uow.binaries.reserved_bytes(device_id, now),
-            await self.uow.binaries.stored_bytes(device_id),
-        )
+        reserved, stored = await self.uow.binaries.reserved_bytes(
+            device_id, now
+        ), await self.uow.binaries.stored_bytes(device_id)
         if reserved + stored + request.byte_size > self.stored_bytes_per_device:
             raise Conflict("Device binary storage quota reached.")
         session = self._new_session(device_id, request, now)
