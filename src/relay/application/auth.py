@@ -28,6 +28,12 @@ class AuthService:
             raise AuthenticationFailed("Invalid credentials.")
         return self.tokens.issue(user.id)
 
+    async def refresh(self, user: User) -> AccessToken:
+        """Issue a fresh short-lived token to a still-active, signed-in user."""
+        if not user.is_active:
+            raise AuthenticationFailed("Invalid or expired access token.")
+        return self.tokens.issue(user.id)
+
     async def current_user(self, token: str) -> User:
         user = await self.uow.users.get(self.tokens.subject(token))
         if user is None or not user.is_active:

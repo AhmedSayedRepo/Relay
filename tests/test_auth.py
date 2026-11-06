@@ -146,3 +146,16 @@ async def test_login_validation_does_not_echo_sensitive_input(
     assert_error(response, 422)
     assert "sensitive-input" not in response.text
     assert "input" not in response.json()["error"]
+
+
+async def test_refresh_issues_a_new_token_for_a_signed_in_admin(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    response = await client.post("/api/v1/auth/refresh", headers=auth_headers)
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    me = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert me.status_code == 200
+    assert (await client.post("/api/v1/auth/refresh")).status_code == 401

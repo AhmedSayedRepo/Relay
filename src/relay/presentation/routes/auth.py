@@ -94,6 +94,19 @@ async def login(
     )
 
 
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    user: AuthenticatedUser, service: Annotated[AuthService, Depends(auth_service)]
+) -> TokenResponse:
+    """Sliding session: a valid token can be exchanged for a new one."""
+    token = await service.refresh(user)
+    return TokenResponse(
+        access_token=token.access_token,
+        token_type=token.token_type,
+        expires_in=token.expires_in,
+    )
+
+
 @router.get("/me", response_model=UserResponse)
 async def me(user: AuthenticatedUser) -> UserResponse:
     return UserResponse.model_validate(user)
