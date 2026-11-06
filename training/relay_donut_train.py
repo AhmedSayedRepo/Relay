@@ -29,6 +29,8 @@ import random
 import re
 import shutil
 import time
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import torch
@@ -60,7 +62,7 @@ FIELDS = (
 CRITICAL = ("amount", "currency", "reference", "date", "time")
 IMAGE_SIZE = {"height": 1280, "width": 960}
 SEED = 20261104
-STEPS = int(os.environ.get("RELAY_STEPS", "3000"))
+STEPS = int(os.environ.get("RELAY_STEPS", "6000"))
 ACCUMULATE = 4
 LEARNING_RATE = 1e-4
 EVAL_EVERY = 300
@@ -82,6 +84,54 @@ def read_manifest(path: Path) -> list[dict]:
         for line in path.read_text(encoding="utf-8").splitlines()
         if line
     ]
+
+
+def to_display(name: str, value: str | None) -> str | None:
+    """Write a label the way the receipt shows it, so the model copies text
+    instead of converting it (run 1 lost most amounts and times to that).
+    to_canonical() turns predictions back into Relay's stored format."""
+    if value is None:
+        return None
+    try:
+        if name == "amount":
+            number = Decimal(value)
+            return (
+                f"{number:,.0f}" if number == number.to_integral() else f"{number:,.2f}"
+            )
+        if name == "time":
+            return datetime.strptime(value[:8], "%H:%M:%S").strftime("%I:%M %p")
+        if name == "date":
+            return datetime.strptime(value, "%Y-%m-%d").strftime("%d %b %Y")
+    except (InvalidOperation, ValueError):
+        return value
+    return value
+
+
+def to_canonical(name: str, text: str | None) -> str | None:
+    if text is None:
+        return None
+    text = text.strip()
+    try:
+        if name == "amount":
+            cleaned = text.replace(",", "").replace("٬", "").replace(" ", "")
+            return str(Decimal(cleaned).quantize(Decimal("0.01")))
+        if name == "time":
+            for pattern in ("%I:%M %p", "%H:%M:%S", "%H:%M"):
+                try:
+                    return datetime.strptime(text.upper(), pattern).strftime("%H:%M:%S")
+                except ValueError:
+                    continue
+            return text
+        if name == "date":
+            for pattern in ("%d %b %Y", "%Y-%m-%d", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(text, pattern).strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
+            return text
+    except (InvalidOperation, ValueError):
+        return text
+    return text
 
 
 def wire(record: dict) -> tuple[str, list[tuple[int, int]]]:
@@ -107,7 +157,7 @@ def wire(record: dict) -> tuple[str, list[tuple[int, int]]]:
             and label["value_loss_mask"] == 1
         )
         key = ("," if index else "") + dump(name) + ":"
-        value = dump(label["target_value"] if verified else None)
+        value = dump(to_display(name, label["target_value"]) if verified else None)
         parts.append(key)
         cursor += len(key)
         if not verified:
@@ -254,7 +304,9 @@ def read(model, processor, image_pixels: torch.Tensor) -> dict:
     text = tokenizer.decode(
         output[0], skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
-    return parse_fields(text)
+    return {
+        name: to_canonical(name, value) for name, value in parse_fields(text).items()
+    }
 
 
 def score(model, processor, items: list[dict]) -> dict:
@@ -310,6 +362,7 @@ def save(model, processor, directory: Path) -> None:
                 "image_size": IMAGE_SIZE,
                 "encoder_adapter": TRAIN_ENCODER,
                 "decoding": "greedy_192_lenient_fields_v1",
+                "target_format": "display_v1",
             },
             indent=2,
         ),
