@@ -214,3 +214,48 @@ async def test_review_queue_category_filter_and_counts(client, auth_headers, app
         )
     ).json()
     assert page["total"] == 1 and page["items"][0]["review_category"] == category
+
+
+async def test_confirm_suggestions_decides_every_field_as_the_operator(
+    client, auth_headers, app, admin
+):
+    import hashlib
+
+    from relay.infrastructure.cli import confirm_suggestions, prefill_suggestions
+    from tests.test_processing import upload_fixture
+
+    app.state.settings.receipt_evidence_enabled = True
+    _, bundle = await provision(client, auth_headers, "bulk")
+    await upload_fixture(client, bundle, "clean_instapay.png")
+    async with app.state.database.session() as session:
+        await ProcessingService(
+            SqlUnitOfWork(session),
+            app.state.object_storage,
+            PillowImagePreprocessor(),
+            FakeOcr(),
+            InstaPayReceiptParser(),
+            evidence_extractor=EvidenceFixture(None, "fixture"),
+        ).process_pending()
+    digest = hashlib.sha256((FIXTURES / "clean_instapay.png").read_bytes()).hexdigest()
+    document = {"receipts": {digest: {"amount": "777", "currency": "EGP"}}}
+    async with app.state.database.session() as session:
+        await prefill_suggestions(SqlUnitOfWork(session), document)
+    counts = await confirm_suggestions(
+        app.state.database, app.state.object_storage, admin.id, document
+    )
+    assert counts["receipts"] == 1 and counts["failed"] == 0
+    item = (await client.get("/api/v1/receipts", headers=auth_headers)).json()["items"][
+        0
+    ]
+    detail = (
+        await client.get(f"/api/v1/receipts/{item['id']}", headers=auth_headers)
+    ).json()
+    fields = detail["resolution_result"]["fields"]
+    if "amount" in fields:
+        assert fields["amount"]["value"] == "777.00"
+    remaining = [
+        name
+        for name in detail["resolution_result"]["blocking_fields"]
+        if fields[name].get("reason") != "operator_unavailable"
+    ]
+    assert remaining == []
