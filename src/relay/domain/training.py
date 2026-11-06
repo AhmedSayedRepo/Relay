@@ -91,6 +91,8 @@ def labels_from_resolution(
         return None
     if metadata.get("state") not in ELIGIBLE_STATES:
         return None
+    if "auto_confirmed" in metadata:  # never train on the model's own output
+        return None
     if metadata.get("classification_resolved") is False:
         return None
     if metadata.get("supported_layout") is False:

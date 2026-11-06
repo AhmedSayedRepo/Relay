@@ -3,6 +3,7 @@
 import logging
 from collections import Counter
 from datetime import UTC, datetime, timedelta, tzinfo
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from relay.application.errors import Conflict, NotFound
@@ -157,6 +158,42 @@ class SmsVerificationService:
         }
         logger.info("sms_verification.run", extra=summary)
         return summary
+
+    async def matches_reading(
+        self, device_id: UUID, candidate_id: UUID, values: dict[str, str]
+    ) -> bool:
+        """True when exactly one free bank SMS fits an unreviewed reading's
+        amount, currency, date and time."""
+        sources = frozenset(await self.repo.sms_sources(device_id))
+        if not sources:
+            return False
+        try:
+            amount = Decimal(values["amount"]).quantize(Decimal("0.01"))
+            local = datetime.fromisoformat(f"{values['date']}T{values['time']}")
+        except (KeyError, InvalidOperation, ValueError):
+            return False
+        if local.tzinfo is not None or amount <= 0:
+            return False
+        receipt = ReceiptFacts(
+            candidate_id,
+            amount,
+            values.get("currency", "").upper(),
+            local,
+            datetime.now(UTC),
+            sources,
+            await self.repo.sms_direction(device_id),
+        )
+        held = await self.repo.held_events(except_candidate=candidate_id)
+        centre = local.replace(tzinfo=self.zone).astimezone(UTC)
+        span = timedelta(hours=SEARCH_HOURS)
+        events = await self.repo.sms_events(set(sources), centre - span, centre + span)
+        found = [
+            sms
+            for sms in _facts(events)
+            if sms.event_id not in held
+            and compatible(receipt, sms, self.zone, self.window)
+        ]
+        return len(found) == 1
 
     async def _receipt(self, candidate_id: UUID) -> ReceiptFacts | None:
         found = await self.repo.eligible_receipts(candidate_id=candidate_id)
