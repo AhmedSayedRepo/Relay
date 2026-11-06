@@ -232,9 +232,7 @@ async def model_suggest(
             resolution = copy.deepcopy(row.resolution_result)
             try:
                 values = reader.read(storage.read(storage_key, MAX_IMAGE_BYTES))
-            except (
-                Exception
-            ) as error:  # noqa: BLE001 - one bad image must not stop the batch
+            except Exception as error:  # noqa: BLE001 - one bad image must not stop the batch
                 counts["failed"] += 1
                 values = {}
                 print(f"Could not read {candidate_id}: {type(error).__name__}")
@@ -252,6 +250,158 @@ async def model_suggest(
     print(
         f"Model read {counts['receipts']} receipts, suggested {counts['fields']} "
         f"fields; {counts['failed']} failed."
+    )
+    return counts
+
+
+AUTO_REASONS = {
+    "sms": "auto-confirmed: matches a bank SMS",
+    "readers": "auto-confirmed: model and text reader agree",
+}
+
+
+def model_values(resolution: dict[str, Any]) -> dict[str, str] | None:
+    """The model's reading of every key field, if all five are still
+    machine-only suggestions from the model and pass the sanity checks."""
+    from relay.domain.evidence import CRITICAL_FIELDS
+    from relay.infrastructure.donut_reader import plausible
+
+    fields = resolution.get("fields")
+    if not isinstance(fields, dict):
+        return None
+    values: dict[str, str] = {}
+    for name in CRITICAL_FIELDS:
+        field = fields.get(name)
+        if not isinstance(field, dict) or field.get("trust") != "MACHINE_ONLY":
+            return None
+        if field.get("reason") == "operator_unavailable":
+            return None
+        listed = field.get("candidates")
+        if not (
+            isinstance(listed, list)
+            and len(listed) == 1
+            and isinstance(listed[0], dict)
+            and listed[0].get("source") == "model"
+        ):
+            return None
+        value = field.get("value")
+        if not isinstance(value, str) or plausible(name, value) != value:
+            return None
+        values[name] = value
+    return values
+
+
+def readers_agree(resolution: dict[str, Any], values: dict[str, str]) -> bool:
+    """The original text reader saw the same reference and amount."""
+    fields = resolution.get("fields")
+    if not isinstance(fields, dict):
+        return False
+    for name in ("reference_number", "amount"):
+        field = fields.get(name)
+        listed = (
+            field.get("candidates_before_prefill") if isinstance(field, dict) else None
+        )
+        seen = {
+            item.get("normalized_value")
+            for item in (listed if isinstance(listed, list) else [])
+            if isinstance(item, dict) and item.get("source") == "receipt"
+        }
+        if values[name] not in seen:
+            return False
+    return True
+
+
+async def auto_confirm(
+    database: Database, storage: FilesystemObjectStorage, settings: Settings
+) -> dict[str, int]:
+    """Confirm model readings that an independent check backs up: a matching
+    bank SMS, or the old text reader reading the same reference and amount.
+    Everything else stays in Review. Auto-confirmed receipts are tagged and
+    never used for training."""
+    from relay.application.errors import Conflict
+    from relay.domain.evidence import CRITICAL_FIELDS
+    from relay.infrastructure.models import UserRow
+
+    counts = {"sms": 0, "readers": 0, "waiting": 0, "failed": 0}
+    async with database.session() as session:
+        reviewer = await session.scalar(
+            select(UserRow.id)
+            .where(UserRow.is_active.is_(True))
+            .order_by(UserRow.created_at)
+            .limit(1)
+        )
+        rows = (
+            await session.execute(
+                select(
+                    ReceiptCandidateRow.id,
+                    ReceiptCandidateRow.device_id,
+                    ReceiptCandidateRow.resolution_result,
+                ).where(
+                    ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value
+                )
+            )
+        ).all()
+    if reviewer is None:
+        return counts
+    for candidate_id, device_id, resolution in rows:
+        if not isinstance(resolution, dict) or "model_reader" not in resolution:
+            continue
+        if "auto_confirmed" in resolution:
+            continue
+        values = model_values(resolution)
+        rule = None
+        if values is not None:
+            async with database.session() as session:
+                if await build_sms_verification_service(
+                    SqlUnitOfWork(session), settings
+                ).matches_reading(device_id, candidate_id, values):
+                    rule = "sms"
+            if rule is None and readers_agree(resolution, values):
+                rule = "readers"
+        if values is None or rule is None:
+            counts["waiting"] += 1
+            continue
+        try:
+            async with database.session() as session:
+                row = await session.scalar(
+                    select(ReceiptCandidateRow)
+                    .where(ReceiptCandidateRow.id == candidate_id)
+                    .with_for_update()
+                )
+                if row is None or not isinstance(row.resolution_result, dict):
+                    continue
+                tagged = copy.deepcopy(row.resolution_result)
+                tagged["auto_confirmed"] = {
+                    "rule": rule,
+                    "at": datetime.now(UTC).isoformat(),
+                }
+                row.resolution_result = tagged
+                row.updated_at = datetime.now(UTC)
+                await session.commit()
+            for name in CRITICAL_FIELDS:
+                async with database.session() as session:
+                    uow = SqlUnitOfWork(session)
+                    candidate = await uow.processing.candidate(candidate_id)
+                    if candidate is None:
+                        break
+                    await ProcessingService(uow, storage).resolve_exception(
+                        candidate_id,
+                        reviewer,
+                        uuid4(),
+                        candidate.updated_at.isoformat(),
+                        name,
+                        "CONFIRM",
+                        values[name],
+                        AUTO_REASONS[rule],
+                    )
+            counts[rule] += 1
+        except Conflict as error:
+            counts["failed"] += 1
+            print(f"Left {candidate_id} for review: {error}")
+    print(
+        f"Auto-confirmed {counts['sms']} by bank SMS and {counts['readers']} by "
+        f"two readers; {counts['waiting']} wait for review; "
+        f"{counts['failed']} failed."
     )
     return counts
 
@@ -516,6 +666,11 @@ async def run(
                             ),
                         ),
                         limit or 20,
+                    )
+                    await auto_confirm(
+                        database,
+                        FilesystemObjectStorage(settings.object_storage_root),
+                        settings,
                     )
             elif command == "prefill-suggestions" and prefill is not None:
                 await prefill_suggestions(uow, prefill)
