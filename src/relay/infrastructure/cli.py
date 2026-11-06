@@ -3,11 +3,12 @@ import asyncio
 import copy
 import getpass
 import json
+import random
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
@@ -223,6 +224,124 @@ async def prefill_suggestions(
     return counts
 
 
+BULK_REASON = "bulk-confirmed from assistant readings"
+
+
+async def confirm_suggestions(
+    database: Database,
+    storage: FilesystemObjectStorage,
+    reviewer_id: UUID,
+    document: dict[str, Any],
+    public_url: str | None = None,
+    spot_checks: int = 15,
+) -> dict[str, int]:
+    """Decide every remaining field from a reviewed readings file, as the
+    given operator: Confirm/Correct a reading, Unavailable where none."""
+    from relay.application.errors import Conflict
+    from relay.application.processing import _exception_value
+
+    receipts = document.get("receipts")
+    if not isinstance(receipts, dict):
+        raise ValueError("File needs a receipts object.")
+    async with database.session() as session:
+        rows = (
+            await session.execute(
+                select(ReceiptCandidateRow.id, BinaryObjectRow.content_hash)
+                .join(
+                    BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id
+                )
+                .where(
+                    ReceiptCandidateRow.review_status
+                    == ReviewStatus.NEEDS_REVIEW.value,
+                    BinaryObjectRow.content_hash.in_(list(receipts)),
+                )
+            )
+        ).all()
+    counts = {"CONFIRM": 0, "CORRECT": 0, "UNAVAILABLE": 0, "receipts": 0, "failed": 0}
+    finished: list[tuple[str, str]] = []
+    for candidate_id, digest in rows:
+        values = receipts.get(digest)
+        if not isinstance(values, dict):
+            continue
+        try:
+            for _ in range(len(PREFILL_FIELDS) + 2):
+                async with database.session() as session:
+                    service = ProcessingService(SqlUnitOfWork(session), storage)
+                    candidate = await SqlUnitOfWork(session).processing.candidate(
+                        candidate_id
+                    )
+                    if candidate is None:
+                        break
+                    resolution = candidate.resolution_result or {}
+                    fields = resolution.get("fields")
+                    blocking = resolution.get("blocking_fields")
+                    if not isinstance(fields, dict) or not isinstance(blocking, list):
+                        break
+                    todo = [
+                        name
+                        for name in blocking
+                        if isinstance(name, str)
+                        and isinstance(field := fields.get(name), dict)
+                        and field.get("reason") != "operator_unavailable"
+                        and field.get("trust")
+                        not in {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}
+                    ]
+                    if not todo:
+                        break
+                    name = todo[0]
+                    field = fields[name]
+                    if not isinstance(field, dict):
+                        break
+                    raw = values.get(name)
+                    action, value = "UNAVAILABLE", None
+                    if isinstance(raw, str) and raw:
+                        adapter = resolution.get("adapter")
+                        value = _exception_value(
+                            name,
+                            raw,
+                            adapter=adapter if isinstance(adapter, str) else None,
+                        )
+                        listed = field.get("candidates")
+                        offered = [field.get("value")] + [
+                            item.get("normalized_value")
+                            for item in (listed if isinstance(listed, list) else [])
+                            if isinstance(item, dict)
+                        ]
+                        action = "CONFIRM" if value in offered else "CORRECT"
+                    await service.resolve_exception(
+                        candidate_id,
+                        reviewer_id,
+                        uuid4(),
+                        candidate.updated_at.isoformat(),
+                        name,
+                        action,
+                        value,
+                        BULK_REASON,
+                    )
+                    counts[action] += 1
+            counts["receipts"] += 1
+            amount = values.get("amount") or "?"
+            reference = values.get("reference_number") or "no reference"
+            finished.append((str(candidate_id), f"{amount} EGP, {reference}"))
+        except Conflict as error:
+            counts["failed"] += 1
+            print(f"Skipped {candidate_id}: {error}")
+    print(
+        f"Decided {counts['receipts']} receipts: {counts['CONFIRM']} confirmed, "
+        f"{counts['CORRECT']} corrected, {counts['UNAVAILABLE']} unavailable; "
+        f"{counts['failed']} skipped."
+    )
+    if finished:
+        print(f"Spot-check these {min(spot_checks, len(finished))} in the portal:")
+        base = (public_url or "").rstrip("/")
+        for identifier, summary in random.sample(
+            finished, min(spot_checks, len(finished))
+        ):
+            link = f"{base}/#/transactions/{identifier}" if base else identifier
+            print(f"  {summary}  {link}")
+    return counts
+
+
 async def run(
     command: str,
     email: str | None,
@@ -302,6 +421,17 @@ async def run(
                 await reopen_rejected(uow, device_id)
             elif command == "prefill-suggestions" and prefill is not None:
                 await prefill_suggestions(uow, prefill)
+            elif command == "confirm-suggestions" and prefill is not None and email:
+                reviewer = await uow.users.get_by_email(email)
+                if reviewer is None or not reviewer.is_active:
+                    raise ValueError("No active account with that email.")
+                await confirm_suggestions(
+                    database,
+                    FilesystemObjectStorage(settings.object_storage_root),
+                    reviewer.id,
+                    prefill,
+                    settings.operator_public_url,
+                )
             elif command == "import-images" and device_id is not None:
                 await import_images(uow, settings, device_id, images or [])
             elif command == "verify-sms":
@@ -341,6 +471,7 @@ def main() -> int:
             "import-images",
             "reopen-rejected",
             "prefill-suggestions",
+            "confirm-suggestions",
             "reset-password",
             "recovery-codes",
             "list-admins",
@@ -361,6 +492,7 @@ def main() -> int:
             "disable-user",
             "reset-password",
             "recovery-codes",
+            "confirm-suggestions",
         }:
             if args.email is None:
                 raise ValueError("Email is required.")
@@ -384,8 +516,9 @@ def main() -> int:
             args.device is not None and args.command != "reopen-rejected"
         ):
             raise ValueError("Device and folder are accepted only for import-images.")
-        if args.file is not None and args.command != "prefill-suggestions":
-            raise ValueError("--file is accepted only for prefill-suggestions.")
+        file_commands = {"prefill-suggestions", "confirm-suggestions"}
+        if args.file is not None and args.command not in file_commands:
+            raise ValueError("--file is accepted only for suggestion commands.")
         password = None
         if args.command in {"create-admin", "reset-password"}:
             if not sys.stdin.isatty():
@@ -417,13 +550,13 @@ def main() -> int:
             )
         elif args.command == "reopen-rejected":
             asyncio.run(run(args.command, None, None, device_id=args.device))
-        elif args.command == "prefill-suggestions":
+        elif args.command in file_commands:
             if not isinstance(args.file, Path):
                 raise ValueError("Prefill requires --file.")
             document = json.loads(args.file.read_text(encoding="utf-8"))
             if not isinstance(document, dict):
                 raise ValueError("Prefill file must be a JSON object.")
-            asyncio.run(run(args.command, None, None, prefill=document))
+            asyncio.run(run(args.command, email, None, prefill=document))
         else:
             asyncio.run(run(args.command, email, password))
     except (ValidationError, ValueError, ApplicationError, RuntimeError):

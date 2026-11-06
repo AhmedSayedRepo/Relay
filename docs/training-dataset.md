@@ -68,3 +68,13 @@ python -m relay.infrastructure.cli prefill-suggestions --file prefill.json
 ```
 
 They appear as the suggestion in Review; nothing is trusted until you Confirm it.
+
+To decide every remaining field from the same file in one go, as a named
+operator (Confirm or Correct each reading, Unavailable where the file has none):
+
+```
+python -m relay.infrastructure.cli confirm-suggestions --file prefill.json --email admin@example.com
+```
+
+Each decision is recorded as that operator with the reason "bulk-confirmed from
+assistant readings". The command prints a random sample of receipts to spot-check.
