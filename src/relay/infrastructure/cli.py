@@ -31,6 +31,8 @@ from relay.infrastructure.binary_models import BinaryObjectRow
 from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
+from relay.infrastructure.datetime_utils import aware
+from relay.infrastructure.event_models import RawEventRow
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
@@ -345,6 +347,7 @@ async def _confirm(
     name: str,
     value: str,
     rule: str,
+    action: str = "CONFIRM",
 ) -> None:
     async with database.session() as session:
         uow = SqlUnitOfWork(session)
@@ -357,7 +360,7 @@ async def _confirm(
             uuid4(),
             candidate.updated_at.isoformat(),
             name,
-            "CONFIRM",
+            action,
             value,
             AUTO_REASONS[rule],
         )
@@ -387,7 +390,10 @@ async def auto_confirm(
                     ReceiptCandidateRow.id,
                     ReceiptCandidateRow.device_id,
                     ReceiptCandidateRow.resolution_result,
-                ).where(
+                    RawEventRow.occurred_at,
+                )
+                .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
+                .where(
                     ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value
                 )
             )
@@ -395,25 +401,47 @@ async def auto_confirm(
     if reviewer is None:
         return counts
     used: set[UUID] = set()  # SMS already spent in this pass
-    for candidate_id, device_id, resolution in rows:
+    for candidate_id, device_id, resolution, folder_at in rows:
         if not isinstance(resolution, dict) or "model_reader" not in resolution:
             continue
         if "auto_confirmed" in resolution:
             continue
         rule = None
+        from_sms: set[str] = set()  # fields whose value comes from the SMS
         values = model_values(resolution, SMS_FIELDS)
+        event = None
         if values is not None:
             async with database.session() as session:
                 event = await build_sms_verification_service(
                     SqlUnitOfWork(session), settings
                 ).matches_reading(device_id, candidate_id, values, frozenset(used))
-            if event is not None:
-                rule = "sms"
-                used.add(event)
-                # The SMS makes the reference optional: keep it only if the
-                # model read a plausible one.
-                reference = model_values(resolution, ("reference_number",))
-                values |= reference or {}
+        elif (core := model_values(resolution, ("amount", "currency"))) is not None:
+            # No readable date and time: use when the image reached the folder.
+            async with database.session() as session:
+                found = await build_sms_verification_service(
+                    SqlUnitOfWork(session), settings
+                ).match_by_folder_time(
+                    device_id,
+                    candidate_id,
+                    core["amount"],
+                    core["currency"],
+                    aware(folder_at),
+                    frozenset(used),
+                )
+            if found is not None:
+                event, moment = found
+                values = core | {
+                    "date": moment.date().isoformat(),
+                    "time": moment.time().isoformat(),
+                }
+                from_sms = {"date", "time"}
+        if event is not None and values is not None:
+            rule = "sms"
+            used.add(event)
+            # The SMS makes the reference optional: keep it only if the
+            # model read a plausible one.
+            reference = model_values(resolution, ("reference_number",))
+            values |= reference or {}
         if rule is None:
             values = model_values(resolution)
             if values is not None and readers_agree(resolution, values):
@@ -432,7 +460,14 @@ async def auto_confirm(
                 if rule == "sms" and name == "currency":
                     await _tag(database, candidate_id, "sms_verified", {})
                 await _confirm(
-                    database, storage, reviewer, candidate_id, name, values[name], rule
+                    database,
+                    storage,
+                    reviewer,
+                    candidate_id,
+                    name,
+                    values[name],
+                    rule,
+                    "CORRECT" if name in from_sms else "CONFIRM",
                 )
             if rule == "sms":
                 # Record the verification now so the SMS cannot vouch twice.
