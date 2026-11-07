@@ -1,6 +1,7 @@
 """Automatic confirmation of model readings backed by an independent check."""
 
 from datetime import timedelta
+from uuid import uuid4
 
 from relay.domain.training import labels_from_resolution
 from relay.infrastructure.cli import auto_confirm, model_suggest
@@ -174,3 +175,45 @@ async def test_folder_time_needs_a_unique_sms(client, auth_headers, app):
     await _send_sms(client, bundle, body, local - timedelta(minutes=20))
     counts = await _read_and_confirm(app, {"amount": "455.00", "currency": "EGP"})
     assert counts["sms"] == 0 and counts["waiting"] == 1
+
+
+async def test_distant_sms_confirms_amount_but_needs_matching_date_time(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "auto-folder-far")
+    bundle = await _link_sms(client, auth_headers, candidate, "auto-folder-far-phone")
+    # The SMS came 6 hours before the screenshot reached the folder.
+    local, _, _ = _local_minute()
+    sms_at = local - timedelta(hours=5)
+    body = "notice: You have received EGP 612.00 via InstaPay"
+    await _send_sms(client, bundle, body, sms_at)
+    counts = await _read_and_confirm(app, {"amount": "612.00", "currency": "EGP"})
+    assert counts["sms_time"] == 1 and counts["sms"] == 0
+    detail = await _detail(client, auth_headers, candidate)
+    resolution = detail["resolution_result"]
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    assert sorted(resolution["blocking_fields"]) == ["date", "time"]
+    assert resolution["fields"]["amount"]["value"] == "612.00"
+
+    async def enter(item, field, value):
+        return await client.post(
+            f"/api/v1/receipts/{item['id']}/exceptions",
+            headers=auth_headers,
+            json={
+                "command_id": str(uuid4()),
+                "expected_updated_at": item["updated_at"],
+                "field": field,
+                "action": "CORRECT",
+                "value": value,
+            },
+        )
+
+    wrong = await enter(
+        detail, "time", (sms_at + timedelta(minutes=7)).strftime("%H:%M")
+    )
+    assert wrong.status_code == 409 and "bank SMS" in wrong.text
+    ok = await enter(detail, "date", sms_at.strftime("%Y-%m-%d"))
+    assert ok.status_code == 200, ok.text
+    ok = await enter(ok.json(), "time", sms_at.strftime("%H:%M"))
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["review_status"] != "NEEDS_REVIEW"
