@@ -23,6 +23,10 @@ class FieldTrust(StrEnum):
 REVIEWED_TRUST = frozenset(
     {FieldTrust.OPERATOR_CONFIRMED.value, FieldTrust.OPERATOR_CORRECTED.value}
 )
+# A unique bank SMS already proves the payment's amount, date and time, so
+# only the amount and currency must be settled; reference, date and time
+# become optional for an SMS-verified receipt.
+SMS_REQUIRED_FIELDS = ("amount", "currency")
 OPTIONAL_FIELDS = (
     "sender",
     "handle",
@@ -147,7 +151,6 @@ def unresolved_required_fields(metadata: dict[str, JsonValue]) -> list[JsonValue
         blocked.append("classification")
     if metadata.get("supported_layout") is False:
         blocked.append("layout")
-    blocked.extend(
-        name for name in CRITICAL_FIELDS if reviewed_value(metadata, name) is None
-    )
+    required = SMS_REQUIRED_FIELDS if metadata.get("sms_verified") else CRITICAL_FIELDS
+    blocked.extend(name for name in required if reviewed_value(metadata, name) is None)
     return blocked
