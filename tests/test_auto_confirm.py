@@ -146,3 +146,31 @@ async def test_without_sms_reference_is_still_required(client, auth_headers, app
     detail = await _detail(client, auth_headers, candidate)
     assert detail["review_status"] == "NEEDS_REVIEW"
     assert "reference_number" in detail["resolution_result"]["blocking_fields"]
+
+
+async def test_bank_sms_by_folder_time_when_date_unreadable(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "auto-folder-time")
+    bundle = await _link_sms(client, auth_headers, candidate, "auto-folder-phone")
+    # The fixture image reached the folder "now"; the SMS came a few minutes
+    # earlier and states its own transfer time.
+    local, day, minute = _local_minute()
+    body = "notice: You have received EGP 455.00 via InstaPay"
+    await _send_sms(client, bundle, body, local)
+    counts = await _read_and_confirm(app, {"amount": "455.00", "currency": "EGP"})
+    assert counts["sms"] == 1
+    resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    assert resolution["sms_verified"]
+    assert resolution["blocking_fields"] == []
+    assert resolution["fields"]["date"]["trust"] == "OPERATOR_CORRECTED"
+    assert resolution["fields"]["date"]["value"]
+
+
+async def test_folder_time_needs_a_unique_sms(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "auto-folder-two")
+    bundle = await _link_sms(client, auth_headers, candidate, "auto-folder-two-phone")
+    local, _, _ = _local_minute()
+    body = "notice: You have received EGP 455.00 via InstaPay"
+    await _send_sms(client, bundle, body, local)
+    await _send_sms(client, bundle, body, local - timedelta(minutes=20))
+    counts = await _read_and_confirm(app, {"amount": "455.00", "currency": "EGP"})
+    assert counts["sms"] == 0 and counts["waiting"] == 1

@@ -29,6 +29,9 @@ from relay.domain.sms_verification import (
 
 logger = logging.getLogger(__name__)
 SEARCH_HOURS = WAITING_HOURS
+# A receipt screenshot lands in the folder shortly after the transfer.
+FOLDER_BEFORE = timedelta(hours=2)
+FOLDER_AFTER = timedelta(minutes=10)
 
 
 def _facts(events: list[SmsEvent]) -> list[SmsFacts]:
@@ -199,6 +202,53 @@ class SmsVerificationService:
             and compatible(receipt, sms, self.zone, self.window)
         ]
         return found[0].event_id if len(found) == 1 else None
+
+    async def match_by_folder_time(
+        self,
+        device_id: UUID,
+        candidate_id: UUID,
+        amount: str,
+        currency: str,
+        folder_at: datetime,
+        exclude: frozenset[UUID] = frozenset(),
+    ) -> tuple[UUID, datetime] | None:
+        """For a receipt whose own date and time cannot be read: the one free
+        bank SMS with this amount from shortly before the image reached the
+        folder, and its local transfer time. None when there is none or several."""
+        sources = frozenset(await self.repo.sms_sources(device_id))
+        try:
+            value = Decimal(amount).quantize(Decimal("0.01"))
+        except InvalidOperation:
+            return None
+        if not sources or value <= 0 or folder_at.tzinfo is None:
+            return None
+        direction = await self.repo.sms_direction(device_id)
+        held = await self.repo.held_events(except_candidate=candidate_id)
+        start, end = folder_at - FOLDER_BEFORE, folder_at + FOLDER_AFTER
+        events = await self.repo.sms_events(
+            set(sources), start - timedelta(days=1), end + timedelta(days=1)
+        )
+        found = []
+        for sms in _facts(events):
+            moment = (
+                sms.stated_local.replace(tzinfo=self.zone)
+                if sms.stated_local is not None
+                else sms.occurred_at
+            )
+            if (
+                sms.event_id not in held
+                and sms.event_id not in exclude
+                and sms.device_id in sources
+                and sms.direction == direction
+                and sms.amount == value
+                and sms.currency == currency.upper()
+                and start <= moment <= end
+            ):
+                found.append((sms.event_id, moment.astimezone(self.zone)))
+        if len(found) != 1:
+            return None
+        event_id, moment = found[0]
+        return event_id, moment.replace(tzinfo=None, second=0, microsecond=0)
 
     async def _receipt(self, candidate_id: UUID) -> ReceiptFacts | None:
         found = await self.repo.eligible_receipts(candidate_id=candidate_id)
