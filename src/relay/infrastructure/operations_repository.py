@@ -97,6 +97,7 @@ class SqlOperationsRepository:
                 ProcessingJobRow.status.label("processing_status"),
                 ProcessingJobRow.failure_code.label("processing_failure"),
                 RawEventRow.received_at,
+                RawEventRow.occurred_at.label("folder_at"),
                 RawEventRow.collector,
                 BinaryObjectRow.source_type,
                 BinaryObjectRow.source_id,
@@ -121,16 +122,26 @@ class SqlOperationsRepository:
         )
 
     @staticmethod
+    def _receipt_range(window: DateWindow) -> tuple[Any, ...]:
+        if window.folder_time:
+            folder = select(RawEventRow.id).where(
+                RawEventRow.occurred_at >= window.start,
+                RawEventRow.occurred_at < window.end_exclusive,
+            )
+            return (ReceiptCandidateRow.raw_event_id.in_(folder),)
+        return (
+            ReceiptCandidateRow.created_at >= window.start,
+            ReceiptCandidateRow.created_at < window.end_exclusive,
+        )
+
+    @staticmethod
     def _escape_like(value: str) -> str:
         return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
     def _apply_transaction_filters(
         self, statement: Any, query: TransactionQuery
     ) -> Any:
-        statement = statement.where(
-            ReceiptCandidateRow.created_at >= query.window.start,
-            ReceiptCandidateRow.created_at < query.window.end_exclusive,
-        )
+        statement = statement.where(*self._receipt_range(query.window))
         if query.search:
             escaped = self._escape_like(query.search.casefold())
             pattern = f"%{escaped}%"
@@ -284,6 +295,7 @@ class SqlOperationsRepository:
             "source_type": row.source_type,
             "source_id": row.source_id,
             "received_at": _iso(row.received_at),
+            "folder_at": _iso(row.folder_at),
             "created_at": _iso(value.created_at),
             "updated_at": _iso(value.updated_at),
             "ocr_provider": row.provider,
@@ -297,10 +309,7 @@ class SqlOperationsRepository:
         }
 
     async def dashboard(self, window: DateWindow) -> dict[str, JsonValue]:
-        receipt_range = (
-            ReceiptCandidateRow.created_at >= window.start,
-            ReceiptCandidateRow.created_at < window.end_exclusive,
-        )
+        receipt_range = self._receipt_range(window)
         final_count = await self.db.scalar(
             select(func.count())
             .select_from(ReceiptCandidateRow)
