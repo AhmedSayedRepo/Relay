@@ -1,7 +1,7 @@
 """Operator dashboard, transaction, duplicate, retry, and export use cases."""
 
 from dataclasses import replace
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from uuid import UUID
 
 from relay.application.errors import Conflict, NotFound
@@ -19,14 +19,29 @@ DUPLICATE_DECISIONS = {
 }
 
 
-def date_window(date_from: date, date_to: date) -> DateWindow:
+def date_window(
+    date_from: date,
+    date_to: date,
+    *,
+    zone: tzinfo = UTC,
+    time_from: time | None = None,
+    time_to: time | None = None,
+    folder_time: bool = False,
+) -> DateWindow:
+    """Dates (and optional times, inclusive to the minute) in ``zone``."""
     days = (date_to - date_from).days
     if days < 0 or days >= MAX_RANGE_DAYS:
         raise Conflict("Date range must be ordered and no longer than 366 days.")
-    return DateWindow(
-        datetime.combine(date_from, time.min, tzinfo=UTC),
-        datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=UTC),
+    start = datetime.combine(date_from, time_from or time.min, tzinfo=zone)
+    end = (
+        datetime.combine(date_to, time_to.replace(second=0, microsecond=0), zone)
+        + timedelta(minutes=1)
+        if time_to is not None
+        else datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=zone)
     )
+    if end <= start:
+        raise Conflict("The end must be after the start.")
+    return DateWindow(start, end, folder_time)
 
 
 class OperationsService:

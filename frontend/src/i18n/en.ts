@@ -99,6 +99,8 @@ export const en = {
     retryFailed: "Retry could not be requested.", help: "Understand processing states", object: "Object",
   },
   reports: {
+    timeFrom: "From time", timeTo: "To time",
+    folderBasis: "Dates and times are when each receipt image reached the phone's receipts folder (Cairo time), not the date printed on the receipt.",
     export: "Export Excel", preparing: "Preparing workbook…", downloaded: "Workbook downloaded.", failed: "Export failed safely.",
     scope: "Workbook scope", scopeLine: "{transactions} final transactions · {duplicates} duplicate groups · {review} needing review.",
     contents: "Transactions, Duplicates, and Summary sheets are created in memory. Relay retains only an export audit record.",
