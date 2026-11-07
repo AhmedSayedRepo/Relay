@@ -47,6 +47,20 @@ android {
             }
         }
     }
+    // "receipts" has no SMS permission, so Play Protect has nothing to flag;
+    // "full" adds bank SMS capture for the SMS phone. Same app id: one per phone.
+    flavorDimensions += "capture"
+    productFlavors {
+        create("full") {
+            dimension = "capture"
+            buildConfigField("boolean", "SMS_CAPTURE", "true")
+        }
+        create("receipts") {
+            dimension = "capture"
+            buildConfigField("boolean", "SMS_CAPTURE", "false")
+            versionNameSuffix = "-receipts"
+        }
+    }
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"

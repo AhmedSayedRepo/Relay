@@ -1,6 +1,7 @@
 name: Android release
 
-# Builds a signed Relay Agent APK and publishes it as a GitHub Release.
+# Builds the signed Relay Agent APKs (full with bank SMS, and receipts-only
+# without SMS access) and publishes them as a GitHub Release.
 # Start it by pushing a tag like agent-v0.5.0, or manually with a version.
 on:
   push:
@@ -48,7 +49,7 @@ jobs:
           packages: platform-tools
       - name: Install pinned Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-      - name: Build signed APK
+      - name: Build signed APKs
         working-directory: android
         env:
           RELAY_KEYSTORE_BASE64: ${{ secrets.RELAY_KEYSTORE_BASE64 }}
@@ -63,17 +64,22 @@ jobs:
           export RELAY_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           printf '%s' "$RELAY_KEYSTORE_BASE64" | base64 --decode > "$RELAY_KEYSTORE_FILE"
           chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleRelease \
+          ./gradlew --no-daemon :app:assembleFullRelease :app:assembleReceiptsRelease \
             -PrelayBaseUrl="$RELAY_BASE_URL" \
             -PrelayVersionName="$version" \
             -PrelayVersionCode="$((1000 + GITHUB_RUN_NUMBER))" 2>&1 | tee release.log
           rm -f "$RELAY_KEYSTORE_FILE"
-          apk=app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
           mkdir -p "$RUNNER_TEMP/out"
-          cp "$apk" "$RUNNER_TEMP/out/relay-agent-$version.apk"
-          (cd "$RUNNER_TEMP/out" && sha256sum "relay-agent-$version.apk" > "relay-agent-$version.apk.sha256")
-          cat "$RUNNER_TEMP/out/relay-agent-$version.apk.sha256"
+          # relay-agent-X.apk keeps the full build (bank SMS) at its old name.
+          for flavor in full receipts; do
+            apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
+            name="relay-agent-$version.apk"
+            [ "$flavor" = receipts ] && name="relay-agent-receipts-$version.apk"
+            cp "$apk" "$RUNNER_TEMP/out/$name"
+            (cd "$RUNNER_TEMP/out" && sha256sum "$name" > "$name.sha256")
+            cat "$RUNNER_TEMP/out/$name.sha256"
+          done
       - name: Report build errors
         if: failure()
         working-directory: android
@@ -91,7 +97,8 @@ jobs:
           set -euo pipefail
           tag="agent-v$APP_VERSION"
           sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-$APP_VERSION.apk.sha256")
-          notes="Relay Agent $APP_VERSION for Android 8.0 or newer. SHA-256: $sha"
+          rsha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-receipts-$APP_VERSION.apk.sha256")
+          notes="Relay Agent $APP_VERSION for Android 8.0 or newer. relay-agent-$APP_VERSION.apk: receipts and bank SMS (SHA-256 $sha). relay-agent-receipts-$APP_VERSION.apk: receipts only, no SMS access (SHA-256 $rsha)."
           # This commit only exists in this repo; a separate release repo tags its own default branch.
           target=()
           [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ] && target=(--target "$GITHUB_SHA")
@@ -102,4 +109,6 @@ jobs:
               --title "Relay Agent $APP_VERSION" --notes "$notes" "${target[@]}"
           fi
           echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-$APP_VERSION.apk"
+          echo "::notice title=apk-receipts::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-receipts-$APP_VERSION.apk"
           echo "::notice title=sha256::$sha"
+          echo "::notice title=sha256-receipts::$rsha"

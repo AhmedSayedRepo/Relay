@@ -37,5 +37,10 @@ Push a tag (`git tag agent-v0.5.0 && git push origin agent-v0.5.0`) or run the
 workflow manually with a version. The run's summary prints the APK link and its
 SHA-256; put both in the landing page's Download settings.
 
+Each release has two APKs: `relay-agent-<version>.apk` (receipts and bank SMS,
+for the SMS phone) and `relay-agent-receipts-<version>.apk` (receipts only, no SMS
+permission, so Play Protect does not flag it). Both use the same app id, so a
+phone has one or the other.
+
 The download link for the newest release can also be
 `https://github.com/<release repo>/releases/latest/download/relay-agent-<version>.apk`.
