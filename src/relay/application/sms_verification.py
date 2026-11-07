@@ -160,20 +160,24 @@ class SmsVerificationService:
         return summary
 
     async def matches_reading(
-        self, device_id: UUID, candidate_id: UUID, values: dict[str, str]
-    ) -> bool:
-        """True when exactly one free bank SMS fits an unreviewed reading's
-        amount, currency, date and time."""
+        self,
+        device_id: UUID,
+        candidate_id: UUID,
+        values: dict[str, str],
+        exclude: frozenset[UUID] = frozenset(),
+    ) -> UUID | None:
+        """The one free bank SMS that fits an unreviewed reading's amount,
+        currency, date and time, or None when there is none or several."""
         sources = frozenset(await self.repo.sms_sources(device_id))
         if not sources:
-            return False
+            return None
         try:
             amount = Decimal(values["amount"]).quantize(Decimal("0.01"))
             local = datetime.fromisoformat(f"{values['date']}T{values['time']}")
         except (KeyError, InvalidOperation, ValueError):
-            return False
+            return None
         if local.tzinfo is not None or amount <= 0:
-            return False
+            return None
         receipt = ReceiptFacts(
             candidate_id,
             amount,
@@ -191,9 +195,10 @@ class SmsVerificationService:
             sms
             for sms in _facts(events)
             if sms.event_id not in held
+            and sms.event_id not in exclude
             and compatible(receipt, sms, self.zone, self.window)
         ]
-        return len(found) == 1
+        return found[0].event_id if len(found) == 1 else None
 
     async def _receipt(self, candidate_id: UUID) -> ReceiptFacts | None:
         found = await self.repo.eligible_receipts(candidate_id=candidate_id)

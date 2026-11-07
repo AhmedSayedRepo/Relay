@@ -100,3 +100,49 @@ async def test_matching_bank_sms_confirms(client, auth_headers, app):
     assert resolution["auto_confirmed"]["rule"] == "sms"
     assert resolution["fields"]["amount"]["value"] == "1250.50"
     assert resolution["blocking_fields"] == []
+
+
+async def _link_sms(client, auth_headers, candidate, name):
+    sms_device, bundle = await provision(client, auth_headers, name)
+    linked = await client.put(
+        f"/api/v1/devices/{candidate['device_id']}/sms-sources",
+        headers=auth_headers,
+        json={"sms_device_ids": [sms_device["id"]]},
+    )
+    assert linked.status_code == 200
+    return bundle
+
+
+async def test_bank_sms_makes_reference_optional(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "auto-sms-noref")
+    bundle = await _link_sms(client, auth_headers, candidate, "auto-noref-phone")
+    local, day, minute = _local_minute()
+    body = "notice: You have received EGP 780.00 via InstaPay"
+    await _send_sms(client, bundle, body, local + timedelta(minutes=1))
+    # The model could not read a reference at all.
+    reading = {
+        "amount": "780.00",
+        "currency": "EGP",
+        "date": day,
+        "time": f"{minute}:00",
+    }
+    counts = await _read_and_confirm(app, reading)
+    assert counts["sms"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    resolution = detail["resolution_result"]
+    assert resolution["sms_verified"]
+    assert resolution["blocking_fields"] == []
+    assert resolution["fields"]["reference_number"]["trust"] == "MACHINE_ONLY"
+    assert resolution["fields"]["date"]["value"] == day
+    assert detail["review_status"] != "NEEDS_REVIEW"
+    assert labels_from_resolution(resolution) is None
+
+
+async def test_without_sms_reference_is_still_required(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "auto-noref-nosms")
+    reading = {"amount": "237.50", "currency": "EGP", "date": "2026-09-05"}
+    counts = await _read_and_confirm(app, reading)
+    assert counts["waiting"] == 1 and counts["sms"] == 0 and counts["readers"] == 0
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    assert "reference_number" in detail["resolution_result"]["blocking_fields"]

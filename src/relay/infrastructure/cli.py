@@ -262,9 +262,15 @@ AUTO_REASONS = {
 }
 
 
-def model_values(resolution: dict[str, Any]) -> dict[str, str] | None:
-    """The model's reading of every key field, if all five are still
-    machine-only suggestions from the model and pass the sanity checks."""
+SMS_FIELDS = ("amount", "currency", "date", "time")
+
+
+def model_values(
+    resolution: dict[str, Any], names: tuple[str, ...] | None = None
+) -> dict[str, str] | None:
+    """The model's reading of the named key fields (all five by default), if
+    each is still a machine-only suggestion from the model and passes the
+    sanity checks."""
     from relay.domain.evidence import CRITICAL_FIELDS
     from relay.infrastructure.donut_reader import plausible
 
@@ -272,7 +278,7 @@ def model_values(resolution: dict[str, Any]) -> dict[str, str] | None:
     if not isinstance(fields, dict):
         return None
     values: dict[str, str] = {}
-    for name in CRITICAL_FIELDS:
+    for name in names or CRITICAL_FIELDS:
         field = fields.get(name)
         if not isinstance(field, dict) or field.get("trust") != "MACHINE_ONLY":
             return None
@@ -313,6 +319,50 @@ def readers_agree(resolution: dict[str, Any], values: dict[str, str]) -> bool:
     return True
 
 
+async def _tag(
+    database: Database, candidate_id: UUID, key: str, value: dict[str, Any]
+) -> None:
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.id == candidate_id)
+            .with_for_update()
+        )
+        if row is None or not isinstance(row.resolution_result, dict):
+            return
+        tagged = copy.deepcopy(row.resolution_result)
+        tagged[key] = value | {"at": datetime.now(UTC).isoformat()}
+        row.resolution_result = tagged
+        row.updated_at = datetime.now(UTC)
+        await session.commit()
+
+
+async def _confirm(
+    database: Database,
+    storage: FilesystemObjectStorage,
+    reviewer: UUID,
+    candidate_id: UUID,
+    name: str,
+    value: str,
+    rule: str,
+) -> None:
+    async with database.session() as session:
+        uow = SqlUnitOfWork(session)
+        candidate = await uow.processing.candidate(candidate_id)
+        if candidate is None:
+            return
+        await ProcessingService(uow, storage).resolve_exception(
+            candidate_id,
+            reviewer,
+            uuid4(),
+            candidate.updated_at.isoformat(),
+            name,
+            "CONFIRM",
+            value,
+            AUTO_REASONS[rule],
+        )
+
+
 async def auto_confirm(
     database: Database, storage: FilesystemObjectStorage, settings: Settings
 ) -> dict[str, int]:
@@ -321,7 +371,6 @@ async def auto_confirm(
     Everything else stays in Review. Auto-confirmed receipts are tagged and
     never used for training."""
     from relay.application.errors import Conflict
-    from relay.domain.evidence import CRITICAL_FIELDS
     from relay.infrastructure.models import UserRow
 
     counts = {"sms": 0, "readers": 0, "waiting": 0, "failed": 0}
@@ -345,57 +394,52 @@ async def auto_confirm(
         ).all()
     if reviewer is None:
         return counts
+    used: set[UUID] = set()  # SMS already spent in this pass
     for candidate_id, device_id, resolution in rows:
         if not isinstance(resolution, dict) or "model_reader" not in resolution:
             continue
         if "auto_confirmed" in resolution:
             continue
-        values = model_values(resolution)
         rule = None
+        values = model_values(resolution, SMS_FIELDS)
         if values is not None:
             async with database.session() as session:
-                if await build_sms_verification_service(
+                event = await build_sms_verification_service(
                     SqlUnitOfWork(session), settings
-                ).matches_reading(device_id, candidate_id, values):
-                    rule = "sms"
-            if rule is None and readers_agree(resolution, values):
+                ).matches_reading(device_id, candidate_id, values, frozenset(used))
+            if event is not None:
+                rule = "sms"
+                used.add(event)
+                # The SMS makes the reference optional: keep it only if the
+                # model read a plausible one.
+                reference = model_values(resolution, ("reference_number",))
+                values |= reference or {}
+        if rule is None:
+            values = model_values(resolution)
+            if values is not None and readers_agree(resolution, values):
                 rule = "readers"
         if values is None or rule is None:
             counts["waiting"] += 1
             continue
         try:
-            async with database.session() as session:
-                row = await session.scalar(
-                    select(ReceiptCandidateRow)
-                    .where(ReceiptCandidateRow.id == candidate_id)
-                    .with_for_update()
-                )
-                if row is None or not isinstance(row.resolution_result, dict):
+            await _tag(database, candidate_id, "auto_confirmed", {"rule": rule})
+            # Optional-once-verified fields first: they stop being reviewable
+            # once the SMS marker leaves only amount and currency blocking.
+            order = ["reference_number", "date", "time", "currency", "amount"]
+            for name in order:
+                if name not in values:
                     continue
-                tagged = copy.deepcopy(row.resolution_result)
-                tagged["auto_confirmed"] = {
-                    "rule": rule,
-                    "at": datetime.now(UTC).isoformat(),
-                }
-                row.resolution_result = tagged
-                row.updated_at = datetime.now(UTC)
-                await session.commit()
-            for name in CRITICAL_FIELDS:
+                if rule == "sms" and name == "currency":
+                    await _tag(database, candidate_id, "sms_verified", {})
+                await _confirm(
+                    database, storage, reviewer, candidate_id, name, values[name], rule
+                )
+            if rule == "sms":
+                # Record the verification now so the SMS cannot vouch twice.
                 async with database.session() as session:
-                    uow = SqlUnitOfWork(session)
-                    candidate = await uow.processing.candidate(candidate_id)
-                    if candidate is None:
-                        break
-                    await ProcessingService(uow, storage).resolve_exception(
-                        candidate_id,
-                        reviewer,
-                        uuid4(),
-                        candidate.updated_at.isoformat(),
-                        name,
-                        "CONFIRM",
-                        values[name],
-                        AUTO_REASONS[rule],
-                    )
+                    await build_sms_verification_service(
+                        SqlUnitOfWork(session), settings
+                    ).run()
             counts[rule] += 1
         except Conflict as error:
             counts["failed"] += 1
