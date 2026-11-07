@@ -84,6 +84,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.relay.agent.BuildConfig
 import com.relay.agent.R
 import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.ConnectionState
@@ -297,7 +298,13 @@ private fun CompactCounts(status: AgentStatus) {
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CompactCount(status.queuedEventCount.toLong(), R.string.count_sms_waiting, relay.waiting)
+        if (BuildConfig.SMS_CAPTURE) {
+            CompactCount(
+                status.queuedEventCount.toLong(),
+                R.string.count_sms_waiting,
+                relay.waiting
+            )
+        }
         CompactCount(status.queuedImageCount.toLong(), R.string.count_images_waiting, relay.waiting)
         CompactCount(
             status.droppedEventCount + status.droppedImageCount,
@@ -358,12 +365,14 @@ private fun Header(status: AgentStatus, now: Instant, modifier: Modifier = Modif
             EnrollmentState.ENROLLED -> {
                 Spacer(Modifier.height(20.dp))
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                    Count(
-                        status.queuedEventCount.toLong(),
-                        R.string.count_sms_waiting,
-                        Modifier.weight(1f)
-                    )
-                    HeaderRule()
+                    if (BuildConfig.SMS_CAPTURE) {
+                        Count(
+                            status.queuedEventCount.toLong(),
+                            R.string.count_sms_waiting,
+                            Modifier.weight(1f)
+                        )
+                        HeaderRule()
+                    }
                     Count(
                         status.queuedImageCount.toLong(),
                         R.string.count_images_waiting,
@@ -479,29 +488,32 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
             shadowElevation = 1.dp
         ) {
             Column {
-                val sms = smsBlocker(status)
-                CollectorBlock(
-                    title = R.string.sms_title,
-                    blocker = sms,
-                    activeText = stringResource(R.string.sms_active),
-                    consent = status.localSmsConsent,
-                    consentLabel = R.string.allow_sms_switch,
-                    onConsent = actions.setSmsConsent,
-                    waiting = status.queuedEventCount.toLong(),
-                    dropped = status.droppedEventCount,
-                    lastSent = relative(status.lastSuccessfulUpload, now),
-                    error = status.lastUploadError,
-                    discardLabel = R.string.discard_sms,
-                    discardTitle = R.string.discard_sms_title,
-                    onDiscard = actions.discardSms
-                ) {
-                    if (sms == Blocker.SMS_PERMISSION) {
-                        Button(onClick = actions.requestSmsPermission) {
-                            Text(stringResource(R.string.allow_sms_access))
+                // The receipts-only build has no SMS permission, so no SMS section.
+                if (BuildConfig.SMS_CAPTURE) {
+                    val sms = smsBlocker(status)
+                    CollectorBlock(
+                        title = R.string.sms_title,
+                        blocker = sms,
+                        activeText = stringResource(R.string.sms_active),
+                        consent = status.localSmsConsent,
+                        consentLabel = R.string.allow_sms_switch,
+                        onConsent = actions.setSmsConsent,
+                        waiting = status.queuedEventCount.toLong(),
+                        dropped = status.droppedEventCount,
+                        lastSent = relative(status.lastSuccessfulUpload, now),
+                        error = status.lastUploadError,
+                        discardLabel = R.string.discard_sms,
+                        discardTitle = R.string.discard_sms_title,
+                        onDiscard = actions.discardSms
+                    ) {
+                        if (sms == Blocker.SMS_PERMISSION) {
+                            Button(onClick = actions.requestSmsPermission) {
+                                Text(stringResource(R.string.allow_sms_access))
+                            }
                         }
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 val images = imageBlocker(status)
                 val folder =
                     status.approvedImageSourceId ?: stringResource(R.string.the_chosen_folder)

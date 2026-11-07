@@ -139,7 +139,7 @@ jobs:
         run: |
           chmod +x gradlew
           set +e
-          ./gradlew --no-daemon ktlintCheck testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease 2>&1 | tee gradle.log
+          ./gradlew --no-daemon ktlintCheck testFullDebugUnitTest testReceiptsDebugUnitTest lintFullDebug lintFullRelease lintReceiptsRelease assembleDebug assembleRelease 2>&1 | tee gradle.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             grep -A12 "What went wrong" gradle.log | head -40 | tr '\n' ' ' | sed 's/^/::error title=gradle::/'
@@ -183,4 +183,4 @@ jobs:
           arch: x86_64
           target: google_apis
           working-directory: android
-          script: ./gradlew --no-daemon connectedDebugAndroidTest
+          script: ./gradlew --no-daemon connectedFullDebugAndroidTest
