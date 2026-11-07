@@ -9,6 +9,9 @@ from uuid import UUID
 class DateWindow:
     start: datetime
     end_exclusive: datetime
+    # True: by when the receipt image reached the phone's receipts folder;
+    # False: by when the server received it.
+    folder_time: bool = False
 
 
 @dataclass(frozen=True, slots=True)

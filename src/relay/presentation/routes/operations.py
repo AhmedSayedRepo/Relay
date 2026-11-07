@@ -1,14 +1,16 @@
 from dataclasses import asdict, replace
-from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Literal
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Annotated, Literal, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from relay.application.operations import date_window
 from relay.domain.agent import JsonValue
-from relay.domain.operations import DuplicateGroupQuery, TransactionQuery
+from relay.domain.operations import DateWindow, DuplicateGroupQuery, TransactionQuery
 from relay.domain.review_categories import CATEGORIES, categorize
+from relay.infrastructure.config import Settings
 from relay.presentation.dependencies import AuthenticatedUser, current_user
 from relay.presentation.operations_dependencies import Service
 from relay.presentation.operations_schemas import (
@@ -286,22 +288,50 @@ async def devices(
     return OperationPage(items=rows, total=total, limit=limit, offset=offset)
 
 
+def _folder_window(
+    request: Request,
+    date_from: date | None,
+    date_to: date | None,
+    time_from: time | None,
+    time_to: time | None,
+) -> DateWindow:
+    """Reports filter by when the image reached the phone's receipts folder,
+    in the receipts' local time zone."""
+    start, end = _dates(date_from, date_to)
+    settings = cast(Settings, request.app.state.settings)
+    return date_window(
+        start,
+        end,
+        zone=ZoneInfo(settings.receipt_timezone),
+        time_from=time_from,
+        time_to=time_to,
+        folder_time=True,
+    )
+
+
 @router.get("/reports/summary", response_model=OperationData)
 async def report_summary(
     service: Service,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
 ) -> dict[str, JsonValue]:
-    start, end = _dates(date_from, date_to)
-    return await service.dashboard(date_window(start, end))
+    return await service.dashboard(
+        _folder_window(request, date_from, date_to, time_from, time_to)
+    )
 
 
 @router.get("/reports/export.xlsx")
 async def export_report(
     service: Service,
     actor: AuthenticatedUser,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     review_status: Literal["AUTO_ACCEPTED", "NEEDS_REVIEW", "REJECTED"] | None = None,
     duplicate_status: (
@@ -324,11 +354,15 @@ async def export_report(
 ) -> Response:
     values = locals().copy()
     values.update({"limit": 100, "offset": 0})
-    values.pop("service")
-    values.pop("actor")
-    query = _transaction_query(**values)
+    for key in ("service", "actor", "request", "time_from", "time_to"):
+        values.pop(key)
+    query = replace(
+        _transaction_query(**values),
+        window=_folder_window(request, date_from, date_to, time_from, time_to),
+    )
+    values.update({"time_from": time_from, "time_to": time_to})
     filters: dict[str, JsonValue] = {
-        key: value.isoformat() if isinstance(value, date) else str(value)
+        key: value.isoformat() if isinstance(value, date | time) else str(value)
         for key, value in values.items()
         if value is not None and key not in {"limit", "offset"}
     }

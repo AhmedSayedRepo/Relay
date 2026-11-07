@@ -31,6 +31,7 @@ TRANSACTION_HEADERS = (
     "Received Timestamp (UTC)",
     "Processing Status",
     "Candidate ID",
+    "Sent to Folder (UTC)",
 )
 DUPLICATE_HEADERS = (
     "Duplicate Group",
@@ -167,6 +168,7 @@ class OpenpyxlWorkbookExporter:
                     _utc_datetime(item, "received_at"),
                     _text(item, "processing_status"),
                     _text(item, "id"),
+                    _utc_datetime(item, "folder_at"),
                 )
             )
         for cell in transaction_sheet["A"][1:]:
@@ -175,11 +177,32 @@ class OpenpyxlWorkbookExporter:
             cell.number_format = "hh:mm:ss"
         for cell in transaction_sheet["C"][1:]:
             cell.number_format = "#,##0.00"
-        for cell in transaction_sheet["P"][1:]:
-            cell.number_format = "yyyy-mm-dd hh:mm:ss"
+        for column in ("P", "S"):
+            for cell in transaction_sheet[column][1:]:
+                cell.number_format = "yyyy-mm-dd hh:mm:ss"
         _style(
             transaction_sheet,
-            (12, 11, 15, 10, 24, 22, 22, 22, 18, 16, 38, 20, 16, 24, 30, 22, 20, 38),
+            (
+                12,
+                11,
+                15,
+                10,
+                24,
+                22,
+                22,
+                22,
+                18,
+                16,
+                38,
+                20,
+                16,
+                24,
+                30,
+                22,
+                20,
+                38,
+                22,
+            ),
         )
 
         duplicate_sheet = workbook.create_sheet("Duplicates")

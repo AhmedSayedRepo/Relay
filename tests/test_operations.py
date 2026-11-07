@@ -166,6 +166,30 @@ async def test_operator_dashboard_transactions_duplicates_and_export(
     assert workbook.sheetnames == ["Transactions", "Duplicates", "Summary"]
     assert workbook["Transactions"].max_row == 2
     assert workbook["Duplicates"].max_row == 2
+    assert workbook["Transactions"]["S1"].value == "Sent to Folder (UTC)"
+    assert workbook["Transactions"]["S2"].value is not None
+
+    # Reports count receipts by when the image reached the receipts folder.
+    reported = await client.get(
+        f"/api/v1/reports/summary?{WINDOW}", headers=auth_headers
+    )
+    current = await client.get(f"/api/v1/dashboard?{WINDOW}", headers=auth_headers)
+    assert reported.json()["final_transaction_count"] > 0
+    assert (
+        reported.json()["final_transaction_count"]
+        == current.json()["final_transaction_count"]
+    )
+    before = await client.get(
+        "/api/v1/reports/summary?date_from=2026-01-01&date_to=2026-01-01",
+        headers=auth_headers,
+    )
+    assert before.json()["final_transaction_count"] == 0
+    backwards = await client.get(
+        "/api/v1/reports/summary?date_from=2026-01-01&date_to=2026-01-01"
+        "&time_from=10:00&time_to=09:00",
+        headers=auth_headers,
+    )
+    assert backwards.status_code == 409
     assert all(
         not (isinstance(cell.value, str) and cell.value.startswith("="))
         for sheet in workbook.worksheets
