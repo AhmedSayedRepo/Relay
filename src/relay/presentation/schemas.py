@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_validator
 
 from relay.domain.devices import DeviceStatus
+from relay.domain.users import Role
 
 
 class InputModel(BaseModel):
@@ -28,6 +29,7 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     created_at: datetime
+    role: Role
 
 
 Name = Annotated[str, Field(min_length=1, max_length=120)]

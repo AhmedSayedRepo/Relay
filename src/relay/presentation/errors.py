@@ -4,7 +4,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
-from relay.application.errors import AuthenticationFailed, Conflict, NotFound
+from relay.application.errors import (
+    AuthenticationFailed,
+    Conflict,
+    Forbidden,
+    NotFound,
+)
 from relay.domain.errors import DomainError
 from relay.infrastructure.logging import request_id_context
 
@@ -41,6 +46,10 @@ def register_error_handlers(app: FastAPI) -> None:
         return error_response(
             401, "unauthorized", str(exc), {"WWW-Authenticate": "Bearer"}
         )
+
+    @app.exception_handler(Forbidden)
+    async def forbidden(request: Request, exc: Forbidden) -> JSONResponse:
+        return error_response(403, "forbidden", str(exc))
 
     @app.exception_handler(NotFound)
     async def not_found(request: Request, exc: NotFound) -> JSONResponse:

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select, update
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.errors import Conflict
 from relay.domain.devices import Device, DeviceStatus
-from relay.domain.users import User
+from relay.domain.users import Role, User
 from relay.infrastructure.agent_models import ConfigurationRow
 from relay.infrastructure.agent_repository import SqlAgentRepository
 from relay.infrastructure.binary_repository import SqlBinaryRepository
@@ -24,7 +25,12 @@ from relay.infrastructure.training_repository import SqlTrainingRepository
 
 def to_user(row: UserRow) -> User:
     return User(
-        row.id, row.email, row.password_hash, row.is_active, aware(row.created_at)
+        row.id,
+        row.email,
+        row.password_hash,
+        row.is_active,
+        aware(row.created_at),
+        Role(row.role) if row.role in Role.__members__ else Role.VIEWER,
     )
 
 
@@ -77,11 +83,64 @@ class SqlUserRepository:
                 password_hash=user.password_hash,
                 is_active=user.is_active,
                 created_at=user.created_at,
+                role=user.role.value,
             )
         )
         await flush_unique(
             self.session, constraint="uq_users_email", column="users.email"
         )
+
+    async def list_all(self) -> list[User]:
+        rows = await self.session.scalars(
+            select(UserRow).where(UserRow.deleted_at.is_(None)).order_by(UserRow.email)
+        )
+        return [to_user(row) for row in rows]
+
+    async def update(
+        self, user_id: UUID, *, role: Role | None = None, is_active: bool | None = None
+    ) -> None:
+        values: dict[str, object] = {}
+        if role is not None:
+            values["role"] = role.value
+        if is_active is not None:
+            values["is_active"] = is_active
+        if values:
+            await self.session.execute(
+                update(UserRow).where(UserRow.id == user_id).values(**values)
+            )
+
+    async def active_admin_count(self) -> int:
+        return int(
+            await self.session.scalar(
+                select(func.count())
+                .select_from(UserRow)
+                .where(
+                    UserRow.is_active.is_(True),
+                    UserRow.deleted_at.is_(None),
+                    UserRow.role == Role.ADMIN.value,
+                )
+            )
+            or 0
+        )
+
+    async def delete(self, user_id: UUID) -> bool:
+        """Remove a user; one with review history is hidden and disabled
+        instead, and their email freed. Returns True when fully removed."""
+        row = await self.session.get(UserRow, user_id)
+        if row is None:
+            return True
+        try:
+            async with self.session.begin_nested():
+                await self.session.delete(row)
+            return True
+        except IntegrityError:
+            row = await self.session.get(UserRow, user_id)
+            if row is None:
+                return True
+            row.is_active = False
+            row.deleted_at = datetime.now(UTC)
+            row.email = f"{row.email}#deleted-{str(row.id)[:8]}"[:254]
+            return False
 
     async def disable(self, user_id: UUID) -> None:
         await self.session.execute(

@@ -380,7 +380,7 @@ async def auto_confirm(
     async with database.session() as session:
         reviewer = await session.scalar(
             select(UserRow.id)
-            .where(UserRow.is_active.is_(True))
+            .where(UserRow.is_active.is_(True), UserRow.role == "ADMIN")
             .order_by(UserRow.created_at)
             .limit(1)
         )

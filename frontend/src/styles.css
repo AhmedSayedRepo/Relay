@@ -123,6 +123,7 @@ a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; 
 }
 .top-context { display: grid; }
 .top-context span { color: var(--ink-faint); font-size: .78rem; }
+.top-context .role-chip { justify-self: start; margin-top: 2px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line, currentColor); font-weight: 600; }
 .top-actions, .preferences { display: flex; align-items: center; gap: .55rem; }
 .preferences label { display: flex; align-items: center; gap: .4rem; font-size: .72rem; }
 .preferences select { min-height: 2.75rem; padding: .35rem 1.8rem .35rem .55rem; }

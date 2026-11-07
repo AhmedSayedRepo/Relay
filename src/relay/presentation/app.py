@@ -31,6 +31,7 @@ from relay.presentation.routes import (
     processing,
     sms_verification,
     training,
+    users,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(operations.router, prefix="/api/v1")
     app.include_router(training.router, prefix="/api/v1")
     app.include_router(sms_verification.router, prefix="/api/v1")
+    app.include_router(users.router, prefix="/api/v1")
     frontend = config.operator_frontend_dir.expanduser().resolve()
     if frontend.is_dir():
 
