@@ -66,7 +66,8 @@ STEPS = int(os.environ.get("RELAY_STEPS", "6000"))
 ACCUMULATE = 4
 LEARNING_RATE = 1e-4
 EVAL_EVERY = 300
-VALIDATION_SHARE = 0.15
+# 0 = train on every training receipt and keep the last step (run 3).
+VALIDATION_SHARE = float(os.environ.get("RELAY_VALIDATION_SHARE", "0"))
 TRAIN_ENCODER = os.environ.get("RELAY_TRAIN_ENCODER", "1") == "1"
 MAX_NEW_TOKENS = 192
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -315,7 +316,7 @@ def score(model, processor, items: list[dict]) -> dict:
     rows = []
     for item in items:
         predicted = read(model, processor, pixels(processor, item))
-        full = True
+        full, missed = True, {}
         for name in CRITICAL:
             label = item["fields"][name]
             if label["evidence_state"] != "PRESENT_VERIFIED":
@@ -324,9 +325,13 @@ def score(model, processor, items: list[dict]) -> dict:
             totals[name][0] += hit
             totals[name][1] += 1
             full = full and hit
+            if not hit:
+                missed[name] = label["target_value"]
         totals["full_record"][0] += full
         totals["full_record"][1] += 1
-        rows.append({"sample_id": item["sample_id"], "predicted": predicted})
+        rows.append(
+            {"sample_id": item["sample_id"], "predicted": predicted, "expected": missed}
+        )
     model.train()
     accuracy = {k: round(100 * c / t, 1) if t else None for k, (c, t) in totals.items()}
     return {"accuracy_percent": accuracy, "counts": totals, "predictions": rows}
@@ -334,6 +339,8 @@ def score(model, processor, items: list[dict]) -> dict:
 
 # ---------------------------------------------------------------- training
 def split_validation(items: list[dict]) -> tuple[list[dict], list[dict]]:
+    if VALIDATION_SHARE <= 0:
+        return items, []
     groups = sorted({item["transaction_group_id"] for item in items})
     random.Random(SEED).shuffle(groups)
     held = set(groups[: max(1, math.ceil(len(groups) * VALIDATION_SHARE))])
@@ -382,7 +389,10 @@ def main() -> None:
     model, processor = load_model(START / "adapter", train=True)
     # Fail fast: every target must tokenize, and one read must run, before hours of training.
     prepared = [(item, labels(processor, item)) for item in train]
-    print("Smoke read:", read(model, processor, pixels(processor, validation[0])))
+    print(
+        "Smoke read:",
+        read(model, processor, pixels(processor, (validation or train)[0])),
+    )
 
     optimizer = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad], lr=LEARNING_RATE
@@ -423,6 +433,11 @@ def main() -> None:
             print(
                 f"step {step}/{STEPS} loss {recent:.4f} {(time.monotonic() - started) / 60:.1f} min"
             )
+        if not validation:
+            if step == STEPS:
+                best = {"step": step, "validation": None}
+                save(model, processor, OUT)
+            continue
         if step % EVAL_EVERY == 0 or step == STEPS:
             result = score(model, processor, validation)
             accuracy = result["accuracy_percent"]
@@ -431,9 +446,11 @@ def main() -> None:
             if key > best_key:
                 best_key, best = key, {"step": step, "validation": result}
                 save(model, processor, OUT)
-    print(
-        f"Best validation at step {best['step']}: {best['validation']['accuracy_percent']}"
-    )
+    if best["validation"]:
+        print(
+            f"Best validation at step {best['step']}: "
+            f"{best['validation']['accuracy_percent']}"
+        )
 
     # Final score: reload the best saved adapters and read the holdout once.
     del model, optimizer
@@ -450,9 +467,11 @@ def main() -> None:
         "holdout_receipts": len(holdout),
         "steps": STEPS,
         "best_step": best["step"],
-        "validation": best["validation"]["accuracy_percent"],
+        "validation": (
+            best["validation"]["accuracy_percent"] if best["validation"] else None
+        ),
         "holdout": holdout_result["accuracy_percent"] if holdout_result else None,
-        "sprint_10c_full_record_percent": 14.3,
+        "run2_holdout_full_record_percent": 82.1,
         "minutes": round((time.monotonic() - started) / 60, 1),
     }
     (OUT / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
