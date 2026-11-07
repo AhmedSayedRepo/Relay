@@ -183,6 +183,7 @@ export const en = {
     expiresIn: "Expires in {time}", expired: "This code expired.", newCode: "Create a new code", working: "Creating code…",
     replace: "Replace the phone that is linked now", replaceHint: "A phone is already linked to this device. Linking a new one disconnects the old phone right away.",
     failed: "A code couldn’t be created.", done: "Done", qrLabel: "QR code for the one-time enrollment code",
+    delete: "Delete device", deleteConfirm: "Delete this device? Receipts and SMS it already sent stay in Relay.", confirmDelete: "Yes, delete",
     disable: "Disable", disableConfirm: "Disable this device? Its phone stops uploading right away.", confirmDisable: "Yes, disable",
     enable: "Turn back on", disabledNote: "Disabled: this device can’t upload. Turn it back on, then link a phone.", actionFailed: "The change wasn’t saved.", alreadyExists: "A device with this name or ID already exists. Use that one: click Link phone on it (or turn it back on), instead of adding the phone again.", nameInUse: "Another device in use has this name. Disable that one, or rename one of them first.",
   },

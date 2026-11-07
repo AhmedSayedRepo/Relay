@@ -60,7 +60,9 @@ async def test_roles_limit_actions(client, auth_headers, app):
     as_viewer, as_reviewer = _headers(app, viewer["id"]), _headers(app, reviewer["id"])
 
     for headers in (as_viewer, as_reviewer):
-        assert (await client.get("/api/v1/dashboard", headers=headers)).status_code == 200
+        assert (
+            await client.get("/api/v1/dashboard", headers=headers)
+        ).status_code == 200
         me = await client.get("/api/v1/auth/me", headers=headers)
         assert me.status_code == 200
         assert (await client.get("/api/v1/users", headers=headers)).status_code == 403

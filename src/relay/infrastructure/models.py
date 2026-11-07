@@ -66,3 +66,5 @@ class DeviceRow(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A deleted device that collected evidence is hidden, not erased.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel
 
 from relay.application.devices import CreateDevice, DeviceService, UpdateDevice
 from relay.presentation.dependencies import current_user, device_service
@@ -44,6 +45,15 @@ async def list_devices(
 @router.get("/{device_id}", response_model=DeviceResponse)
 async def get_device(device_id: UUID, service: Service) -> DeviceResponse:
     return DeviceResponse.model_validate(await service.get(device_id))
+
+
+class DeviceDeleteResponse(BaseModel):
+    removed: bool  # False: hidden, because its receipts and SMS are kept
+
+
+@router.delete("/{device_id}", response_model=DeviceDeleteResponse)
+async def delete_device(device_id: UUID, service: Service) -> DeviceDeleteResponse:
+    return DeviceDeleteResponse(removed=await service.delete(device_id))
 
 
 @router.patch("/{device_id}", response_model=DeviceResponse)

@@ -37,7 +37,12 @@ export function DeviceActions({ id, name, status, token, changed, linkOpen, setL
   id: string; name: string; status: string; token: string; changed: () => void; linkOpen: boolean; setLinkOpen: (open: boolean) => void;
 }) {
   const { messages: m } = useI18n();
-  const [confirming, setConfirming] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  const [confirming, setConfirming] = useState(false); const [deleting, setDeleting] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  async function remove() {
+    setBusy(true); setError("");
+    try { await send(`/devices/${id}`, undefined, { token, method: "DELETE" }); setDeleting(false); changed(); }
+    catch { setError(m.link.actionFailed); } finally { setBusy(false); }
+  }
   async function setStatus(next: "DISABLED" | "PENDING") {
     setBusy(true); setError("");
     try { await send(`/devices/${id}`, { status: next }, { token, method: "PATCH" }); setConfirming(false); changed(); }
@@ -46,6 +51,9 @@ export function DeviceActions({ id, name, status, token, changed, linkOpen, setL
   if (status === "DISABLED") return <div className="device-actions">
     <p className="hint">{m.link.disabledNote}</p>
     <button className="quiet-button" type="button" disabled={busy} onClick={() => void setStatus("PENDING")}>{m.link.enable}</button>
+    {deleting
+      ? <div className="confirm-row" role="group" aria-label={m.link.delete}><span>{m.link.deleteConfirm}</span><button className="danger-button" type="button" disabled={busy} onClick={() => void remove()}>{m.link.confirmDelete}</button><button className="quiet-button" type="button" onClick={() => setDeleting(false)}>{m.link.cancel}</button></div>
+      : <button className="text-button danger" type="button" onClick={() => setDeleting(true)}>{m.link.delete}</button>}
     {error && <p className="status error" role="alert">{error}</p>}
   </div>;
   return <div className="device-actions">
