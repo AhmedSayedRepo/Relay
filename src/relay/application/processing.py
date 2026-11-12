@@ -50,6 +50,7 @@ from relay.domain.review_trust import (
     FieldTrust,
     initial_resolution,
     reviewed_value,
+    sms_time_conflict,
     unresolved_required_fields,
 )
 
@@ -560,6 +561,9 @@ class ProcessingService:
                     adapter=adapter if isinstance(adapter, str) else None,
                 )
             )
+            mismatch = sms_time_conflict(metadata, str(field), normalized)
+            if mismatch:
+                raise Conflict(mismatch)
             fields[str(field)] = {
                 "field": field,
                 "value": normalized,

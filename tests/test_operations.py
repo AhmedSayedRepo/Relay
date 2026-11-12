@@ -141,10 +141,11 @@ async def test_operator_dashboard_transactions_duplicates_and_export(
 
     dashboard = await client.get(f"/api/v1/dashboard?{WINDOW}", headers=auth_headers)
     assert dashboard.status_code == 200
-    assert dashboard.json()["final_transaction_count"] == 2
+    # The duplicate is the same payment again, so it is counted once.
+    assert dashboard.json()["final_transaction_count"] == 1
     assert dashboard.json()["duplicate_group_count"] == 1
     assert dashboard.json()["totals_by_currency"] == [
-        {"currency": "EGP", "amount": "2501.00", "transaction_count": 2}
+        {"currency": "EGP", "amount": "1250.50", "transaction_count": 1}
     ]
 
     devices = await client.get("/api/v1/operations/devices", headers=auth_headers)
