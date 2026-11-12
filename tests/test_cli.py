@@ -117,9 +117,7 @@ def test_processing_command_is_bounded_and_needs_no_email(monkeypatch, capsys):
         cli.main()
 
 
-def test_operator_can_reset_password_and_list_admins(
-    tmp_path, monkeypatch, capsys
-):
+def test_operator_can_reset_password_and_list_admins(tmp_path, monkeypatch, capsys):
     path = tmp_path / "operator.sqlite"
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{path}")

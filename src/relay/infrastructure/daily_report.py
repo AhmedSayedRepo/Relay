@@ -129,7 +129,7 @@ def render(day: date, summary: dict[str, Any], sms: dict[str, Any]) -> tuple[str
     )
     html = (
         '<!doctype html><html><body style="margin:0;padding:24px;'
-        "background:#f9fafb;font-family:Segoe UI,Arial,sans-serif;color:#111827\">"
+        'background:#f9fafb;font-family:Segoe UI,Arial,sans-serif;color:#111827">'
         f'<h1 style="font-size:20px;margin:0 0 4px">{escape(title)}</h1>'
         '<p style="margin:0;color:#6b7280">From 12:00 AM to 11:59 PM, '
         "by when receipts reached each phone's folder.</p>"
