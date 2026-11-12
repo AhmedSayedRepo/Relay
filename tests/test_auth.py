@@ -77,7 +77,7 @@ async def test_me_returns_current_admin_without_hash_or_token(
     response = await client.get("/api/v1/auth/me", headers=auth_headers)
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"id", "email", "is_active", "created_at"}
+    assert set(body) == {"id", "email", "is_active", "created_at", "role"}
     assert body["id"] == str(admin.id)
     assert body["email"] == ADMIN_EMAIL
     assert body["is_active"] is True
