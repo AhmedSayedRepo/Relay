@@ -30,7 +30,9 @@ class DeviceService:
 
     async def delete(self, device_id: UUID) -> bool:
         device = await self.get(device_id)
-        if device.status != DeviceStatus.DISABLED:
+        # A phone in use must be disabled first; one never linked (or not
+        # linked since it was turned back on) can go straight away.
+        if device.status == DeviceStatus.ACTIVE:
             raise Conflict("Disable the device before deleting it.")
         removed = await self.uow.devices.remove(device.id)
         await self.uow.commit()

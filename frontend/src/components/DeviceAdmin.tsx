@@ -48,12 +48,13 @@ export function DeviceActions({ id, name, status, token, changed, linkOpen, setL
     try { await send(`/devices/${id}`, { status: next }, { token, method: "PATCH" }); setConfirming(false); changed(); }
     catch (err) { setError(err instanceof ApiError && err.status === 409 ? m.link.nameInUse : m.link.actionFailed); } finally { setBusy(false); }
   }
+  const deleteControl = deleting
+    ? <div className="confirm-row" role="group" aria-label={m.link.delete}><span>{m.link.deleteConfirm}</span><button className="danger-button" type="button" disabled={busy} onClick={() => void remove()}>{m.link.confirmDelete}</button><button className="quiet-button" type="button" onClick={() => setDeleting(false)}>{m.link.cancel}</button></div>
+    : <button className="text-button danger" type="button" onClick={() => setDeleting(true)}>{m.link.delete}</button>;
   if (status === "DISABLED") return <div className="device-actions">
     <p className="hint">{m.link.disabledNote}</p>
     <button className="quiet-button" type="button" disabled={busy} onClick={() => void setStatus("PENDING")}>{m.link.enable}</button>
-    {deleting
-      ? <div className="confirm-row" role="group" aria-label={m.link.delete}><span>{m.link.deleteConfirm}</span><button className="danger-button" type="button" disabled={busy} onClick={() => void remove()}>{m.link.confirmDelete}</button><button className="quiet-button" type="button" onClick={() => setDeleting(false)}>{m.link.cancel}</button></div>
-      : <button className="text-button danger" type="button" onClick={() => setDeleting(true)}>{m.link.delete}</button>}
+    {deleteControl}
     {error && <p className="status error" role="alert">{error}</p>}
   </div>;
   return <div className="device-actions">
@@ -61,6 +62,7 @@ export function DeviceActions({ id, name, status, token, changed, linkOpen, setL
     {confirming
       ? <div className="confirm-row" role="group" aria-label={m.link.disable}><span>{m.link.disableConfirm}</span><button className="danger-button" type="button" disabled={busy} onClick={() => void setStatus("DISABLED")}>{m.link.confirmDisable}</button><button className="quiet-button" type="button" onClick={() => setConfirming(false)}>{m.link.cancel}</button></div>
       : <button className="text-button danger" type="button" onClick={() => setConfirming(true)}>{m.link.disable}</button>}
+    {status === "PENDING" && deleteControl}
     {error && <p className="status error" role="alert">{error}</p>}
     <LinkPhoneDialog deviceId={id} name={name} token={token} open={linkOpen} onOpenChange={(open) => { setLinkOpen(open); if (!open) changed(); }} />
   </div>;
