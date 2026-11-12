@@ -29,8 +29,12 @@ from relay.domain.sms_verification import (
 
 logger = logging.getLogger(__name__)
 SEARCH_HOURS = WAITING_HOURS
-# A receipt screenshot lands in the folder shortly after the transfer.
-FOLDER_BEFORE = timedelta(hours=2)
+# A receipt screenshot usually lands in the folder shortly after the transfer.
+# Within FOLDER_NEAR the SMS time is trusted as the receipt time; up to
+# FOLDER_BEFORE the SMS still identifies the payment, but the operator must
+# enter the receipt's date and time and they must agree with the SMS.
+FOLDER_NEAR = timedelta(hours=2)
+FOLDER_BEFORE = timedelta(hours=12)
 FOLDER_AFTER = timedelta(minutes=10)
 
 
@@ -211,10 +215,11 @@ class SmsVerificationService:
         currency: str,
         folder_at: datetime,
         exclude: frozenset[UUID] = frozenset(),
-    ) -> tuple[UUID, datetime] | None:
+    ) -> tuple[UUID, datetime, bool] | None:
         """For a receipt whose own date and time cannot be read: the one free
-        bank SMS with this amount from shortly before the image reached the
-        folder, and its local transfer time. None when there is none or several."""
+        bank SMS with this amount from up to 12 hours before the image reached
+        the folder, its local transfer time, and whether it is within 2 hours
+        (near). None when there is none or several."""
         sources = frozenset(await self.repo.sms_sources(device_id))
         try:
             value = Decimal(amount).quantize(Decimal("0.01"))
@@ -248,7 +253,8 @@ class SmsVerificationService:
         if len(found) != 1:
             return None
         event_id, moment = found[0]
-        return event_id, moment.replace(tzinfo=None, second=0, microsecond=0)
+        near = moment >= folder_at - FOLDER_NEAR
+        return event_id, moment.replace(tzinfo=None, second=0, microsecond=0), near
 
     async def _receipt(self, candidate_id: UUID) -> ReceiptFacts | None:
         found = await self.repo.eligible_receipts(candidate_id=candidate_id)

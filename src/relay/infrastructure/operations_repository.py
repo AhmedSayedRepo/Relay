@@ -317,6 +317,8 @@ class SqlOperationsRepository:
                 *receipt_range,
                 ReceiptCandidateRow.review_status == "AUTO_ACCEPTED",
                 ReceiptCandidateRow.resolution_result.is_not(None),
+                # A duplicate is the same payment again: count it once.
+                ReceiptCandidateRow.duplicate_of_candidate_id.is_(None),
             )
         )
         reviewed_count = await self.db.scalar(
@@ -356,6 +358,7 @@ class SqlOperationsRepository:
                 *receipt_range,
                 ReceiptCandidateRow.review_status == "AUTO_ACCEPTED",
                 ReceiptCandidateRow.resolution_result.is_not(None),
+                ReceiptCandidateRow.duplicate_of_candidate_id.is_(None),
                 ReceiptCandidateRow.amount.is_not(None),
                 ReceiptCandidateRow.currency.is_not(None),
             )
