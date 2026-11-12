@@ -55,7 +55,7 @@ export const ar = {
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",
     noTotals: "لا توجد إجماليات نهائية في هذا النطاق.", activity: "نبض الجمع", receiptImages: "صور الإيصالات",
     smsEvents: "رسائل SMS", reviewed: "تمت مراجعتها", deviceHealth: "سلامة الجهاز والمصدر", quiet: "لا تظهر حالة تشغيلية عاجلة.",
-    moneyNow: "المبالغ المؤكدة", today: "اليوم", week: "آخر 7 أيام", receiptsCount: "{count} إيصالات", onceEach: "كل دفعة تُحسب مرة واحدة", openReview: "فتح المراجعة",
+    moneyNow: "المبالغ المؤكدة", rangeTotal: "الإجمالي في هذه الفترة", today: "اليوم", week: "آخر 7 أيام", receiptsCount: "{count} إيصالات", onceEach: "كل دفعة تُحسب مرة واحدة", openReview: "فتح المراجعة",
     autoConfirmed: "تأكيد تلقائي", manualConfirmed: "تأكيد يدوي", workloadTitle: "حجم المراجعة", workloadIntro: "{count} إيصالات تنتظر قراراً.",
     smsTitle: "مطابقة رسائل البنك", sms: { VERIFIED: "مطابقة", WAITING: "بانتظار الرسالة", UNMATCHED: "لا توجد رسالة", AMBIGUOUS: "غير واضح (عدة رسائل)" },
     phonesTitle: "حسب الهاتف", phonesIntro: "الإيصالات التي أرسلها كل هاتف في هذه الفترة ومجموعها المؤكد.", phone: "الهاتف", received: "الإيصالات", confirmed: "المؤكدة", noPhones: "لا توجد إيصالات من أي هاتف في هذه الفترة.",

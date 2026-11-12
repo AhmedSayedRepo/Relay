@@ -53,7 +53,7 @@ export const en = {
     moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",
     noTotals: "No final transaction totals in this range.", activity: "Collection pulse", receiptImages: "Receipt images",
     smsEvents: "SMS events", reviewed: "Reviewed", deviceHealth: "Device/source health", quiet: "No urgent operational condition is visible.",
-    moneyNow: "Confirmed money", today: "Today", week: "Last 7 days", receiptsCount: "{count} receipts", onceEach: "Each payment counted once", openReview: "Open review",
+    moneyNow: "Confirmed money", rangeTotal: "Total in this range", today: "Today", week: "Last 7 days", receiptsCount: "{count} receipts", onceEach: "Each payment counted once", openReview: "Open review",
     autoConfirmed: "Confirmed automatically", manualConfirmed: "Confirmed by people", workloadTitle: "Review workload", workloadIntro: "{count} receipts waiting for a decision.",
     smsTitle: "Bank SMS matching", sms: { VERIFIED: "Matched", WAITING: "Waiting for SMS", UNMATCHED: "No SMS found", AMBIGUOUS: "Unclear (several SMS)" },
     phonesTitle: "Per phone", phonesIntro: "Receipts each phone sent in this range and their confirmed total.", phone: "Phone", received: "Receipts", confirmed: "Confirmed", noPhones: "No receipts from any phone in this range.",
