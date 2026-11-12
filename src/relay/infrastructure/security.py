@@ -41,6 +41,7 @@ class JwtTokens:
         self.issuer = settings.jwt_issuer
         self.audience = settings.jwt_audience
         self.lifetime = timedelta(minutes=settings.access_token_expire_minutes)
+        self.session_lifetime = timedelta(hours=settings.session_idle_hours)
 
     def issue(self, user_id: UUID) -> AccessToken:
         now = datetime.now(UTC)
@@ -59,6 +60,42 @@ class JwtTokens:
             algorithm=self.algorithm,
         )
         return AccessToken(token, int(self.lifetime.total_seconds()))
+
+    def issue_session(self, user_id: UUID, fingerprint: str) -> str:
+        """Long-lived portal session for the httpOnly cookie. ``fingerprint``
+        changes with the password, so a new password ends old sessions."""
+        now = datetime.now(UTC)
+        return jwt.encode(
+            {
+                "sub": str(user_id),
+                "iat": now,
+                "nbf": now,
+                "exp": now + self.session_lifetime,
+                "iss": self.issuer,
+                "aud": self.audience,
+                "jti": str(uuid4()),
+                "token_type": "session",
+                "pwd": fingerprint,
+            },
+            self.secret,
+            algorithm=self.algorithm,
+        )
+
+    def session_subject(self, token: str) -> tuple[UUID, str]:
+        try:
+            claims = jwt.decode(
+                token,
+                self.secret,
+                algorithms=[self.algorithm],
+                issuer=self.issuer,
+                audience=self.audience,
+                options={"require": ["sub", "exp", "token_type", "pwd"]},
+            )
+            if claims["token_type"] != "session":
+                raise ValueError("Wrong token type")
+            return UUID(claims["sub"]), str(claims["pwd"])
+        except (jwt.InvalidTokenError, ValueError, TypeError, AttributeError):
+            raise AuthenticationFailed("Session expired.") from None
 
     def subject(self, token: str) -> UUID:
         try:

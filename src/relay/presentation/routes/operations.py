@@ -69,10 +69,12 @@ async def dashboard(
     request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
 ) -> dict[str, JsonValue]:
     # Same basis as Reports: when receipts reached the phone's folder.
     return await service.dashboard(
-        _folder_window(request, date_from, date_to, None, None)
+        _folder_window(request, date_from, date_to, time_from, time_to)
     )
 
 

@@ -56,16 +56,8 @@ echo "==> Building and starting Relay (this takes a few minutes the first time)"
 ./deploy/dc.sh run --rm backend python -m alembic upgrade head
 ./deploy/dc.sh up -d
 
-echo "==> Scheduling the receipt worker, SMS matching, clean-up and backups"
-cat > /etc/cron.d/relay <<CRON
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-*/2 * * * * root flock -n /run/relay-worker.lock $repo/deploy/dc.sh --profile worker run --rm worker >/dev/null 2>&1
-*/5 * * * * root flock -n /run/relay-sms.lock $repo/deploy/dc.sh run --rm backend python -m relay.infrastructure.cli verify-sms >/dev/null 2>&1
-30 2 * * * root $repo/deploy/dc.sh run --rm backend python -m relay.infrastructure.cli purge-expired-events >/dev/null 2>&1
-15 3 * * * root $repo/deploy/backup.sh >/var/log/relay-backup.log 2>&1
-CRON
-chmod 644 /etc/cron.d/relay
+echo "==> Scheduling the receipt worker, SMS matching, daily report, clean-up and backups"
+./deploy/schedule.sh
 
 ./deploy/dc.sh ps
 cat <<DONE

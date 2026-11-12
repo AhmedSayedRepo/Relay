@@ -24,6 +24,7 @@ const paths: Record<string, ReactNode> = {
   devices: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></>,
   account: <><circle cx="8.5" cy="12" r="4" /><path d="M12.5 12H21v3" /><path d="M17.5 12v2.5" /></>,
   help: <><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.7" /><path d="M12 17h.01" /></>,
+  bankSms: <><path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4.5 3.5V16.5h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" /><path d="M8 10h8" /><path d="M8 13h5" /></>,
   menu: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
   close: <><path d="m6 6 12 12" /><path d="M18 6 6 18" /></>,
   copy: <><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" /></>,

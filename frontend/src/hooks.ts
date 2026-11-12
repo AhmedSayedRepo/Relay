@@ -37,3 +37,11 @@ export function defaultDates() {
     dateTo: end.toISOString().slice(0, 10),
   };
 }
+
+/** Calendar date in Cairo (receipts' local time), `daysAgo` days back, as YYYY-MM-DD. */
+export function cairoDate(daysAgo = 0) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const day = new Date(parts + "T12:00:00Z");
+  day.setUTCDate(day.getUTCDate() - daysAgo);
+  return day.toISOString().slice(0, 10);
+}

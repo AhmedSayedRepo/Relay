@@ -1,14 +1,19 @@
+import hashlib
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 from relay.application.account_recovery import AccountRecoveryService
 from relay.application.auth import AuthService
+from relay.application.errors import AuthenticationFailed
+from relay.application.ports import AccessToken
+from relay.domain.users import User
 from relay.infrastructure.config import Settings
 from relay.infrastructure.mailer import SmtpMailer, send_quietly
 from relay.infrastructure.repositories import SqlUnitOfWork
-from relay.infrastructure.security import Argon2Passwords
+from relay.infrastructure.security import Argon2Passwords, JwtTokens
 from relay.presentation.dependencies import (
     AuthenticatedUser,
     auth_service,
@@ -56,42 +61,91 @@ class ResetConfirmRequest(InputModel):
     new_password: NewPassword
 
 
-class RecoveryCodeRequest(InputModel):
-    code: str = Field(min_length=12, max_length=32)
-    new_password: NewPassword | None = None
-
-
-class RecoveryCodeResponse(BaseModel):
-    email: str
-
-
-class PasswordConfirmation(InputModel):
-    password: SecretStr = Field(min_length=1, max_length=1024)
-
-
 class PasswordChangeRequest(InputModel):
     current_password: SecretStr = Field(min_length=1, max_length=1024)
     new_password: NewPassword
 
 
-class RecoveryCodesResponse(BaseModel):
-    codes: list[str]
+SESSION_COOKIE = "relay_session"
 
 
-class RecoveryStatusResponse(BaseModel):
-    remaining: int
+def _fingerprint(password_hash: str) -> str:
+    return hashlib.sha256(password_hash.encode("utf-8")).hexdigest()[:16]
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(
-    body: LoginRequest, service: Annotated[AuthService, Depends(auth_service)]
-) -> TokenResponse:
-    token = await service.login(str(body.email), body.password.get_secret_value())
+def _set_session(
+    request: Request, response: Response, user_id: UUID, password_hash: str
+) -> None:
+    settings = cast(Settings, request.app.state.settings)
+    tokens = cast(JwtTokens, request.app.state.tokens)
+    response.set_cookie(
+        SESSION_COOKIE,
+        tokens.issue_session(user_id, _fingerprint(password_hash)),
+        max_age=settings.session_idle_hours * 3600,
+        httponly=True,
+        secure=settings.app_env == "production",
+        samesite="strict",
+        path="/api/v1/auth",
+    )
+
+
+def _token_response(token: AccessToken) -> TokenResponse:
     return TokenResponse(
         access_token=token.access_token,
         token_type=token.token_type,
         expires_in=token.expires_in,
     )
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    service: Annotated[AuthService, Depends(auth_service)],
+) -> TokenResponse:
+    token = await service.login(str(body.email), body.password.get_secret_value())
+    user = await service.uow.users.get_by_email(str(body.email).strip().lower())
+    if user is not None:
+        _set_session(request, response, user.id, user.password_hash)
+    return _token_response(token)
+
+
+@router.post("/session", response_model=TokenResponse)
+async def resume_session(
+    request: Request,
+    response: Response,
+    service: Annotated[AuthService, Depends(auth_service)],
+) -> TokenResponse:
+    """Renew the signed-in session from its httpOnly cookie: survives page
+    reloads and a phone putting the browser to sleep, until it sits idle."""
+    tokens = cast(JwtTokens, request.app.state.tokens)
+    value = request.cookies.get(SESSION_COOKIE, "")
+    user: User | None = None
+    user_id: UUID | None = None
+    fingerprint = ""
+    if value and len(value) <= 4096:
+        try:
+            user_id, fingerprint = tokens.session_subject(value)
+        except AuthenticationFailed:
+            user_id = None
+        if user_id is not None:
+            user = await service.uow.users.get(user_id)
+            if user is not None and (
+                not user.is_active or fingerprint != _fingerprint(user.password_hash)
+            ):
+                user = None
+    if user is None:
+        raise AuthenticationFailed("Session expired.")
+    _set_session(request, response, user.id, user.password_hash)
+    return _token_response(await service.refresh(user))
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout() -> Response:
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.delete_cookie(SESSION_COOKIE, path="/api/v1/auth")
+    return response
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -139,40 +193,22 @@ async def confirm_reset(body: ResetConfirmRequest, service: Recovery) -> Respons
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/recovery-code", response_model=RecoveryCodeResponse)
-async def use_recovery_code(
-    body: RecoveryCodeRequest, service: Recovery
-) -> RecoveryCodeResponse:
-    password = body.new_password.get_secret_value() if body.new_password else None
-    return RecoveryCodeResponse(email=await service.redeem_code(body.code, password))
-
-
-@router.get("/recovery-codes", response_model=RecoveryStatusResponse)
-async def recovery_status(
-    user: AuthenticatedUser, service: Recovery
-) -> RecoveryStatusResponse:
-    return RecoveryStatusResponse(remaining=await service.remaining_codes(user.id))
-
-
-@router.post(
-    "/recovery-codes",
-    response_model=RecoveryCodesResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def new_recovery_codes(
-    body: PasswordConfirmation, user: AuthenticatedUser, service: Recovery
-) -> RecoveryCodesResponse:
-    codes = await service.regenerate_codes(user, body.password.get_secret_value())
-    return RecoveryCodesResponse(codes=codes)
-
-
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_password(
-    body: PasswordChangeRequest, user: AuthenticatedUser, service: Recovery
+    body: PasswordChangeRequest,
+    user: AuthenticatedUser,
+    service: Recovery,
+    request: Request,
+    auth: Annotated[AuthService, Depends(auth_service)],
 ) -> Response:
     await service.change_password(
         user,
         body.current_password.get_secret_value(),
         body.new_password.get_secret_value(),
     )
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    # Other sessions end with the old password; this one carries on.
+    fresh = await auth.uow.users.get(user.id)
+    if fresh is not None:
+        _set_session(request, response, fresh.id, fresh.password_hash)
+    return response

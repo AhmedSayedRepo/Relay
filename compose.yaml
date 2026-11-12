@@ -60,6 +60,8 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      DAILY_REPORT_EMAIL: ${DAILY_REPORT_EMAIL:-}
+      SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -127,7 +129,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.reader
-    command: ["python", "-m", "relay.infrastructure.cli", "model-suggest", "--limit", "20"]
+    # Long-running: the model stays loaded; every minute it reads new
+    # receipts, matches bank SMS and auto-confirms.
+    command: ["python", "-m", "relay.infrastructure.cli", "reader-loop"]
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_NAME: ${APP_NAME:-Relay Reader}
@@ -136,6 +140,13 @@ services:
       JWT_SECRET: ${WORKER_JWT_SECRET:?Set an independent WORKER_JWT_SECRET in .env}
       ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
       OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+      RECEIPT_TIMEZONE: ${RECEIPT_TIMEZONE:-Africa/Cairo}
+      OCR_TESSERACT_EXECUTABLE: ${OCR_TESSERACT_EXECUTABLE:-/usr/bin/tesseract}
+      OCR_TESSDATA_DIR: ${OCR_TESSDATA_DIR:-/usr/share/tesseract-ocr/5/tessdata}
+      OCR_LANGUAGES: '${OCR_LANGUAGES:-["eng","ara"]}'
+      OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-20}
+      PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-5}
+      PROCESSING_BATCH_LIMIT: ${PROCESSING_BATCH_LIMIT:-10}
     depends_on:
       db:
         condition: service_healthy

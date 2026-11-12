@@ -29,6 +29,32 @@ class SmtpMailer:
         message.set_content(email.body)
         await asyncio.to_thread(self._deliver, message)
 
+    async def send_report(
+        self,
+        to: str,
+        subject: str,
+        text: str,
+        html: str,
+        attachment: tuple[str, bytes] | None = None,
+    ) -> None:
+        """A readable HTML email (with a plain-text fallback) and an optional
+        Excel attachment."""
+        message = EmailMessage()
+        message["From"] = self.sender
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(text)
+        message.add_alternative(html, subtype="html")
+        if attachment is not None:
+            name, data = attachment
+            message.add_attachment(
+                data,
+                maintype="application",
+                subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename=name,
+            )
+        await asyncio.to_thread(self._deliver, message)
+
     def _deliver(self, message: EmailMessage) -> None:
         context = ssl.create_default_context()
         client: smtplib.SMTP

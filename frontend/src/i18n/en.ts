@@ -12,10 +12,12 @@ export const en = {
     switchLanguage: "Change language", switchTheme: "Change color theme",
   },
   navigation: {
+    bankSms: "Bank SMS",
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
     processing: "Processing", reports: "Reports", devices: "Devices", users: "Users", account: "Account", help: "Help",
   },
   pages: {
+    bankSms: ["Bank SMS", "Every bank SMS the SMS phone received, and whether it confirmed a receipt."],
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
     transactions: ["Transactions", "Scan final and pending evidence, then open any receipt without losing context."],
     transactionDetail: ["Transaction evidence", "Reviewed values lead. Machine extraction and original provenance remain available for audit."],
@@ -26,7 +28,7 @@ export const en = {
     reports: ["Reports and export", "Check the bounded summary, then create an audited Excel workbook."],
     devices: ["Devices and configuration", "See collection readiness, synchronization, and activity without exposing credentials."],
     users: ["Users and roles", "Add the people who use Relay and choose what each one may do."],
-    account: ["Account", "Your sign-in and the recovery codes that get you back in."],
+    account: ["Account", "Your sign-in and password. Forgot it? Use the reset link on the sign-in page."],
     help: ["Relay guide", "Practical guidance for collection, processing, review, duplicates, and reporting."],
   },
   auth: {
@@ -57,6 +59,7 @@ export const en = {
     autoConfirmed: "Confirmed automatically", manualConfirmed: "Confirmed by people", workloadTitle: "Review workload", workloadIntro: "{count} receipts waiting for a decision.",
     smsTitle: "Bank SMS matching", sms: { VERIFIED: "Matched", WAITING: "Waiting for SMS", UNMATCHED: "No SMS found", AMBIGUOUS: "Unclear (several SMS)" },
     phonesTitle: "Per phone", phonesIntro: "Receipts each phone sent in this range and their confirmed total.", phone: "Phone", received: "Receipts", confirmed: "Confirmed", noPhones: "No receipts from any phone in this range.",
+    exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {
     relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
@@ -106,7 +109,7 @@ export const en = {
     markedUnavailable: "Marked unavailable: not shown on this receipt.", enterValue: "Enter a value instead", title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",
     fields: { reference_number: "Reference", amount: "Amount", currency: "Currency", date: "Date", time: "Time", classification: "Receipt classification", layout: "Receipt layout", sender_name: "Sender", sender_handle: "Sender handle", recipient_name: "Recipient", recipient_identifier: "Recipient identifier", transfer_status: "Explicit transfer status" },
   },
-  review: { categories: { label: "Review categories", all: "All", ready: "Ready to confirm", missing: "Missing details", duplicate: "Possible duplicate", done: "Done (details missing)", in_progress: "In progress", hints: { done: "Every field left was marked unavailable. These still count as training examples; they stay out of final reports because a critical detail is missing.", ready: "Every field has one suggested value: check it against the image and Confirm.", missing: "Some fields have no suggestion, usually because the receipt hides its details. Mark those Unavailable or type the value.", duplicate: "Another waiting receipt suggests the same reference. Check whether it is the same transfer before confirming.", in_progress: "Some fields are already decided; finish the rest." } },  needsReview: "Needs review", oldestHint: "Start with the oldest item and compare the receipt with the extracted values." },
+  review: { openDuplicates: "Compare duplicate groups side by side", categories: { label: "Review categories", all: "All", ready: "Ready to confirm", missing: "Missing details", duplicate: "Possible duplicate", done: "Done (details missing)", in_progress: "In progress", hints: { done: "Every field left was marked unavailable. These still count as training examples; they stay out of final reports because a critical detail is missing.", ready: "Every field has one suggested value: check it against the image and Confirm.", missing: "Some fields have no suggestion, usually because the receipt hides its details. Mark those Unavailable or type the value.", duplicate: "Another waiting receipt suggests the same reference. Check whether it is the same transfer before confirming.", in_progress: "Some fields are already decided; finish the rest." } },  needsReview: "Needs review", oldestHint: "Start with the oldest item and compare the receipt with the extracted values." },
   processing: {
     failure: "Safe reason", attempts: "Attempts", nextAttempt: "Next attempt", action: "Action", retry: "Retry processing",
     noAction: "No retry", retryAvailable: "Retry available", retryQueued: "The job is queued for one bounded retry.",
@@ -126,6 +129,12 @@ export const en = {
     readiness: "Pilot readiness signal", externalId: "Installation ID",
     training: "Model training data", trainingToggle: "Use this device’s reviewed receipts for model training", trainingOn: "On: reviewed receipts from this device can be copied into the training dataset.", trainingOff: "Off: nothing from this device is copied into the training dataset.", trainingLoading: "Checking training consent…", trainingUnavailable: "Training consent could not be loaded.", trainingFailed: "The change was not saved. Try again.",
     collectionSave: "Save", collectionSaving: "Saving…", collectionSaved: "Saved. The phone gets this on its next sync — tap Sync now on the phone.", collectionFailed: "Not saved. Try again.", collectionTitle: "What this phone collects", imagesToggle: "Receipt images from a folder", smsToggle: "Bank SMS", senders: "Bank SMS senders (comma-separated)", sendersNeeded: "Add at least one bank SMS sender first.", collectionHint: "The phone picks this up on its next sync. Then turn the matching switch on in the app and choose the folder.", collectionChanged: "Someone else changed this device. The latest settings are shown; try again.", collectionUnavailable: "Collection settings could not be loaded.",
+    smsAnySender: "Any sender: Relay keeps only messages that show an amount (EGP or جنيه), so codes and ads are skipped.", sendersOptional: "Only these senders (optional, comma-separated)", sectionMatching: "Bank SMS matching", sectionTraining: "Model training", bulkTitle: "Bank SMS phone", bulkHint: "Pick the phone that receives the bank SMS. Receipts from every other phone are then checked against its SMS.", bulkPick: "SMS phone", bulkApply: "Use for all receipt phones", bulkDone: "Done: {count} phones are checked against {name}.", bulkFailed: "Some phones could not be updated. Try again.", bulkNone: "Add the phone that receives the bank SMS first.", settingsFor: "Settings for {name}",
+  },
+  bankSms: {
+    matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",
+    status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", openReceipt: "Open receipt",
+    empty: "No bank SMS in this range.", hint: "Times are when the SMS reached the phone (Cairo time). Message text stays private.",
   },
   sms: {
     column: "SMS check", eyebrow: "Payment check", title: "Bank SMS verification", amount: "SMS amount", time: "SMS received", method: "Matched by",
@@ -155,6 +164,7 @@ export const en = {
     AUTO_FINALIZED: "Data finalized automatically", REVIEW_FINALIZED: "Data finalized after review", PROCESSING_FAILED: "Processing failed", TRANSFER_FAILED: "Explicit transfer failure", REJECTED_OR_UNKNOWN_RECEIPT: "Rejected or unknown receipt", RESOLVED: "Resolved", UNRESOLVED: "Unresolved",
   },
   recovery: {
+    noEmail: "Password reset by email isn’t set up on this server yet. Ask whoever runs the Relay server to reset your password with the reset-password command.",
     forgot: "Forgot username or password?", title: "Get back into Relay", intro: "Pick the way that works for you.",
     codeOption: "Use a recovery code", codeOptionHint: "One of the 10 codes you saved when your admin account was set up. It also shows your username.",
     emailOption: "Email me a reset link", emailOptionHint: "We send a short-lived link to your admin email address.",

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     jwt_issuer: str = Field(default="relay", min_length=1)
     jwt_audience: str = Field(default="relay-admin", min_length=1)
     access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
+    # Signed-in portal session (httpOnly cookie): renewed while in use, ends
+    # after this long without any activity.
+    session_idle_hours: int = Field(default=12, ge=1, le=168)
     device_access_expire_minutes: int = Field(default=15, ge=1, le=60)
     device_refresh_expire_days: int = Field(default=30, ge=1, le=90)
     enrollment_expire_minutes: int = Field(default=10, ge=1, le=10)
@@ -67,6 +70,8 @@ class Settings(BaseSettings):
     smtp_username: str | None = Field(default=None, max_length=254)
     smtp_password: SecretStr | None = None
     smtp_from: str | None = Field(default=None, max_length=254)
+    # Daily summary email at 23:59 (receipt_timezone); off when unset.
+    daily_report_email: str | None = Field(default=None, max_length=254)
     allowed_hosts: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver"]
     )
@@ -81,6 +86,7 @@ class Settings(BaseSettings):
         "smtp_username",
         "smtp_password",
         "smtp_from",
+        "daily_report_email",
         mode="before",
     )
     @classmethod

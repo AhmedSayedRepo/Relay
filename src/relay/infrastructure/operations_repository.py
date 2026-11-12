@@ -442,8 +442,13 @@ class SqlOperationsRepository:
                 func.count(ReceiptCandidateRow.id),
                 func.sum(case((final, 1), else_=0)),
                 func.sum(case((final, ReceiptCandidateRow.amount), else_=0)),
+                func.sum(case((SmsVerificationRow.status == "VERIFIED", 1), else_=0)),
             )
             .join(ReceiptCandidateRow, ReceiptCandidateRow.device_id == DeviceRow.id)
+            .outerjoin(
+                SmsVerificationRow,
+                SmsVerificationRow.candidate_id == ReceiptCandidateRow.id,
+            )
             .where(*receipt_range)
             .group_by(DeviceRow.id, DeviceRow.name)
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
@@ -508,8 +513,11 @@ class SqlOperationsRepository:
                     "confirmed_amount": _money(
                         Decimal(str(amount or 0)).quantize(Decimal("0.01"))
                     ),
+                    "sms_verified_count": int(sms_verified or 0),
                 }
-                for device_id, name, count, confirmed, amount in device_counts
+                for device_id, name, count, confirmed, amount, sms_verified in (
+                    device_counts
+                )
             ],
             "auto_confirmed_count": int(auto_count or 0),
             "manual_confirmed_count": max(
