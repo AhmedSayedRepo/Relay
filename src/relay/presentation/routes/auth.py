@@ -1,5 +1,5 @@
 import hashlib
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
@@ -11,6 +11,7 @@ from relay.application.errors import AuthenticationFailed
 from relay.application.ports import AccessToken
 from relay.domain.users import User
 from relay.infrastructure.config import Settings
+from relay.infrastructure.email_settings import mail_config
 from relay.infrastructure.mailer import SmtpMailer, send_quietly
 from relay.infrastructure.repositories import SqlUnitOfWork
 from relay.infrastructure.security import Argon2Passwords, JwtTokens
@@ -31,16 +32,27 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 NewPassword = Annotated[SecretStr, Field(min_length=12, max_length=1024)]
 
 
-def recovery_service(
+async def outgoing_mailer(request: Request, uow: SqlUnitOfWork) -> Any:
+    """The mailer for reset links: a test fake, else the portal's email
+    settings, else the server's SMTP settings. None when email is off."""
+    if request.app.state.mailer is not None:
+        return request.app.state.mailer
+    settings = cast(Settings, request.app.state.settings)
+    config = await mail_config(uow.session, settings)
+    return SmtpMailer(config) if config is not None else None
+
+
+async def recovery_service(
     request: Request, uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)]
 ) -> AccountRecoveryService:
     settings = cast(Settings, request.app.state.settings)
+    ready = bool(settings.operator_public_url) and (
+        await outgoing_mailer(request, uow) is not None
+    )
     return AccountRecoveryService(
         uow,
         cast(Argon2Passwords, request.app.state.passwords),
-        public_url=(
-            settings.operator_public_url if settings.email_reset_enabled else None
-        ),
+        public_url=settings.operator_public_url if ready else None,
         reset_minutes=settings.password_reset_minutes,
     )
 
@@ -167,9 +179,8 @@ async def me(user: AuthenticatedUser) -> UserResponse:
 
 
 @router.get("/recovery-options", response_model=RecoveryOptionsResponse)
-async def recovery_options(request: Request) -> RecoveryOptionsResponse:
-    settings = cast(Settings, request.app.state.settings)
-    return RecoveryOptionsResponse(email_reset=settings.email_reset_enabled)
+async def recovery_options(service: Recovery) -> RecoveryOptionsResponse:
+    return RecoveryOptionsResponse(email_reset=service.public_url is not None)
 
 
 @router.post("/password-reset/request", status_code=status.HTTP_202_ACCEPTED)
@@ -180,7 +191,7 @@ async def request_reset(
     background: BackgroundTasks,
 ) -> dict[str, str]:
     email = await service.request_reset(str(body.email))
-    mailer = cast(SmtpMailer | None, request.app.state.mailer)
+    mailer = await outgoing_mailer(request, cast(SqlUnitOfWork, service.uow))
     if email is not None and mailer is not None:
         background.add_task(send_quietly, mailer, email)
     # Same answer whether or not the account exists.

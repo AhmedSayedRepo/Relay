@@ -88,4 +88,14 @@
     <string name="scan_qr">Scan QR code</string>
     <string name="or_type_code">Or type the code from the Relay website</string>
     <string name="scan_unavailable">The camera scanner isn’t available on this phone. Type the code instead.</string>
+    <string name="other_language">العربية</string>
+    <string name="update_title">Update available</string>
+    <string name="update_body">Relay %1$s is ready (you have %2$s). Update now?</string>
+    <string name="update_now">Update now</string>
+    <string name="update_later">Later</string>
+    <string name="update_failed">The download didn’t finish. Check the connection and try again.</string>
+    <string name="update_allow_installs">To update, allow Relay to install apps: tap Update now, turn on “Allow from this source”, then come back.</string>
+    <string name="update_channel">App updates</string>
+    <string name="update_installed">Relay was updated</string>
+    <string name="update_tap_to_open">Tap to open the new version.</string>
 </resources>

@@ -200,7 +200,8 @@ fun AgentContent(
     status: AgentStatus,
     actions: AgentActions,
     now: Instant = Instant.now(),
-    appVersion: String = ""
+    appVersion: String = "",
+    switchLanguage: (() -> Unit)? = null
 ) {
     val snackbar = remember { SnackbarHostState() }
     val message = status.message?.let { raw ->
@@ -255,7 +256,13 @@ fun AgentContent(
                     .fillMaxSize()
                     .verticalScroll(scroll)
             ) {
-                Header(status, now, Modifier.onSizeChanged { headerHeight = it.height })
+                Header(
+                    status,
+                    now,
+                    appVersion,
+                    switchLanguage,
+                    Modifier.onSizeChanged { headerHeight = it.height }
+                )
                 Column(
                     Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -338,7 +345,13 @@ private fun RowScope.CompactCount(value: Long, @StringRes label: Int, alert: Col
 }
 
 @Composable
-private fun Header(status: AgentStatus, now: Instant, modifier: Modifier = Modifier) {
+private fun Header(
+    status: AgentStatus,
+    now: Instant,
+    appVersion: String,
+    switchLanguage: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
     val relay = LocalRelayColors.current
     Column(
         modifier
@@ -347,12 +360,26 @@ private fun Header(status: AgentStatus, now: Instant, modifier: Modifier = Modif
             .statusBarsPadding()
             .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp)
     ) {
-        Text(
-            stringResource(R.string.app_name),
-            style = MaterialTheme.typography.titleLarge,
-            color = relay.onHeader,
-            modifier = Modifier.semantics { heading() }
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.titleLarge,
+                color = relay.onHeader,
+                modifier = Modifier.weight(1f).semantics { heading() }
+            )
+            if (appVersion.isNotEmpty()) {
+                Text(
+                    "v" + appVersion.substringBefore("-"),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = relay.onHeaderSoft
+                )
+            }
+            if (switchLanguage != null) {
+                TextButton(onClick = switchLanguage) {
+                    Text(stringResource(R.string.other_language), color = relay.onHeader)
+                }
+            }
+        }
         when (status.enrollment) {
             EnrollmentState.LOADING -> {
                 Spacer(Modifier.height(20.dp))

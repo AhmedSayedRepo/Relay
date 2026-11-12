@@ -24,8 +24,14 @@ REVIEW_WRITES = frozenset(
         ("POST", "/api/v1/processing/jobs/{job_id}/retry"),
     }
 )
-# Reads only an admin may make: user accounts, raw SMS/event bodies, training.
-ADMIN_READ_PREFIXES = ("/api/v1/users", "/api/v1/events", "/api/v1/training")
+# Reads only an admin may make: user accounts, raw SMS/event bodies, training,
+# email settings.
+ADMIN_READ_PREFIXES = (
+    "/api/v1/users",
+    "/api/v1/events",
+    "/api/v1/training",
+    "/api/v1/settings",
+)
 ADMIN_READ_SUFFIXES = ("/training-consent",)
 _REVIEW_PATTERNS = frozenset(
     (method, re.compile("^" + re.sub(r"\{[^/]+\}", "[^/]+", template) + "$"))

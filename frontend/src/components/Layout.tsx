@@ -8,9 +8,9 @@ import { HelpDialog } from "./HelpDialog";
 
 // Duplicates, Processing and Reports stay reachable (Review links to duplicates;
 // the Dashboard exports Excel) but are kept out of the menu.
-const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users"] as const;
-const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users"];
-const adminOnly = new Set<string>(["devices", "users"]);
+const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users", "emailSettings"] as const;
+const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users", "/email-settings"];
+const adminOnly = new Set<string>(["devices", "users", "emailSettings"]);
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, messages: m } = useI18n(); const { theme, setTheme } = useTheme();
@@ -20,11 +20,21 @@ export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   </div>;
 }
 
+/** Quiet loop for the rail's empty space: a receipt and a bank SMS meet and turn into a check. */
+function RailArt() {
+  return <svg className="rail-art" viewBox="0 0 160 150" aria-hidden="true" focusable="false">
+    <circle className="ra-ring" cx="80" cy="96" r="30" />
+    <g className="ra-receipt"><rect x="14" y="26" width="38" height="50" rx="6" /><path d="M22 40h22M22 49h16M22 58h20" /></g>
+    <g className="ra-sms"><path d="M110 28h36a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6h-22l-9 8v-8h-5a6 6 0 0 1-6-6V34a6 6 0 0 1 6-6Z" /><path d="M118 40h20M118 48h12" /></g>
+    <path className="ra-check" d="M66 96l10 10 20-22" />
+  </svg>;
+}
+
 export function Layout({ signOut }: { signOut: () => void }) {
   const { messages: m } = useI18n(); const [open, setOpen] = useState(false); const role = useRole();
   const visible = (key: string) => (!adminOnly.has(key) || isAdmin(role)) && (key !== "review" || canReview(role));
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
-    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><div className="signal-mark" aria-hidden="true"><span /><span /><span /></div></aside>
+    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
     <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
     <main id="main-content"><Outlet /></main>

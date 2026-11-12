@@ -5,6 +5,7 @@ import { api } from "./api";
 import { Login } from "./auth";
 import { Layout } from "./components/Layout";
 import { BankSms } from "./bankSms";
+import { EmailSettingsPage } from "./emailSettings";
 import { endSession, resumeSession, useSessionKeepAlive } from "./session";
 import { Dashboard, Devices, DuplicateDetail, Duplicates, HelpPage, ProcessingQueue, Reports, ReviewQueue, TransactionDetail, Transactions } from "./pages";
 import { RoleContext, isAdmin, type Role } from "./role";
@@ -27,5 +28,5 @@ export default function App() {
     return () => { live = false; };
   }, [token]);
   if (!token) return <Login onLogin={setToken} />;
-  return <RoleContext.Provider value={role}><HashRouter><Routes><Route element={<Layout signOut={() => { endSession(); setToken(""); }} />}><Route index element={<Dashboard token={token} />} /><Route path="transactions" element={<Transactions token={token} />} /><Route path="transactions/:id" element={<TransactionDetail token={token} />} /><Route path="duplicates" element={<Duplicates token={token} />} /><Route path="duplicates/:id" element={<DuplicateDetail token={token} />} /><Route path="review" element={<ReviewQueue token={token} />} /><Route path="bank-sms" element={<BankSms token={token} />} /><Route path="processing" element={<ProcessingQueue token={token} />} /><Route path="reports" element={<Reports token={token} />} />{isAdmin(role) && <Route path="devices" element={<Devices token={token} />} />}{isAdmin(role) && <Route path="users" element={<Users token={token} />} />}<Route path="account" element={<Account token={token} />} /><Route path="help" element={<HelpPage />} /></Route></Routes></HashRouter></RoleContext.Provider>;
+  return <RoleContext.Provider value={role}><HashRouter><Routes><Route element={<Layout signOut={() => { endSession(); setToken(""); }} />}><Route index element={<Dashboard token={token} />} /><Route path="transactions" element={<Transactions token={token} />} /><Route path="transactions/:id" element={<TransactionDetail token={token} />} /><Route path="duplicates" element={<Duplicates token={token} />} /><Route path="duplicates/:id" element={<DuplicateDetail token={token} />} /><Route path="review" element={<ReviewQueue token={token} />} /><Route path="bank-sms" element={<BankSms token={token} />} /><Route path="processing" element={<ProcessingQueue token={token} />} /><Route path="reports" element={<Reports token={token} />} />{isAdmin(role) && <Route path="devices" element={<Devices token={token} />} />}{isAdmin(role) && <Route path="users" element={<Users token={token} />} /><Route path="email-settings" element={<EmailSettingsPage token={token} />} />}<Route path="account" element={<Account token={token} />} /><Route path="help" element={<HelpPage />} /></Route></Routes></HashRouter></RoleContext.Provider>;
 }

@@ -83,4 +83,14 @@
     <string name="scan_qr">مسح رمز QR</string>
     <string name="or_type_code">أو اكتب الرمز الظاهر في موقع Relay</string>
     <string name="scan_unavailable">ماسح الكاميرا غير متاح على هذا الهاتف. اكتب الرمز بدلاً من ذلك.</string>
+    <string name="other_language">English</string>
+    <string name="update_title">يوجد تحديث جديد</string>
+    <string name="update_body">الإصدار %1$s من Relay جاهز (لديك %2$s). هل تريد التحديث الآن؟</string>
+    <string name="update_now">حدّث الآن</string>
+    <string name="update_later">لاحقاً</string>
+    <string name="update_failed">لم يكتمل التنزيل. تأكد من الاتصال وحاول مرة أخرى.</string>
+    <string name="update_allow_installs">للتحديث، اسمح لـ Relay بتثبيت التطبيقات: اضغط حدّث الآن، وفعّل «السماح من هذا المصدر»، ثم ارجع.</string>
+    <string name="update_channel">تحديثات التطبيق</string>
+    <string name="update_installed">تم تحديث Relay</string>
+    <string name="update_tap_to_open">اضغط لفتح الإصدار الجديد.</string>
 </resources>
