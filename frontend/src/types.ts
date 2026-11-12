@@ -57,6 +57,7 @@ export type DashboardData = {
   auto_confirmed_count?: number;
   manual_confirmed_count?: number;
   sms_by_status?: Record<string, number>;
+  review_totals_by_currency?: { currency: string; amount: string; transaction_count: number }[];
 };
 
 export type DuplicateGroup = {

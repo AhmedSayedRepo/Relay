@@ -65,6 +65,7 @@ async def test_dashboard_accepts_a_time_range(client, auth_headers):
         },
     )
     assert response.status_code == 200, response.text
+    assert isinstance(response.json()["review_totals_by_currency"], list)
 
 
 def test_daily_report_is_readable():

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The two builds install with different names so they are easy to tell apart. -->
+<resources>
+    <string name="app_name">Relay Receipts</string>
+</resources>

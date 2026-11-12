@@ -59,6 +59,7 @@ export const en = {
     autoConfirmed: "Confirmed automatically", manualConfirmed: "Confirmed by people", workloadTitle: "Review workload", workloadIntro: "{count} receipts waiting for a decision.",
     smsTitle: "Bank SMS matching", sms: { VERIFIED: "Matched", WAITING: "Waiting for SMS", UNMATCHED: "No SMS found", AMBIGUOUS: "Unclear (several SMS)" },
     phonesTitle: "Per phone", phonesIntro: "Receipts each phone sent in this range and their confirmed total.", phone: "Phone", received: "Receipts", confirmed: "Confirmed", noPhones: "No receipts from any phone in this range.",
+    reviewMoney: "Money waiting for review", reviewMoneyHint: "Amounts read so far; not in the total until confirmed", duplicatesConfirmed: "Confirmed duplicates", duplicatesConfirmedHint: "Groups of the same payment, counted once", duplicatesPossible: "Possible duplicates", duplicatesPossibleHint: "Waiting receipts that look like another one", smsMatchedHint: "of {count} receipts in range",
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {

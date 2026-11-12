@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError, downloadExport, query } from "./api";
 import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
@@ -50,6 +50,12 @@ function MoneyValue({ totals, locale }: { totals: Money | undefined; locale: Loc
   return <>{list.map((item) => <span className="money-line" key={item.currency}><Amount amount={item.amount} currency={item.currency} locale={locale} /></span>)}</>;
 }
 
+/** A dashboard number; the whole card opens its list when `to` is set. */
+function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: string; label: string; value: ReactNode; hint?: ReactNode }) {
+  const body = <><span>{label}</span><strong>{value}</strong>{hint && <small>{hint}</small>}</>;
+  return to ? <Link className={"metric metric-link " + tone} to={to}>{body}</Link> : <article className={"metric " + tone}>{body}</article>;
+}
+
 export function Dashboard({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const role = useRole(); const d = m.dashboard;
   // Opens on today, 12:00 AM to 11:59 PM Cairo time; every number follows the chosen range.
@@ -64,7 +70,7 @@ export function Dashboard({ token }: { token: string }) {
   const waiting = queue.reduce((sum, [, value]) => sum + value, 0);
   const received = data ? data.transactions_by_device.reduce((sum, item) => sum + n(item.count), 0) : 0;
   const pick = (from: string, to: string) => { setDateFrom(from); setDateTo(to); setTimeFrom("00:00"); setTimeTo("23:59"); };
-  const quick: [string, string, string][] = [[d.today, cairoDate(), cairoDate()], [d.yesterday, cairoDate(1), cairoDate(1)], [d.week, cairoDate(6), cairoDate()]];
+  const quick: [string, string, string][] = [[d.today, cairoDate(), cairoDate()], [d.yesterday, cairoDate(1), cairoDate(1)]];
   async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query(range), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
     <div className="panel dash-filters"><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, from, to]) => <button key={label} type="button" className={"chip" + (dateFrom === from && dateTo === to && timeFrom === "00:00" && timeTo === "23:59" ? " active" : "")} aria-pressed={dateFrom === from && dateTo === to} onClick={() => pick(from, to)}>{label}</button>)}</div>
@@ -72,13 +78,16 @@ export function Dashboard({ token }: { token: string }) {
       <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
-        <article className="metric money"><span>{d.rangeTotal}</span><strong><MoneyValue totals={data.totals_by_currency} locale={locale} /></strong><small>{d.onceEach}</small></article>
-        <article className="metric"><span>{d.confirmedReceipts}</span><strong><Bidi>{data.final_transaction_count}</Bidi></strong><small>{d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></small></article>
-        <article className="metric review"><span>{d.reviewDemand}</span><strong><Bidi>{data.needs_review_count}</Bidi></strong>{canReview(role) && <small><Link to="/review">{d.openReview}</Link></small>}</article>
-        <article className="metric"><span>{d.smsMatchedCard}</span><strong><Bidi>{n(sms.VERIFIED)}</Bidi></strong><small>{formatMessage(d.ofReceipts, { count: received })} · <Link to="/bank-sms">{m.navigation.bankSms}</Link></small></article>
+        <MetricCard to="/transactions" tone="money" label={d.rangeTotal} value={<MoneyValue totals={data.totals_by_currency} locale={locale} />} hint={d.onceEach} />
+        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.reviewMoney} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={d.reviewMoneyHint} />
+        <MetricCard to="/transactions" label={d.confirmedReceipts} value={<Bidi>{data.final_transaction_count}</Bidi>} hint={<>{d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
+        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.reviewDemand} value={<Bidi>{data.needs_review_count}</Bidi>} hint={canReview(role) ? d.openReview : undefined} />
+        <MetricCard to="/bank-sms" label={d.smsMatchedCard} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(d.smsMatchedHint, { count: received })} />
+        <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
+        <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
       <div className="two-column"><article className="panel money-panel"><div className="section-heading"><div><h2>{d.moneyTitle}</h2><p className="subhead">{d.moneyIntro}</p></div></div>{data.totals_by_currency.length > 1 ? <div className="table-wrap flush"><table><thead><tr><th>{d.currency}</th><th>{d.transactions}</th><th>{d.total}</th></tr></thead><tbody>{data.totals_by_currency.map((item) => <tr key={item.currency}><td data-label={d.currency}><Bidi>{item.currency}</Bidi></td><td data-label={d.transactions}><Bidi>{item.transaction_count}</Bidi></td><td data-label={d.total}><Amount amount={item.amount} currency={item.currency} locale={locale} /></td></tr>)}</tbody></table></div> : data.totals_by_currency.length ? null : <p className="empty-inline">{d.noTotals}</p>}
-        <dl className="fact-list"><div><dt>{d.duplicateGroups}</dt><dd><Bidi>{data.duplicate_group_count}</Bidi></dd></div></dl></article>
+</article>
       <article className="panel"><div className="section-heading"><div><h2>{d.workloadTitle}</h2><p className="subhead">{formatMessage(d.workloadIntro, { count: waiting })}</p></div></div>
         <dl className="fact-list">{queue.map(([key, value]) => <div key={key}><dt>{canReview(role) ? <Link to={"/review?category=" + key}>{m.review.categories[key]}</Link> : m.review.categories[key]}</dt><dd><Bidi>{value}</Bidi></dd></div>)}</dl>
         <h3>{d.smsTitle}</h3><dl className="fact-list">{["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"].map((key) => <div key={key}><dt>{(d.sms as Record<string, string>)[key]}</dt><dd><Bidi>{n(sms[key])}</Bidi></dd></div>)}</dl></article></div>
@@ -286,7 +295,7 @@ export function Devices({ token }: { token: string }) {
   const list = data ? data.items.map((device) => ({ id: String(device.id), name: display(device.name) })) : [];
   return <section><PageHeading title={m.pages.devices[0]} description={m.pages.devices[1]} help={contextHelp.devices} /><div className="page-actions"><AddDevice token={token} added={(device) => { reload(); setLinking(device.id); }} /></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noDevices} />
     {data && data.items.length > 0 && <SmsPhoneForAll token={token} devices={list} done={() => setRound((value) => value + 1)} />}
-    {data && <div className="card-list">{data.items.map((item) => { const id = String(item.id); const name = display(item.name); const config = item.configuration && typeof item.configuration === "object" && !Array.isArray(item.configuration) ? Object.entries(item.configuration) : []; return <article className="record-card device-card" key={id} aria-label={name}>
+    {data && <div className="card-list">{data.items.map((item) => { const id = String(item.id); const name = display(item.name); const collects = (item.configuration && typeof item.configuration === "object" && !Array.isArray(item.configuration) ? item.configuration : {}) as Record<string, Json>; const config = Object.entries(collects); return <article className="record-card device-card" key={id} aria-label={name}>
       <header className="device-head"><div><h2>{name}</h2><p className="subhead"><StatusBadge value={String(item.status)} /> · {m.devices.lastSeen} <Timestamp value={item.last_seen_at as string | null} locale={locale} /></p><p>{m.devices.externalId} <Bidi>{display(item.external_device_id)}</Bidi> · {m.devices.appVersion} <Bidi>{display(item.app_version)}</Bidi></p></div>
         <dl><div><dt>{m.devices.configVersion}</dt><dd><Bidi>{display(item.configuration_version)}</Bidi></dd></div><div><dt>{m.devices.transactions}</dt><dd><Bidi>{display(item.transaction_count)}</Bidi></dd></div><div><dt>{m.devices.duplicates}</dt><dd><Bidi>{display(item.duplicate_count)}</Bidi></dd></div><div><dt>{m.devices.needsReview}</dt><dd><Bidi>{display(item.needs_review_count)}</Bidi></dd></div></dl></header>
       <DeviceActions id={id} name={name} status={String(item.status)} token={token} changed={reload} linkOpen={linking === id} setLinkOpen={(open) => setLinking(open ? id : "")} />
@@ -294,7 +303,8 @@ export function Devices({ token }: { token: string }) {
         <section className="device-config settings-block"><h3>{m.devices.collection}</h3><dl>{config.map(([key, value]) => <div key={key}><dt>{configurationLabel(key, m)}</dt><dd>{typeof value === "boolean" ? value ? m.common.yes : m.common.no : <Bidi>{display(value)}</Bidi>}</dd></div>)}</dl></section>
         <div className="settings-block"><CollectionSettings deviceId={id} token={token} /></div>
         <div className="settings-block"><SmsSources key={id + ":" + round} deviceId={id} token={token} devices={list} /></div>
-        <div className="settings-block"><TrainingConsent deviceId={id} token={token} /></div>
+        {/* Training uses receipt images only; a phone that only collects bank SMS has nothing to train on. */}
+        {!(collects.sms_enabled === true && collects.images_enabled !== true) && <div className="settings-block"><TrainingConsent deviceId={id} token={token} /></div>}
       </div></details>
     </article>; })}</div>}</section>;
 }

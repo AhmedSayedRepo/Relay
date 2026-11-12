@@ -61,6 +61,7 @@ export const ar = {
     autoConfirmed: "تأكيد تلقائي", manualConfirmed: "تأكيد يدوي", workloadTitle: "حجم المراجعة", workloadIntro: "{count} إيصالات تنتظر قراراً.",
     smsTitle: "مطابقة رسائل البنك", sms: { VERIFIED: "مطابقة", WAITING: "بانتظار الرسالة", UNMATCHED: "لا توجد رسالة", AMBIGUOUS: "غير واضح (عدة رسائل)" },
     phonesTitle: "حسب الهاتف", phonesIntro: "الإيصالات التي أرسلها كل هاتف في هذه الفترة ومجموعها المؤكد.", phone: "الهاتف", received: "الإيصالات", confirmed: "المؤكدة", noPhones: "لا توجد إيصالات من أي هاتف في هذه الفترة.",
+    reviewMoney: "مبالغ تنتظر المراجعة", reviewMoneyHint: "المبالغ المقروءة حتى الآن؛ لا تدخل في الإجمالي قبل التأكيد", duplicatesConfirmed: "تكرارات مؤكدة", duplicatesConfirmedHint: "مجموعات لنفس الدفعة، تُحسب مرة واحدة", duplicatesPossible: "تكرارات محتملة", duplicatesPossibleHint: "إيصالات تنتظر وتشبه إيصالاً آخر", smsMatchedHint: "من {count} إيصال في الفترة",
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {

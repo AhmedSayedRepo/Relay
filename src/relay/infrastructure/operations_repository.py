@@ -43,6 +43,14 @@ def _money(value: Decimal | None) -> str | None:
     return format(value, "f") if value is not None else None
 
 
+def _field_value(resolution: Any, name: str) -> str | None:
+    """The current value of a receipt field: reviewed, or the reader's suggestion."""
+    fields = resolution.get("fields") if isinstance(resolution, dict) else None
+    item = fields.get(name) if isinstance(fields, dict) else None
+    value = item.get("value") if isinstance(item, dict) else None
+    return value if isinstance(value, str) and value else None
+
+
 def _safe_configuration(value: dict[str, Any]) -> dict[str, JsonValue]:
     collectors = value.get("collectors")
     if not isinstance(collectors, dict):
@@ -454,6 +462,30 @@ class SqlOperationsRepository:
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
             .limit(20)
         )
+        # Money still waiting for review, by the amount read so far (counted
+        # once per payment: possible copies of another receipt are left out).
+        waiting: dict[str, list[Decimal]] = {}
+        review_rows = await self.db.execute(
+            select(
+                ReceiptCandidateRow.amount,
+                ReceiptCandidateRow.currency,
+                ReceiptCandidateRow.resolution_result,
+            ).where(
+                *receipt_range,
+                ReceiptCandidateRow.review_status == "NEEDS_REVIEW",
+                ReceiptCandidateRow.duplicate_of_candidate_id.is_(None),
+            )
+        )
+        for amount, currency, resolution in review_rows:
+            text = _field_value(resolution, "amount")
+            try:
+                value = Decimal(text) if text else amount
+            except ArithmeticError:
+                value = amount
+            if value is None:
+                continue
+            code = (_field_value(resolution, "currency") or currency or "EGP").upper()
+            waiting.setdefault(code[:3], []).append(Decimal(str(value)))
         auto_count = await self.db.scalar(
             select(func.count())
             .select_from(ReceiptCandidateRow)
@@ -524,6 +556,14 @@ class SqlOperationsRepository:
                 0, int(final_count or 0) - int(auto_count or 0)
             ),
             "sms_by_status": {str(status): int(count) for status, count in sms_counts},
+            "review_totals_by_currency": [
+                {
+                    "currency": code,
+                    "amount": _money(sum(values, Decimal(0)).quantize(Decimal("0.01"))),
+                    "transaction_count": len(values),
+                }
+                for code, values in sorted(waiting.items())
+            ],
         }
 
     async def transactions(
