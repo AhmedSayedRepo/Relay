@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.sms_verification import SmsVerificationService
 from relay.application.sms_verification_ports import (
+    BankSms,
     SmsEvent,
     SmsVerificationUnitOfWork,
     StoredVerification,
@@ -228,6 +229,44 @@ class SqlSmsVerificationRepository:
                     SmsEvent(row.id, row.device_id, aware(row.occurred_at), body)
                 )
         return events
+
+    async def bank_sms(
+        self, since: datetime, until: datetime, device_id: UUID | None
+    ) -> list[BankSms]:
+        statement = (
+            select(RawEventRow, DeviceRow.name, SmsVerificationRow.candidate_id)
+            .join(DeviceRow, DeviceRow.id == RawEventRow.device_id)
+            .outerjoin(
+                SmsVerificationRow,
+                (SmsVerificationRow.sms_event_id == RawEventRow.id)
+                & (SmsVerificationRow.status == VerificationStatus.VERIFIED.value),
+            )
+            .where(
+                RawEventRow.collector == "sms",
+                RawEventRow.occurred_at >= since,
+                RawEventRow.occurred_at < until,
+            )
+            .order_by(RawEventRow.occurred_at.desc(), RawEventRow.id)
+            .limit(5000)
+        )
+        if device_id is not None:
+            statement = statement.where(RawEventRow.device_id == device_id)
+        found = []
+        for row, name, candidate_id in await self.session.execute(statement):
+            payload = row.payload if isinstance(row.payload, dict) else {}
+            body, sender = payload.get("body"), payload.get("sender")
+            found.append(
+                BankSms(
+                    row.id,
+                    row.device_id,
+                    name,
+                    sender if isinstance(sender, str) else None,
+                    body if isinstance(body, str) else "",
+                    aware(row.occurred_at),
+                    candidate_id,
+                )
+            )
+        return found
 
     async def get(self, candidate_id: UUID) -> StoredVerification | None:
         row = await self.session.get(SmsVerificationRow, candidate_id)

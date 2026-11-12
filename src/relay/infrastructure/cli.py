@@ -6,6 +6,7 @@ import json
 import os
 import random
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,6 @@ from uuid import UUID, uuid4
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
 
-from relay.application.account_recovery import AccountRecoveryService
 from relay.application.auth import create_admin, disable_user
 from relay.application.binaries import BinaryService
 from relay.application.errors import ApplicationError
@@ -29,6 +29,7 @@ from relay.domain.review_trust import initial_resolution
 from relay.infrastructure.agent_models import InstallationRow
 from relay.infrastructure.binary_models import BinaryObjectRow
 from relay.infrastructure.config import Settings, load_settings
+from relay.infrastructure.daily_report import send_daily_report
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.datetime_utils import aware
@@ -688,22 +689,18 @@ async def run(
         async with database.session() as session:
             uow = SqlUnitOfWork(session)
             passwords = Argon2Passwords()
-            recovery = AccountRecoveryService(uow, passwords)
             if command == "create-admin" and password is not None:
-                user = await create_admin(uow, passwords, str(email), password)
-                print_codes(await recovery.generate_codes(user.id))
-            elif command in {"reset-password", "recovery-codes"} and email:
+                await create_admin(uow, passwords, str(email), password)
+            elif command == "reset-password" and email:
                 found = await uow.users.get_by_email(email)
                 if found is None or not found.is_active:
                     raise ValueError("No active account with that email.")
-                if command == "reset-password" and password is not None:
+                if password is not None:
                     await uow.users.set_password(
                         found.id, await passwords.hash(password)
                     )
                     await uow.recovery.close_reset_tokens(found.id, datetime.now(UTC))
                     await uow.commit()
-                else:
-                    print_codes(await recovery.generate_codes(found.id))
             elif command == "list-admins":
                 for admin in await uow.users.list_active():
                     print(admin.email)
@@ -803,10 +800,50 @@ async def run(
         await database.close()
 
 
-def print_codes(codes: list[str]) -> None:
-    print("Recovery codes (each works once; store them somewhere safe):")
-    for code in codes:
-        print("  " + code)
+async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
+    """Keep the receipt model loaded and, every minute, read new receipts,
+    match bank SMS and auto-confirm. One pass at a time."""
+    storage = FilesystemObjectStorage(settings.object_storage_root)
+    model_dir = Path(os.environ.get("RELAY_MODEL_DIR", "/model"))
+    reader: Any = None
+    if (model_dir / "reader-config.json").exists():
+        from relay.infrastructure.donut_reader import DonutReader
+
+        reader = DonutReader(
+            model_dir, Path(os.environ.get("RELAY_BASE_MODEL_DIR", "/opt/donut-base"))
+        )
+    provider = create_tesseract_provider(
+        settings.ocr_tesseract_executable, settings.ocr_tessdata_dir
+    )
+    database = Database(settings)
+    try:
+        while True:
+            started = time.monotonic()
+            try:
+                async with database.session() as session:
+                    await ProcessingService(
+                        SqlUnitOfWork(session),
+                        storage,
+                        PillowImagePreprocessor(),
+                        provider,
+                        InstaPayReceiptParser(),
+                        ocr_timeout_seconds=settings.ocr_timeout_seconds,
+                        stale_job_minutes=settings.processing_stale_minutes,
+                        evidence_extractor=InstaPayReceiptAdapter(provider),
+                    ).process_pending(limit=settings.processing_batch_limit)
+                async with database.session() as session:
+                    await build_sms_verification_service(
+                        SqlUnitOfWork(session), settings
+                    ).run()
+                if reader is not None:
+                    await model_suggest(database, storage, reader, 20)
+                await auto_confirm(database, storage, settings)
+            except Exception as error:  # keep the loop alive; no details logged
+                print(f"Reader pass failed ({type(error).__name__}).", flush=True)
+            elapsed = time.monotonic() - started
+            await asyncio.sleep(max(5.0, interval_seconds - elapsed))
+    finally:
+        await database.close()
 
 
 def main() -> int:
@@ -827,8 +864,9 @@ def main() -> int:
             "confirm-suggestions",
             "model-suggest",
             "reset-password",
-            "recovery-codes",
             "list-admins",
+            "daily-report",
+            "reader-loop",
         ],
     )
     parser.add_argument("--email")
@@ -838,14 +876,24 @@ def main() -> int:
     parser.add_argument("--device", type=UUID)
     parser.add_argument("--dir", type=Path)
     parser.add_argument("--file", type=Path)
+    parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+    if args.command in {"daily-report", "reader-loop"}:
+        try:
+            if args.command == "reader-loop":
+                asyncio.run(reader_loop(load_settings()))
+            else:
+                asyncio.run(send_daily_report(load_settings(), force=args.force))
+            return 0
+        except Exception as error:
+            print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
+            return 1
     try:
         email = None
         if args.command in {
             "create-admin",
             "disable-user",
             "reset-password",
-            "recovery-codes",
             "confirm-suggestions",
         }:
             if args.email is None:

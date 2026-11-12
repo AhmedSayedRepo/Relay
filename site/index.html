@@ -13,10 +13,13 @@
 <meta property="og:description" content="Relay collects InstaPay receipt screenshots and bank SMS, matches them on amount and minute, and flags receipts the bank never confirmed. Self-hosted.">
 <meta property="og:url" content="https://relay-landing-woad.vercel.app/">
 <meta property="og:image" content="https://relay-landing-woad.vercel.app/og.png">
+<meta property="og:image:secure_url" content="https://relay-landing-woad.vercel.app/og.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Relay: every InstaPay receipt, checked against the bank SMS.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://relay-landing-woad.vercel.app/og.png">
 <meta name="theme-color" content="#103e46">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="alternate" hreflang="en" href="/">
@@ -29,6 +32,7 @@ a{color:#103e46}a:hover{color:#a95028}
 ::selection{background:#fae8da;color:#162d31}
 .btn-primary:hover{background:#8f4120 !important}
 .btn-ghost:hover{background:rgba(244,246,243,.12) !important}
+.btn-light:hover{background:#dce7e2 !important}
 .navlink:hover{color:#f4f6f3 !important}
 a:focus-visible{outline:3px solid #e2934d;outline-offset:3px;border-radius:10px}
 </style>
@@ -58,14 +62,8 @@ Relay
 <div style="flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
 <h1 style="margin: 0; font-size: 60px; line-height: 1.04; font-weight: 700; letter-spacing: -0.035em; max-width: 13ch">Every InstaPay receipt, checked against the bank SMS.</h1>
 <p style="margin: 0; font-size: 19px; line-height: 1.55; color: #c8d8d4; max-width: 34em">Relay collects receipt screenshots on one phone and bank SMS on another, matches the amount and the minute, and flags any receipt the bank never confirmed. You run it on your own server, in Arabic and English.</p>
-<div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center">
-<a class="btn-primary" href="#install" style="display: inline-flex; align-items: center; gap: 10px; background: #a95028; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 17px; padding: 16px 24px; border-radius: 12px; min-height: 52px; box-sizing: border-box">
-<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
-Download for Android
-</a>
-<a class="btn-ghost" href="#how" style="display: inline-flex; align-items: center; color: #f4f6f3; text-decoration: none; font-weight: 600; font-size: 17px; padding: 16px 22px; border-radius: 12px; border: 1px solid #4d7a80; min-height: 52px; box-sizing: border-box">See how matching works</a>
-</div>
-<p style="margin: 0; font-size: 14px; color: #91aaa7">Relay Agent · Android 8.0 or newer · signed APK, installed directly · Phone that receives bank SMS? <a href="https://github.com/AhmedSayedRepo/relay-releases/releases/download/agent-v0.6.1/relay-agent-0.6.1.apk" download style="color: #f0b48f; font-weight: 600">Download the bank SMS version</a></p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch"><a class="btn-primary" href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest/download/relay-receipts.apk" download style="display: inline-flex; align-items: center; gap: 12px; background: #a95028; color: #ffffff; border: 1.5px solid #a95028; text-decoration: none; padding: 14px 22px; border-radius: 12px; min-height: 64px; box-sizing: border-box; flex: 1 1 250px; max-width: 330px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">Relay Receipts</b><span style="font-size: 13px; font-weight: 500; opacity: .85">For phones that collect receipt screenshots</span></span></a><a class="btn-light" href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest/download/relay-bank-sms.apk" download style="display: inline-flex; align-items: center; gap: 12px; background: #f4f6f3; color: #103e46; border: 1.5px solid #f4f6f3; text-decoration: none; padding: 14px 22px; border-radius: 12px; min-height: 64px; box-sizing: border-box; flex: 1 1 250px; max-width: 330px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">Relay Bank SMS</b><span style="font-size: 13px; font-weight: 500; opacity: .85">Only for the phone that receives bank SMS</span></span></a></div>
+<p style="margin: 0; font-size: 14px; color: #91aaa7">Android 8.0 or newer · signed APKs, installed directly · <a href="#how" style="color: #f0b48f; font-weight: 600">See how matching works</a></p>
 </div>
 
 <!-- Signature: receipt and bank SMS, matched on amount and minute -->
@@ -162,10 +160,10 @@ SMS verified
 <div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
 <h2 style="margin: 0; font-size: 40px; line-height: 1.1; letter-spacing: -0.025em; font-weight: 700">Set up a phone in five minutes</h2>
 <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #52676b">For staff whose phone collects receipts or bank SMS. Your administrator shows a QR code under Devices → Link phone; the app scans it.</p>
-<a href="https://github.com/AhmedSayedRepo/relay-releases/releases/download/agent-v0.6.1/relay-agent-receipts-0.6.1.apk" download style="align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; background: #a95028; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 17px; padding: 16px 24px; border-radius: 12px; min-height: 52px; box-sizing: border-box">Download Relay Agent 0.6.1 (APK)</a>
-<p style="margin: 0; font-size: 14px; color: #52676b">For phones that collect receipts. Android 8.0 or newer · signed APK · SHA-256 <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow-wrap: anywhere">d489f19043a9838b10d8fb6b5e3f9729ef13334659bfc0061f557fabd27567fe</code></p>
-<a href="https://github.com/AhmedSayedRepo/relay-releases/releases/download/agent-v0.6.1/relay-agent-0.6.1.apk" download style="align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; background: #ffffff; color: #a95028; border: 1.5px solid #a95028; text-decoration: none; font-weight: 600; font-size: 16px; padding: 14px 22px; border-radius: 12px; min-height: 48px; box-sizing: border-box">Download with bank SMS (0.6.1)</a>
-<p style="margin: 0; font-size: 14px; color: #52676b">Only for the phone that receives bank SMS. Android may warn about the SMS permission; tap More details → Install anyway. SHA-256 <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow-wrap: anywhere">b1407767d41ecf483ab49760ac6ccd774a541414af0798ced4094640e917f5b5</code></p>
+<a href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest/download/relay-receipts.apk" download style="align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; background: #a95028; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 17px; padding: 16px 24px; border-radius: 12px; min-height: 52px; box-sizing: border-box">Download Relay Receipts (APK)</a>
+<p style="margin: 0; font-size: 14px; color: #52676b">For phones that collect receipts. No SMS permission. Android 8.0 or newer · signed APK · SHA-256 on the <a href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest" style="color: #a95028">release page</a></p>
+<a href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest/download/relay-bank-sms.apk" download style="align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; background: #ffffff; color: #a95028; border: 1.5px solid #a95028; text-decoration: none; font-weight: 600; font-size: 16px; padding: 14px 22px; border-radius: 12px; min-height: 48px; box-sizing: border-box">Download Relay Bank SMS (APK)</a>
+<p style="margin: 0; font-size: 14px; color: #52676b">Only for the phone that receives bank SMS. Android may warn about the SMS permission; tap More details → Install anyway. SHA-256 on the <a href="https://github.com/AhmedSayedRepo/relay-releases/releases/latest" style="color: #a95028">release page</a></p>
 </div>
 <ol style="flex: 1 1 480px; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px">
 <li style="display: flex; gap: 18px; background: #ffffff; border: 1px solid #cbd7d2; border-radius: 16px; padding: 20px 22px"><span style="flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #a95028; font-size: 15px; padding-top: 2px">1</span><div style="display: flex; flex-direction: column; gap: 4px"><span style="font-weight: 600; font-size: 17px">Download and install the APK</span><span style="font-size: 15px; line-height: 1.55; color: #52676b">Android asks once to allow installs from your browser. Allow it for this install.</span></div></li>

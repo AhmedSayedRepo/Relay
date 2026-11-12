@@ -1,9 +1,12 @@
-from typing import Annotated, Any, cast
+from datetime import date, datetime, time
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from relay.application.operations import date_window
 from relay.application.sms_verification import SmsVerificationService
 from relay.domain.sms_verification import MAX_SMS_SOURCES, SmsDirection
 from relay.infrastructure.config import Settings
@@ -98,3 +101,38 @@ async def confirm(
 @router.delete("/receipts/{candidate_id}/sms-verification")
 async def clear(candidate_id: UUID, service: Service) -> dict[str, Any]:
     return await service.clear(candidate_id)
+
+
+@router.get("/bank-sms")
+async def bank_sms(
+    service: Service,
+    request: Request,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
+    device_id: UUID | None = None,
+    status: Literal["MATCHED", "UNUSED", "NO_AMOUNT"] | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+) -> dict[str, Any]:
+    """Bank SMS by arrival time in the receipts' local time zone (today by
+    default), with whether each one confirmed a receipt."""
+    settings = cast(Settings, request.app.state.settings)
+    zone = ZoneInfo(settings.receipt_timezone)
+    today = datetime.now(zone).date()
+    window = date_window(
+        date_from or today,
+        date_to or date_from or today,
+        zone=zone,
+        time_from=time_from,
+        time_to=time_to,
+    )
+    return await service.bank_sms(
+        window.start,
+        window.end_exclusive,
+        device_id=device_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )

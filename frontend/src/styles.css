@@ -162,6 +162,9 @@ textarea { min-height: 5rem; resize: vertical; }
 .metric > span::before { content: ""; flex: none; width: .55rem; height: .55rem; border-radius: 50%; background: var(--tone); }
 .metric strong { display: block; margin-block-start: .9rem; font-size: 2.25rem; line-height: 1; letter-spacing: -.03em; }
 .metric.money strong { font-size: 1.7rem; }
+.metric-link { display: block; color: inherit; text-decoration: none; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.metric-link:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--line-strong); }
+.metric-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .metric small { display: block; margin-top: .5rem; color: var(--ink-soft); }
 .money-line { display: block; }
 .dash-title { margin: 1.4rem 0 0; font-size: 1.05rem; }
@@ -225,6 +228,25 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .sms-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-block-start: .75rem; }
 .toggle-row { display: flex; align-items: center; gap: .6rem; font-weight: 650; }.toggle-row input { width: 1.15rem; height: 1.15rem; margin: 0; }
 .device-config { padding-inline-start: 1rem; border-inline-start: 1px solid var(--line); }.device-config h3 { margin-block-start: 0; }
+/* Devices: one clearly separated card per phone; its settings grouped below its name. */
+.device-card { display: flex; flex-direction: column; gap: 1rem; }
+.device-head { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.device-head h2 { font-size: 1.25rem; }
+.device-head > dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: .65rem; margin: 0; }
+.device-settings { border: 1px solid var(--line); border-radius: var(--radius); background: var(--canvas-raised); }
+.device-settings > summary { cursor: pointer; padding: .8rem 1rem; font-weight: 760; color: var(--ink); list-style-position: inside; }
+.device-settings[open] > summary { border-block-end: 1px solid var(--line); }
+.device-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; padding: 1rem; }
+.settings-block { padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.settings-block .training-consent, .settings-block.device-config { padding: 0; border: 0; }
+.sms-phone-panel { margin-block: 1rem; }.sms-phone-panel .filter-bar { margin-block-end: 0; }
+/* Dashboard filters */
+.dash-filters { margin-block: 1rem; }.dash-filters .filter-bar { margin-block: .6rem .2rem; }
+.quick-range { display: flex; flex-wrap: wrap; gap: .45rem; }
+.chip { padding: .35rem .85rem; border-radius: 999px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); font-weight: 700; }
+.chip.active, .chip[aria-pressed="true"] { color: #fff; background: var(--brand); border-color: var(--line-strong); }
+.icon-link { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: var(--radius-sm); color: var(--ink); border: 1px solid var(--line); background: var(--surface); }
+.icon-link:hover, .icon-link.active { background: var(--surface-strong); }
 .dialog-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(5, 20, 23, .76); }
 .dialog { position: fixed; inset-block: 4vh; inset-inline: max(2vw, calc((100vw - 1120px) / 2)); z-index: 51; overflow: auto; padding: 1.25rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-strong); }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; }.dialog-heading h2 { font-size: 1.6rem; }
@@ -309,6 +331,7 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
   .preferences:not(.compact) label > span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; }
 }
 @media (max-width: 850px) {
+  .device-head, .device-settings-grid { grid-template-columns: 1fr; }
   .side-rail { transform: translateX(-105%); box-shadow: var(--shadow-strong); transition: transform .2s ease; }
   [dir="rtl"] .side-rail { transform: translateX(105%); }
   .side-rail.open { transform: translateX(0); }

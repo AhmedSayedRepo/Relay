@@ -4,7 +4,7 @@ import { Icon, RelayMark } from "./components/Brand";
 import { PreferenceControls } from "./components/Layout";
 import { useI18n } from "./i18n";
 
-type View = "sign-in" | "choose" | "code" | "email" | "reset";
+type View = "sign-in" | "email" | "reset";
 
 function resetToken(): string {
   const match = window.location.hash.match(/^#\/reset-password\?token=([A-Za-z0-9_-]{20,128})$/);
@@ -72,48 +72,7 @@ function SignIn({ onLogin, onForgot, notice, email }: { onLogin: (token: string)
   </AuthFrame>;
 }
 
-function Choose({ emailReset, go }: { emailReset: boolean; go: (view: View) => void }) {
-  const { messages: m } = useI18n();
-  return <AuthFrame title={m.recovery.title} intro={m.recovery.intro}>
-    <div className="choice-list">
-      <button className="choice" type="button" onClick={() => go("code")}><strong>{m.recovery.codeOption}</strong><span>{m.recovery.codeOptionHint}</span></button>
-      {emailReset && <button className="choice" type="button" onClick={() => go("email")}><strong>{m.recovery.emailOption}</strong><span>{m.recovery.emailOptionHint}</span></button>}
-    </div>
-    <p className="hint server-hint">{m.recovery.serverHint}</p>
-    <BackLink onClick={() => go("sign-in")} />
-  </AuthFrame>;
-}
-
-function CodeForm({ done, back }: { done: (email: string, notice: string) => void; back: () => void }) {
-  const { messages: m } = useI18n();
-  const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ email: string; reset: boolean } | null>(null);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    const { error: invalid, password } = readPassword(form, m); if (invalid) { setError(invalid); return; }
-    setBusy(true); setError("");
-    try {
-      const body = await send<{ email: string }>("/auth/recovery-code", { code: String(form.get("code") || "").trim(), ...(password ? { new_password: password } : {}) });
-      setResult({ email: body.email, reset: Boolean(password) });
-    } catch (reason) { setError(reason instanceof ApiError && reason.status < 500 ? m.recovery.codeFailed : m.recovery.unavailable); } finally { setBusy(false); }
-  }
-  if (result) return <AuthFrame title={m.recovery.title}>
-    <div className="reveal"><span>{m.recovery.usernameIs}</span><strong dir="ltr">{result.email}</strong></div>
-    <Notice tone="success">{result.reset ? m.recovery.passwordSaved : m.recovery.codeUsed}</Notice>
-    <button type="button" onClick={() => done(result.email, result.reset ? m.recovery.passwordSaved : "")}>{m.recovery.signIn}</button>
-  </AuthFrame>;
-  return <AuthFrame title={m.recovery.codeOption} intro={m.recovery.codeOptionHint}>
-    {error && <Notice tone="error">{error}</Notice>}
-    <form onSubmit={(event) => void submit(event)}>
-      <label>{m.recovery.code}<input className="code-input" name="code" dir="ltr" autoComplete="one-time-code" autoCapitalize="characters" spellCheck={false} placeholder={m.recovery.codePlaceholder} minLength={12} maxLength={32} required /></label>
-      <PasswordPair optional />
-      <button disabled={busy} type="submit">{busy ? m.recovery.working : m.recovery.useCode}</button>
-    </form>
-    <BackLink onClick={back} />
-  </AuthFrame>;
-}
-
-function EmailForm({ back }: { back: () => void }) {
+function EmailForm({ back, available }: { back: () => void; available: boolean }) {
   const { messages: m } = useI18n();
   const [sent, setSent] = useState(false); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -121,6 +80,10 @@ function EmailForm({ back }: { back: () => void }) {
     try { await send("/auth/password-reset/request", { email: form.get("email") }); setSent(true); }
     catch { setError(m.recovery.unavailable); } finally { setBusy(false); }
   }
+  if (!available) return <AuthFrame title={m.recovery.title}>
+    <Notice tone="error">{m.recovery.noEmail}</Notice>
+    <BackLink onClick={back} />
+  </AuthFrame>;
   return <AuthFrame title={m.recovery.emailOption} intro={sent ? undefined : m.recovery.emailOptionHint}>
     {sent ? <Notice tone="success">{m.recovery.linkSent}</Notice> : <>
       {error && <Notice tone="error">{error}</Notice>}
@@ -170,8 +133,6 @@ export function Login({ onLogin }: { onLogin: (token: string) => void }) {
     setNotice(message); if (username) setEmail(username); setView("sign-in");
   }
   if (view === "reset") return <ResetForm token={token} done={(message) => signIn(message)} />;
-  if (view === "choose") return <Choose emailReset={emailReset} go={(next) => { setNotice(""); setView(next); }} />;
-  if (view === "code") return <CodeForm done={(username, message) => signIn(message, username)} back={() => setView("choose")} />;
-  if (view === "email") return <EmailForm back={() => setView("choose")} />;
-  return <SignIn key={email} onLogin={onLogin} onForgot={() => setView("choose")} notice={notice} email={email} />;
+  if (view === "email") return <EmailForm available={emailReset} back={() => setView("sign-in")} />;
+  return <SignIn key={email} onLogin={onLogin} onForgot={() => { setNotice(""); setView("email"); }} notice={notice} email={email} />;
 }

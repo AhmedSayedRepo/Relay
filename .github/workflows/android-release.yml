@@ -70,13 +70,16 @@ jobs:
             -PrelayVersionCode="$((1000 + GITHUB_RUN_NUMBER))" 2>&1 | tee release.log
           rm -f "$RELAY_KEYSTORE_FILE"
           mkdir -p "$RUNNER_TEMP/out"
-          # relay-agent-X.apk keeps the full build (bank SMS) at its old name.
           for flavor in full receipts; do
             apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
             "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
-            name="relay-agent-$version.apk"
-            [ "$flavor" = receipts ] && name="relay-agent-receipts-$version.apk"
-            cp "$apk" "$RUNNER_TEMP/out/$name"
+            # Each app is named after its job; the unversioned copy keeps the
+            # landing page's releases/latest/download links working.
+            base="relay-bank-sms"
+            [ "$flavor" = receipts ] && base="relay-receipts"
+            cp "$apk" "$RUNNER_TEMP/out/$base-$version.apk"
+            cp "$apk" "$RUNNER_TEMP/out/$base.apk"
+            name="$base-$version.apk"
             (cd "$RUNNER_TEMP/out" && sha256sum "$name" > "$name.sha256")
             cat "$RUNNER_TEMP/out/$name.sha256"
           done
@@ -96,9 +99,9 @@ jobs:
         run: |
           set -euo pipefail
           tag="agent-v$APP_VERSION"
-          sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-$APP_VERSION.apk.sha256")
-          rsha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-agent-receipts-$APP_VERSION.apk.sha256")
-          notes="Relay Agent $APP_VERSION for Android 8.0 or newer. relay-agent-$APP_VERSION.apk: receipts and bank SMS (SHA-256 $sha). relay-agent-receipts-$APP_VERSION.apk: receipts only, no SMS access (SHA-256 $rsha)."
+          sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-bank-sms-$APP_VERSION.apk.sha256")
+          rsha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-receipts-$APP_VERSION.apk.sha256")
+          notes="Relay $APP_VERSION for Android 8.0 or newer. relay-receipts-$APP_VERSION.apk (Relay Receipts): receipts only, no SMS access (SHA-256 $rsha). relay-bank-sms-$APP_VERSION.apk (Relay Bank SMS): for the phone that receives bank SMS (SHA-256 $sha)."
           # This commit only exists in this repo; a separate release repo tags its own default branch.
           target=()
           [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ] && target=(--target "$GITHUB_SHA")
@@ -108,7 +111,7 @@ jobs:
             gh release create "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" \
               --title "Relay Agent $APP_VERSION" --notes "$notes" "${target[@]}"
           fi
-          echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-$APP_VERSION.apk"
-          echo "::notice title=apk-receipts::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-agent-receipts-$APP_VERSION.apk"
+          echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-bank-sms-$APP_VERSION.apk"
+          echo "::notice title=apk-receipts::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-receipts-$APP_VERSION.apk"
           echo "::notice title=sha256::$sha"
           echo "::notice title=sha256-receipts::$rsha"

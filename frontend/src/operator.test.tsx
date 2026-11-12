@@ -198,11 +198,13 @@ describe("Sprint 7 operator experience", () => {
     fireEvent.click(save);
     expect(await screen.findByText(/^Saved\./)).toBeInTheDocument();
     expect(writes[0].expected_version).toBe(1); expect(writes[0].settings.collectors.images.enabled).toBe(true); expect(writes[0].settings.collectors.sms.enabled).toBe(false);
-    fireEvent.click(screen.getByRole("checkbox", { name: "Bank SMS" })); fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByText("Add at least one bank SMS sender first.")).toBeInTheDocument(); expect(writes).toHaveLength(1);
-    fireEvent.change(screen.getByLabelText(/Bank SMS senders/), { target: { value: "CIB, NBE" } }); fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bank SMS" }));
+    expect(screen.getByText(/^Any sender:/)).toBeInTheDocument(); fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(writes).toHaveLength(2));
-    expect(writes[1].expected_version).toBe(2); expect(writes[1].settings.collectors.sms.rules).toHaveLength(2); expect(writes[1].settings.collectors.images.enabled).toBe(true);
+    expect(writes[1].settings.collectors.sms).toEqual({ enabled: true, rules: [{ id: "any-bank", enabled: true, body: { any_contains: ["EGP", "جنيه", "ج.م", "ج م", "L.E"] } }] });
+    fireEvent.change(screen.getByLabelText(/Only these senders/), { target: { value: "CIB, NBE" } }); fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2].expected_version).toBe(3); expect(writes[2].settings.collectors.sms.rules).toHaveLength(2); expect(writes[2].settings.collectors.images.enabled).toBe(true);
   });
 
   it("lets an operator opt a device in and out of training capture", async () => {

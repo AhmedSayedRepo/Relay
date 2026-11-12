@@ -117,9 +117,7 @@ def test_processing_command_is_bounded_and_needs_no_email(monkeypatch, capsys):
         cli.main()
 
 
-def test_operator_can_reset_password_list_admins_and_issue_codes(
-    tmp_path, monkeypatch, capsys
-):
+def test_operator_can_reset_password_and_list_admins(tmp_path, monkeypatch, capsys):
     path = tmp_path / "operator.sqlite"
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{path}")
@@ -141,8 +139,7 @@ def test_operator_can_reset_password_list_admins_and_issue_codes(
         sys, "argv", ["relay", "create-admin", "--email", "admin@example.com"]
     )
     assert cli.main() == 0
-    created = capsys.readouterr().out
-    assert created.count("-") >= 20  # ten XXXX-XXXX-XXXX recovery codes
+    capsys.readouterr()
     monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: second)
     monkeypatch.setattr(
         sys, "argv", ["relay", "reset-password", "--email", "admin@example.com"]
@@ -156,14 +153,6 @@ def test_operator_can_reset_password_list_admins_and_issue_codes(
     monkeypatch.setattr(sys, "argv", ["relay", "list-admins"])
     assert cli.main() == 0
     assert "admin@example.com" in capsys.readouterr().out
-    monkeypatch.setattr(
-        sys, "argv", ["relay", "recovery-codes", "--email", "admin@example.com"]
-    )
-    assert cli.main() == 0
-    with sqlite3.connect(path) as connection:
-        assert connection.execute(
-            "SELECT count(*) FROM user_recovery_codes"
-        ).fetchone() == (10,)
     monkeypatch.setattr(
         sys, "argv", ["relay", "reset-password", "--email", "nobody@example.com"]
     )

@@ -6,8 +6,10 @@ import { useTheme, type Theme } from "../preferences";
 import { Icon, RelayMark } from "./Brand";
 import { HelpDialog } from "./HelpDialog";
 
-const routes = ["dashboard", "transactions", "duplicates", "review", "processing", "reports", "devices", "users", "account", "help"] as const;
-const paths = ["/", "/transactions", "/duplicates", "/review", "/processing", "/reports", "/devices", "/users", "/account", "/help"];
+// Duplicates, Processing and Reports stay reachable (Review links to duplicates;
+// the Dashboard exports Excel) but are kept out of the menu.
+const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users"] as const;
+const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users"];
 const adminOnly = new Set<string>(["devices", "users"]);
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
@@ -23,7 +25,7 @@ export function Layout({ signOut }: { signOut: () => void }) {
   const visible = (key: string) => (!adminOnly.has(key) || isAdmin(role)) && (key !== "review" || canReview(role));
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
     <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><div className="signal-mark" aria-hidden="true"><span /><span /><span /></div></aside>
-    <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
+    <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
     <main id="main-content"><Outlet /></main>
   </div>;

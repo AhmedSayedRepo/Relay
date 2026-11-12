@@ -9,6 +9,9 @@ services:
     ports: !reset []
     restart: unless-stopped
 
+  reader:
+    restart: unless-stopped
+
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped

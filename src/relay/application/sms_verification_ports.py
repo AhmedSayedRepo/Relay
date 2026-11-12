@@ -22,6 +22,17 @@ class SmsEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class BankSms:
+    event_id: UUID
+    device_id: UUID
+    device_name: str
+    sender: str | None
+    body: str
+    occurred_at: datetime
+    candidate_id: UUID | None  # the receipt this SMS confirmed, if any
+
+
+@dataclass(frozen=True, slots=True)
 class StoredVerification:
     candidate_id: UUID
     status: VerificationStatus
@@ -57,6 +68,10 @@ class SmsVerificationRepository(Protocol):
     async def sms_events(
         self, device_ids: set[UUID], since: datetime, until: datetime
     ) -> list[SmsEvent]: ...
+
+    async def bank_sms(
+        self, since: datetime, until: datetime, device_id: UUID | None
+    ) -> list[BankSms]: ...
 
     async def get(self, candidate_id: UUID) -> StoredVerification | None: ...
 

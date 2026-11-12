@@ -13,39 +13,24 @@ beforeEach(() => { vi.restoreAllMocks(); localStorage.clear(); window.location.h
 afterEach(() => cleanup());
 
 describe("account recovery and phone linking", () => {
-  it("recovers the username and a new password with a recovery code", async () => {
-    const calls: { url: string; body: unknown }[] = [];
-    vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
-      const url = String(request); calls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
-      if (url.endsWith("/auth/recovery-options")) return json({ email_reset: false });
-      if (url.endsWith("/auth/recovery-code")) return json({ email: "owner@example.com" });
-      return json({}, 404);
-    });
-    renderRelay(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Forgot username or password?" }));
-    expect(screen.queryByRole("button", { name: /Email me a reset link/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Use a recovery code/ }));
-    fireEvent.change(screen.getByLabelText("Recovery code"), { target: { value: "abcd-efgh-jkmn" } });
-    fireEvent.change(screen.getByLabelText("New password (optional)"), { target: { value: "a-long-new-password" } });
-    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "different-password!" } });
-    fireEvent.click(screen.getByRole("button", { name: "Use code" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("don’t match");
-    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "a-long-new-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Use code" }));
-    expect(await screen.findByText("owner@example.com")).toBeInTheDocument();
-    expect(calls.find((call) => call.url.endsWith("/auth/recovery-code"))?.body).toEqual({ code: "abcd-efgh-jkmn", new_password: "a-long-new-password" });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByLabelText("Email")).toHaveValue("owner@example.com");
-    expect(screen.getByRole("status")).toHaveTextContent("Password updated");
-  });
-
-  it("offers the email link only when the server can send email", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((request) => String(request).endsWith("/auth/recovery-options") ? json({ email_reset: true }) : json({ status: "accepted" }, 202));
+  it("explains how to recover when the server cannot send email", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((request) => String(request).endsWith("/auth/recovery-options") ? json({ email_reset: false }) : json({}, 404));
     renderRelay(<App />);
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Forgot username or password?" }));
-    fireEvent.click(await screen.findByRole("button", { name: /Email me a reset link/ }));
-    fireEvent.change(screen.getByLabelText("Admin email"), { target: { value: "owner@example.com" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("reset-password command");
+    expect(screen.queryByText(/recovery code/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back to sign in" }));
+    expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+  });
+
+  it("sends a reset link by email when the server can send email", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((request) => String(request).endsWith("/auth/recovery-options") ? json({ email_reset: true }) : json({ status: "accepted" }, 202));
+    renderRelay(<App />);
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/auth/recovery-options"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fireEvent.click(screen.getByRole("button", { name: "Forgot username or password?" }));
+    fireEvent.change(await screen.findByLabelText("Admin email"), { target: { value: "owner@example.com" } });
     fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
     expect(await screen.findByRole("status")).toHaveTextContent("reset link is on its way");
   });
@@ -66,19 +51,12 @@ describe("account recovery and phone linking", () => {
     expect(window.location.hash).toBe("");
   });
 
-  it("creates new recovery codes after the password is confirmed", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
-      const url = String(request);
-      if (url.endsWith("/auth/me")) return json({ id: "u1", email: "owner@example.com", is_active: true, created_at: "2026-10-01T00:00:00Z" });
-      if (url.endsWith("/auth/recovery-codes") && init?.method === "POST") return json({ codes: ["AAAA-BBBB-CCCC", "DDDD-EEEE-FFFF"] }, 201);
-      return json({ remaining: 2 });
-    });
+  it("shows only the password card on Account (no recovery codes)", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => json({ id: "u1", email: "owner@example.com", is_active: true, created_at: "2026-10-01T00:00:00Z" }));
     renderRelay(<Account token="token" />);
-    expect(await screen.findByText("2 of 10 codes left.")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Enter your password to create new codes"), { target: { value: "my-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create new codes" }));
-    expect(await screen.findByText("AAAA-BBBB-CCCC")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Save these codes now" })).toBeInTheDocument();
+    expect(await screen.findByText("owner@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Password" })).toBeInTheDocument();
+    expect(screen.queryByText("Recovery codes")).toBeNull();
   });
 
   it("shows a scannable QR code and asks before replacing a linked phone", async () => {

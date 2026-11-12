@@ -87,6 +87,63 @@ class SmsVerificationService:
         self.window = window
         self.lookback = timedelta(days=lookback_days)
 
+    async def bank_sms(
+        self,
+        since: datetime,
+        until: datetime,
+        *,
+        device_id: UUID | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, JsonValue]:
+        """Every bank SMS in the window: matched to a receipt, unused, or
+        without a readable amount. Bodies stay out (admin-only data)."""
+        rows: list[JsonValue] = []
+        counts = {"MATCHED": 0, "UNUSED": 0, "NO_AMOUNT": 0}
+        unused: dict[str, Decimal] = {}
+        for sms in await self.repo.bank_sms(since, until, device_id):
+            parsed = parse_bank_sms(sms.body)
+            state = "UNUSED"
+            if parsed is None:
+                state = "NO_AMOUNT"
+            elif sms.candidate_id is not None:
+                state = "MATCHED"
+            counts[state] += 1
+            if parsed is not None and state == "UNUSED":
+                unused[parsed.currency] = (
+                    unused.get(parsed.currency, Decimal(0)) + parsed.amount
+                )
+            if status and state != status:
+                continue
+            rows.append(
+                {
+                    "event_id": str(sms.event_id),
+                    "device_id": str(sms.device_id),
+                    "device_name": sms.device_name,
+                    "sender": sms.sender,
+                    "occurred_at": sms.occurred_at.astimezone(UTC).isoformat(),
+                    "amount": f"{parsed.amount:.2f}" if parsed else None,
+                    "currency": parsed.currency if parsed else None,
+                    "direction": str(parsed.direction) if parsed else None,
+                    "status": state,
+                    "candidate_id": (
+                        str(sms.candidate_id) if sms.candidate_id else None
+                    ),
+                }
+            )
+        return {
+            "items": rows[offset : offset + limit],
+            "total": len(rows),
+            "limit": limit,
+            "offset": offset,
+            "counts": {key: value for key, value in counts.items()},
+            "unused_totals": [
+                {"currency": currency, "amount": f"{amount:.2f}"}
+                for currency, amount in sorted(unused.items())
+            ],
+        }
+
     async def sources(self, device_id: UUID) -> tuple[list[UUID], SmsDirection]:
         if not await self.repo.existing_devices({device_id}):
             raise NotFound("Device not found.")

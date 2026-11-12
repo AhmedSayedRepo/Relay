@@ -28,16 +28,24 @@ async def _disable(client, auth_headers, device_id):
     assert response.status_code == 200, response.text
 
 
-async def test_unused_device_is_deleted(client, auth_headers):
+async def test_unlinked_device_is_deleted_without_disabling(client, auth_headers):
     device = await _create(client, auth_headers, "spare-phone")
+    assert device["status"] == "PENDING"
     url = f"/api/v1/devices/{device['id']}"
-    assert (await client.delete(url, headers=auth_headers)).status_code == 409
-    await _disable(client, auth_headers, device["id"])
     removed = await client.delete(url, headers=auth_headers)
     assert removed.json() == {"removed": True}
     assert (await client.get(url, headers=auth_headers)).status_code == 404
     # The same phone id and name can be added again.
     await _create(client, auth_headers, "spare-phone")
+
+
+async def test_linked_device_must_be_disabled_first(client, auth_headers):
+    device, _ = await provision(client, auth_headers, external_id="linked-phone")
+    url = f"/api/v1/devices/{device['id']}"
+    assert (await client.delete(url, headers=auth_headers)).status_code == 409
+    await _disable(client, auth_headers, device["id"])
+    removed = await client.delete(url, headers=auth_headers)
+    assert removed.status_code == 200, removed.text
 
 
 async def test_device_with_receipts_is_hidden_and_keeps_evidence(
