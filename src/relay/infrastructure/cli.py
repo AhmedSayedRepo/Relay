@@ -376,7 +376,7 @@ async def auto_confirm(
     from relay.application.errors import Conflict
     from relay.infrastructure.models import UserRow
 
-    counts = {"sms": 0, "readers": 0, "waiting": 0, "failed": 0}
+    counts = {"sms": 0, "sms_time": 0, "readers": 0, "waiting": 0, "failed": 0}
     async with database.session() as session:
         reviewer = await session.scalar(
             select(UserRow.id)
@@ -400,7 +400,15 @@ async def auto_confirm(
         ).all()
     if reviewer is None:
         return counts
-    used: set[UUID] = set()  # SMS already spent in this pass
+    # SMS already spent: in this pass, or held by a receipt still waiting for
+    # its date and time to be entered.
+    used: set[UUID] = set()
+    for _, _, resolution, _ in rows:
+        check = (
+            resolution.get("sms_time_check") if isinstance(resolution, dict) else None
+        )
+        if isinstance(check, dict) and isinstance(check.get("event_id"), str):
+            used.add(UUID(check["event_id"]))
     for candidate_id, device_id, resolution, folder_at in rows:
         if not isinstance(resolution, dict) or "model_reader" not in resolution:
             continue
@@ -408,6 +416,7 @@ async def auto_confirm(
             continue
         rule = None
         from_sms: set[str] = set()  # fields whose value comes from the SMS
+        time_check: dict[str, Any] | None = None  # distant SMS: enter date/time
         values = model_values(resolution, SMS_FIELDS)
         event = None
         if values is not None:
@@ -429,14 +438,21 @@ async def auto_confirm(
                     frozenset(used),
                 )
             if found is not None:
-                event, moment = found
-                values = core | {
-                    "date": moment.date().isoformat(),
-                    "time": moment.time().isoformat(),
-                }
-                from_sms = {"date", "time"}
+                event, moment, near = found
+                values = dict(core)
+                if near:
+                    values |= {
+                        "date": moment.date().isoformat(),
+                        "time": moment.time().isoformat(),
+                    }
+                    from_sms = {"date", "time"}
+                else:
+                    time_check = {
+                        "event_id": str(event),
+                        "local": moment.isoformat(timespec="minutes"),
+                    }
         if event is not None and values is not None:
-            rule = "sms"
+            rule = "sms_time" if time_check else "sms"
             used.add(event)
             # The SMS makes the reference optional: keep it only if the
             # model read a plausible one.
@@ -459,6 +475,8 @@ async def auto_confirm(
                     continue
                 if rule == "sms" and name == "currency":
                     await _tag(database, candidate_id, "sms_verified", {})
+                if time_check is not None and name == "currency":
+                    await _tag(database, candidate_id, "sms_time_check", time_check)
                 await _confirm(
                     database,
                     storage,
@@ -466,7 +484,7 @@ async def auto_confirm(
                     candidate_id,
                     name,
                     values[name],
-                    rule,
+                    "sms" if rule == "sms_time" else rule,
                     "CORRECT" if name in from_sms else "CONFIRM",
                 )
             if rule == "sms":
@@ -481,7 +499,8 @@ async def auto_confirm(
             print(f"Left {candidate_id} for review: {error}")
     print(
         f"Auto-confirmed {counts['sms']} by bank SMS and {counts['readers']} by "
-        f"two readers; {counts['waiting']} wait for review; "
+        f"two readers; {counts['sms_time']} matched an SMS but need their date "
+        f"and time entered; {counts['waiting']} wait for review; "
         f"{counts['failed']} failed."
     )
     return counts

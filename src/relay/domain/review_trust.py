@@ -27,6 +27,9 @@ REVIEWED_TRUST = frozenset(
 # only the amount and currency must be settled; reference, date and time
 # become optional for an SMS-verified receipt.
 SMS_REQUIRED_FIELDS = ("amount", "currency")
+# An SMS found only by a distant folder time proves the amount, but the
+# receipt's date and time must still be entered and agree with the SMS.
+SMS_TIME_CHECK_FIELDS = ("amount", "currency", "date", "time")
 OPTIONAL_FIELDS = (
     "sender",
     "handle",
@@ -151,6 +154,38 @@ def unresolved_required_fields(metadata: dict[str, JsonValue]) -> list[JsonValue
         blocked.append("classification")
     if metadata.get("supported_layout") is False:
         blocked.append("layout")
-    required = SMS_REQUIRED_FIELDS if metadata.get("sms_verified") else CRITICAL_FIELDS
+    required = (
+        SMS_REQUIRED_FIELDS
+        if metadata.get("sms_verified")
+        else (
+            SMS_TIME_CHECK_FIELDS if metadata.get("sms_time_check") else CRITICAL_FIELDS
+        )
+    )
     blocked.extend(name for name in required if reviewed_value(metadata, name) is None)
     return blocked
+
+
+def sms_time_conflict(
+    metadata: dict[str, JsonValue], field: str, value: str | None
+) -> str | None:
+    """Why a date or time entered for a receipt disagrees with the bank SMS
+    that identified it, or None when it agrees (one minute either way)."""
+    check = metadata.get("sms_time_check")
+    if field not in {"date", "time"} or not isinstance(check, dict) or not value:
+        return None
+    expected = check.get("local")
+    if not isinstance(expected, str) or len(expected) < 16:
+        return None
+    day, clock = expected[:10], expected[11:16]
+    if field == "date":
+        if value != day:
+            return f"The date must match the bank SMS ({day} {clock})."
+        return None
+    hours, minutes = int(clock[:2]), int(clock[3:5])
+    entered = int(value[:2]) * 60 + int(value[3:5])
+    gap = abs(entered - (hours * 60 + minutes))
+    if min(gap, 1440 - gap) > 1:
+        return (
+            f"The time must match the bank SMS ({day} {clock}, one minute either way)."
+        )
+    return None

@@ -302,6 +302,7 @@ class OpenpyxlWorkbookExporter:
             amount = _decimal(item, "amount")
             if (
                 item.get("review_status") == "AUTO_ACCEPTED"
+                and not item.get("duplicate_of_candidate_id")  # same payment again
                 and isinstance(currency, str)
                 and amount is not None
             ):
