@@ -31,6 +31,7 @@ const paths: Record<string, ReactNode> = {
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
   link: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M9.5 9.5h5v5h-5z" /></>,
   back: <><path d="M15 5 8 12l7 7" /></>,
+  users: <><circle cx="9" cy="8.5" r="3.5" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M16 5.5a3.5 3.5 0 0 1 0 6.5" /><path d="M18 14.3c1.8.8 3 2.6 3 4.7" /></>,
 };
 
 export type IconName = keyof typeof paths;

@@ -11,6 +11,7 @@ import { defaultDates, useApi } from "./hooks";
 import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
 import type { DashboardData, DuplicateGroup, Job, Json, Page, Transaction } from "./types";
+import { canReview, useRole } from "./role";
 
 const dash = "—";
 function formatAmount(amount: string | null, currency: string | null, locale: Locale) {
@@ -68,14 +69,14 @@ export function Transactions({ token }: { token: string }) {
 }
 
 export function TransactionDetail({ token }: { token: string }) {
-  const { locale, messages: m } = useI18n(); const { id = "" } = useParams();
+  const { locale, messages: m } = useI18n(); const { id = "" } = useParams(); const role = useRole();
   const { data, error, loading, reload } = useApi<Transaction & Record<string, Json>>("/transactions/" + id, token);
   const [region, setRegion] = useState<{ receiptId: string; polygon: number[][] } | null>(null); const evidence = data ? evidenceFirst(data) : null;
   const facts = data ? [[m.detail.reference, <Bidi>{data.reference_original || dash}</Bidi>], [m.detail.amount, <Amount amount={data.amount} currency={data.currency} locale={locale} />], [m.detail.transactionTime, <Timestamp value={data.transaction_occurred_at} locale={locale} />], [m.detail.relayEntry, <Timestamp value={data.created_at} locale={locale} />], [m.detail.review, <StatusBadge value={data.review_status} />], [m.detail.processing, <StatusBadge value={data.processing_status} />], [m.detail.device, data.device_name], [m.detail.source, data.source_type], [m.detail.confidence, <Bidi>{data.ocr_mean_confidence === null ? dash : Math.round(data.ocr_mean_confidence * 100) + "%"}</Bidi>]] : [];
   return <section><PageHeading title={m.pages.transactionDetail[0]} description={m.pages.transactionDetail[1]} help={contextHelp.transactionDetail} /><Status loading={loading} error={error} />{data && data.id === id && <><ReceiptJourney transaction={data} /><div className="detail-grid">
     <article className="panel receipt-panel"><h2>{m.detail.receiptImage}</h2><ProtectedImage key={data.id} path={data.image_url} token={token} polygon={region?.receiptId === data.id ? region.polygon : []} alt={formatMessage(m.detail.receiptAlt, { reference: data.reference_original || data.id })} /></article>
     <article className="panel final-panel"><h2>{m.detail.reviewedTitle}</h2><p className="subhead">{m.detail.reviewedPriority}</p><dl className="fact-list">{facts.map(([label, value]) => <div key={String(label)}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>{data.duplicate_group_id && <Link className="button-link" to={"/duplicates/" + data.duplicate_group_id}>{m.detail.openDuplicate}</Link>}</article>
-    {evidence ? <ExceptionReview key={data.id + String(data.updated_at)} receipt={data} evidence={evidence} token={token} reload={reload} focus={(polygon) => setRegion({ receiptId: data.id, polygon })} /> : <p className="panel wide status error" role="alert">{m.exceptions.failed}</p>}
+    {evidence && !canReview(role) ? <article className="panel wide"><h2>{m.exceptions.title}</h2><p className="hint">{m.users.readOnly}</p><ExceptionSummary receipt={data} /></article> : evidence ? <ExceptionReview key={data.id + String(data.updated_at)} receipt={data} evidence={evidence} token={token} reload={reload} focus={(polygon) => setRegion({ receiptId: data.id, polygon })} /> : <p className="panel wide status error" role="alert">{m.exceptions.failed}</p>}
     <SmsVerificationPanel key={"sms-" + data.id + String(data.updated_at)} id={data.id} token={token} />
     <details className="panel wide evidence-details"><summary>{m.detail.showEvidence}</summary><h2>{m.detail.machine}</h2><p className="hint">{m.detail.machineHint}</p><h3>{m.detail.provenance}</h3><pre dir="ltr">{display(data.ocr)}</pre><h3>{m.detail.history}</h3><pre dir="ltr">{display({ review_history: data.review_history, duplicate_resolution_history: data.duplicate_resolution_history })}</pre></details>
   </div></>}</section>;

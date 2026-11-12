@@ -27,6 +27,11 @@ class UserRow(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    role: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=text("'ADMIN'")
+    )
+    # Users with review history are kept (decisions point at them) but hidden.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DeviceRow(Base):

@@ -13,7 +13,7 @@ export const en = {
   },
   navigation: {
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
-    processing: "Processing", reports: "Reports", devices: "Devices", account: "Account", help: "Help",
+    processing: "Processing", reports: "Reports", devices: "Devices", users: "Users", account: "Account", help: "Help",
   },
   pages: {
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
@@ -25,6 +25,7 @@ export const en = {
     processing: ["Processing queue", "Understand each job state and retry only eligible transient failures."],
     reports: ["Reports and export", "Check the bounded summary, then create an audited Excel workbook."],
     devices: ["Devices and configuration", "See collection readiness, synchronization, and activity without exposing credentials."],
+    users: ["Users and roles", "Add the people who use Relay and choose what each one may do."],
     account: ["Account", "Your sign-in and the recovery codes that get you back in."],
     help: ["Relay guide", "Practical guidance for collection, processing, review, duplicates, and reporting."],
   },
@@ -87,6 +88,15 @@ export const en = {
     unresolved: "Unresolved", confirmed: "Confirmed duplicate", notDuplicate: "Not duplicate", note: "Note (optional)",
     record: "Record audited decision", recorded: "Decision recorded. The deterministic link remains preserved.",
     failed: "Decision could not be recorded.", differs: "Differs from canonical", matches: "Matches canonical",
+  },
+  users: {
+    add: "Add a user", addButton: "Add user", email: "Email", role: "Role", password: "Temporary password", status: "Status", actions: "Actions",
+    roles: { ADMIN: "Admin", REVIEWER: "Reviewer", VIEWER: "Viewer" },
+    roleHint: "Admin: everything, including users and devices. Reviewer: review receipts, duplicates and SMS matches. Viewer: dashboard, transactions and reports only.",
+    active: "Active", disabled: "Disabled", enable: "Enable", disable: "Disable", resetPassword: "Reset password", delete: "Delete",
+    added: "User added.", saved: "Saved.", deleted: "User deleted.", failed: "The change could not be saved.",
+    newPasswordFor: "New password for {email} (at least 12 characters):", confirmDelete: "Delete {email}? Their past review decisions stay in the history.",
+    readOnly: "Your role can view receipts but not review them.",
   },
   exceptions: {
     markedUnavailable: "Marked unavailable: not shown on this receipt.", enterValue: "Enter a value instead", title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",

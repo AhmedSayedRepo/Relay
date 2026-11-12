@@ -6,7 +6,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from relay.application.auth import AuthService
 from relay.application.devices import DeviceService
-from relay.application.errors import AuthenticationFailed
+from relay.application.errors import AuthenticationFailed, Forbidden
+from relay.domain.permissions import allowed
 from relay.domain.users import User
 from relay.infrastructure.database import Database
 from relay.infrastructure.repositories import SqlUnitOfWork
@@ -38,12 +39,18 @@ def device_service(
 
 
 async def current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     service: Annotated[AuthService, Depends(auth_service)],
 ) -> User:
     if credentials is None or len(credentials.credentials) > 4096:
         raise AuthenticationFailed("Authentication required.")
-    return await service.current_user(credentials.credentials)
+    user = await service.current_user(credentials.credentials)
+    root = str(request.scope.get("root_path") or "")
+    path = request.url.path.removeprefix(root) if root else request.url.path
+    if not allowed(user.role, request.method, path):
+        raise Forbidden("Your role does not allow this action.")
+    return user
 
 
 AuthenticatedUser = Annotated[User, Depends(current_user)]
