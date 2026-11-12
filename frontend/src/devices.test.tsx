@@ -34,6 +34,6 @@ describe("device delete", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((request) => String(request).includes("/operations/devices") ? json({ items, total: 2, limit: 100, offset: 0 }) : json({ device_id: "x", enabled: false, sms_device_ids: [], direction: "IN" }));
     render(<ThemeProvider><I18nProvider><Devices token="t" /></I18nProvider></ThemeProvider>);
     expect(await screen.findByRole("heading", { name: "Counter" })).toBeInTheDocument();
-    expect(screen.getAllByRole("checkbox", { name: "Use this device’s reviewed receipts for model training" })).toHaveLength(1);
+    expect(await screen.findAllByRole("checkbox", { name: "Use this device’s reviewed receipts for model training" })).toHaveLength(1);
   });
 });
