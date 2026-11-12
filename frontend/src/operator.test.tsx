@@ -84,7 +84,7 @@ describe("Sprint 7 operator experience", () => {
 
   it("shows dashboard loading and currency-separated operational hierarchy", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => json(dashboard));
-    renderRelay(<Dashboard token="token" />);
+    renderRelay(<MemoryRouter><Dashboard token="token" /></MemoryRouter>);
     expect(screen.getByRole("status")).toHaveTextContent("Loading operational data");
     expect(await screen.findByText("Final money by currency")).toBeInTheDocument();
     expect(screen.getByText(/2,501/)).toBeInTheDocument();

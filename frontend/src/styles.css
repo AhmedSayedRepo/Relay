@@ -161,6 +161,10 @@ textarea { min-height: 5rem; resize: vertical; }
 .metric > span { display: flex; align-items: center; gap: .5rem; max-width: 12rem; color: var(--ink-soft); font-weight: 700; }
 .metric > span::before { content: ""; flex: none; width: .55rem; height: .55rem; border-radius: 50%; background: var(--tone); }
 .metric strong { display: block; margin-block-start: .9rem; font-size: 2.25rem; line-height: 1; letter-spacing: -.03em; }
+.metric.money strong { font-size: 1.7rem; }
+.metric small { display: block; margin-top: .5rem; color: var(--ink-soft); }
+.money-line { display: block; }
+.dash-title { margin: 1.4rem 0 0; font-size: 1.05rem; }
 .panel { padding: 1.2rem; min-width: 0; }.panel h2, .record-card h2 { margin-block-start: 0; }
 .two-column, .detail-grid, .compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .wide { grid-column: 1 / -1; }
