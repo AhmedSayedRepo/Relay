@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,11 +12,13 @@ from relay.infrastructure.agent_models import ConfigurationRow
 from relay.infrastructure.agent_repository import SqlAgentRepository
 from relay.infrastructure.binary_repository import SqlBinaryRepository
 from relay.infrastructure.datetime_utils import aware
+from relay.infrastructure.event_models import RawEventRow
 from relay.infrastructure.event_repository import SqlEventRepository
 from relay.infrastructure.models import DeviceRow, UserRow
 from relay.infrastructure.operations_repository import SqlOperationsRepository
 from relay.infrastructure.processing_repository import SqlProcessingRepository
 from relay.infrastructure.recovery_repository import SqlRecoveryRepository
+from relay.infrastructure.sms_verification_models import SmsSourceLinkRow
 from relay.infrastructure.sms_verification_repository import (
     SqlSmsVerificationRepository,
 )
@@ -175,11 +177,45 @@ class SqlDeviceRepository:
     async def list(self, *, limit: int, offset: int) -> list[Device]:
         rows = await self.session.scalars(
             select(DeviceRow)
+            .where(DeviceRow.deleted_at.is_(None))
             .order_by(DeviceRow.created_at, DeviceRow.id)
             .limit(limit)
             .offset(offset)
         )
         return [to_device(row) for row in rows]
+
+    async def remove(self, device_id: UUID) -> bool:
+        """Delete a device. One that collected receipts, images or SMS is
+        hidden instead so its evidence stays. True when fully removed."""
+        row = await self.session.get(DeviceRow, device_id)
+        if row is None:
+            return True
+        await self.session.execute(
+            delete(SmsSourceLinkRow).where(
+                or_(
+                    SmsSourceLinkRow.receipt_device_id == device_id,
+                    SmsSourceLinkRow.sms_device_id == device_id,
+                )
+            )
+        )
+        evidence = await self.session.scalar(
+            select(RawEventRow.id).where(RawEventRow.device_id == device_id).limit(1)
+        )
+        if evidence is None:
+            try:
+                async with self.session.begin_nested():
+                    await self.session.delete(row)
+                return True
+            except IntegrityError:
+                row = await self.session.get(DeviceRow, device_id)
+                if row is None:
+                    return True
+        now = datetime.now(UTC)
+        row.deleted_at = now
+        row.updated_at = now
+        suffix = f"#deleted-{str(row.id)[:8]}"
+        row.external_device_id = row.external_device_id[: 128 - len(suffix)] + suffix
+        return False
 
     async def name_in_use(self, name: str, exclude: UUID | None = None) -> bool:
         query = select(DeviceRow.id).where(

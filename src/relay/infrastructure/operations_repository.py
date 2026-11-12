@@ -878,9 +878,14 @@ class SqlOperationsRepository:
                 (ConfigurationRow.device_id == latest.c.device_id)
                 & (ConfigurationRow.version == latest.c.version),
             )
+            .where(DeviceRow.deleted_at.is_(None))
             .order_by(DeviceRow.created_at, DeviceRow.id)
         )
-        total = await self.db.scalar(select(func.count()).select_from(DeviceRow))
+        total = await self.db.scalar(
+            select(func.count())
+            .select_from(DeviceRow)
+            .where(DeviceRow.deleted_at.is_(None))
+        )
         rows = await self.db.execute(statement.limit(limit).offset(offset))
         items: list[dict[str, JsonValue]] = []
         for row in rows:

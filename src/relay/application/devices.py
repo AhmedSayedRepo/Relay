@@ -28,6 +28,14 @@ class DeviceService:
     def __init__(self, uow: AgentUnitOfWork) -> None:
         self.uow = uow
 
+    async def delete(self, device_id: UUID) -> bool:
+        device = await self.get(device_id)
+        if device.status != DeviceStatus.DISABLED:
+            raise Conflict("Disable the device before deleting it.")
+        removed = await self.uow.devices.remove(device.id)
+        await self.uow.commit()
+        return removed
+
     async def _unique_name(self, name: str, exclude: UUID | None = None) -> None:
         # One active record per phone: a second device with the same name is
         # almost always the same phone added twice.
