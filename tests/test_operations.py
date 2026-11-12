@@ -147,6 +147,15 @@ async def test_operator_dashboard_transactions_duplicates_and_export(
     assert dashboard.json()["totals_by_currency"] == [
         {"currency": "EGP", "amount": "1250.50", "transaction_count": 1}
     ]
+    # Receipts here reached the folder today, so today and the week match.
+    assert dashboard.json()["today_totals"] == dashboard.json()["totals_by_currency"]
+    assert dashboard.json()["week_totals"] == dashboard.json()["totals_by_currency"]
+    assert dashboard.json()["auto_confirmed_count"] == 0
+    assert dashboard.json()["manual_confirmed_count"] == 1
+    assert isinstance(dashboard.json()["sms_by_status"], dict)
+    phones = dashboard.json()["transactions_by_device"]
+    assert sum(item["confirmed_count"] for item in phones) == 1
+    assert {item["confirmed_amount"] for item in phones} <= {"1250.50", "0.00"}
 
     devices = await client.get("/api/v1/operations/devices", headers=auth_headers)
     assert devices.status_code == 200

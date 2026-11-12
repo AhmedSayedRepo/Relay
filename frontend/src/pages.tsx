@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError, downloadExport, query } from "./api";
 import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
 import { Bidi, ReceiptJourney, StatusBadge } from "./components/Product";
@@ -42,16 +42,41 @@ function ProtectedImage({ path, token, alt, polygon = [] }: { path: string; toke
   return <div className="receipt-region"><img className="receipt-image" src={url} alt={alt} onLoad={(event) => setSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])} />{safePolygon && size[0] > 0 && <svg aria-label={m.exceptions.region} role="img" viewBox={`0 0 ${size[0]} ${size[1]}`} preserveAspectRatio="none"><polygon points={polygon.map((point) => point.join(",")).join(" ")} /></svg>}</div>;
 }
 
+type Money = { currency: string; amount: string | null; transaction_count: number }[];
+function MoneyValue({ totals, locale }: { totals: Money | undefined; locale: Locale }) {
+  const list = Array.isArray(totals) ? totals : [];
+  if (!list.length) return <Bidi>0</Bidi>;
+  return <>{list.map((item) => <span className="money-line" key={item.currency}><Amount amount={item.amount} currency={item.currency} locale={locale} /></span>)}</>;
+}
+function count(list: Money | undefined) { return (Array.isArray(list) ? list : []).reduce((sum, item) => sum + (Number(item.transaction_count) || 0), 0); }
+
 export function Dashboard({ token }: { token: string }) {
-  const { locale, messages: m } = useI18n(); const initial = defaultDates();
+  const { locale, messages: m } = useI18n(); const initial = defaultDates(); const role = useRole(); const d = m.dashboard;
   const [dateFrom, setDateFrom] = useState(initial.dateFrom); const [dateTo, setDateTo] = useState(initial.dateTo);
-  const { data, error, loading } = useApi<DashboardData>("/dashboard" + query({ date_from: dateFrom, date_to: dateTo }), token);
-  const cards = data ? [[m.dashboard.finalTransactions, data.final_transaction_count, "money"], [m.dashboard.reviewDemand, data.needs_review_count, "review"], [m.dashboard.duplicateGroups, data.duplicate_group_count, "duplicate"], [m.dashboard.failedProcessing, data.processing_failure_count, "processing"]] as const : [];
+  const range = query({ date_from: dateFrom, date_to: dateTo });
+  const { data, error, loading } = useApi<DashboardData>("/dashboard" + range, token);
+  const workload = useApi<Record<string, number>>("/review-queue/categories" + range, token).data;
+  const sms = (data?.sms_by_status ?? {}) as Record<string, number>; const n = (value: unknown) => Number(value) || 0;
+  const queue = (["ready", "missing", "duplicate", "in_progress"] as const).map((key) => [key, n(workload?.[key])] as const);
+  const waiting = queue.reduce((sum, [, value]) => sum + value, 0);
   return <section><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
-    <div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /></div><p className="hint">{m.common.dateBasis}</p>
-    <Status loading={loading} error={error} />{data && <><div className="metric-grid">{cards.map(([label, value, kind]) => <article className={"metric " + kind} key={label}><span>{label}</span><strong><Bidi>{value}</Bidi></strong></article>)}</div>
-      <div className="two-column"><article className="panel money-panel"><div className="section-heading"><div><h2>{m.dashboard.moneyTitle}</h2><p className="subhead">{m.dashboard.moneyIntro}</p></div></div>{data.totals_by_currency.length ? <div className="table-wrap flush"><table><thead><tr><th>{m.dashboard.currency}</th><th>{m.dashboard.transactions}</th><th>{m.dashboard.total}</th></tr></thead><tbody>{data.totals_by_currency.map((item) => <tr key={item.currency}><td data-label={m.dashboard.currency}><Bidi>{item.currency}</Bidi></td><td data-label={m.dashboard.transactions}><Bidi>{item.transaction_count}</Bidi></td><td data-label={m.dashboard.total}><Amount amount={item.amount} currency={item.currency} locale={locale} /></td></tr>)}</tbody></table></div> : <p className="empty-inline">{m.dashboard.noTotals}</p>}</article>
-      <article className="panel pulse-panel"><div className="section-heading"><div><h2>{m.dashboard.activity}</h2><p className="subhead">{m.dashboard.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div><dt>{m.dashboard.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div><div><dt>{m.dashboard.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div><dt>{m.dashboard.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div><dt>{m.dashboard.reviewed}</dt><dd><Bidi>{data.reviewed_count}</Bidi></dd></div></dl><p className="quiet-signal">{m.dashboard.quiet}</p></article></div></>}
+    <div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /></div><p className="hint">{m.reports.folderBasis}</p>
+    <Status loading={loading} error={error} />{data && <>
+      <h2 className="dash-title">{d.moneyNow}</h2>
+      <div className="metric-grid">
+        <article className="metric money"><span>{d.today}</span><strong><MoneyValue totals={data.today_totals} locale={locale} /></strong><small>{formatMessage(d.receiptsCount, { count: count(data.today_totals) })}</small></article>
+        <article className="metric money"><span>{d.week}</span><strong><MoneyValue totals={data.week_totals} locale={locale} /></strong><small>{formatMessage(d.receiptsCount, { count: count(data.week_totals) })}</small></article>
+        <article className="metric"><span>{d.finalTransactions}</span><strong><Bidi>{data.final_transaction_count}</Bidi></strong><small>{d.onceEach}</small></article>
+        <article className="metric review"><span>{d.reviewDemand}</span><strong><Bidi>{data.needs_review_count}</Bidi></strong>{canReview(role) && <small><Link to="/review">{d.openReview}</Link></small>}</article>
+      </div>
+      <div className="two-column"><article className="panel money-panel"><div className="section-heading"><div><h2>{d.moneyTitle}</h2><p className="subhead">{d.moneyIntro}</p></div></div>{data.totals_by_currency.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.currency}</th><th>{d.transactions}</th><th>{d.total}</th></tr></thead><tbody>{data.totals_by_currency.map((item) => <tr key={item.currency}><td data-label={d.currency}><Bidi>{item.currency}</Bidi></td><td data-label={d.transactions}><Bidi>{item.transaction_count}</Bidi></td><td data-label={d.total}><Amount amount={item.amount} currency={item.currency} locale={locale} /></td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noTotals}</p>}
+        <dl className="fact-list"><div><dt>{d.autoConfirmed}</dt><dd><Bidi>{n(data.auto_confirmed_count)}</Bidi></dd></div><div><dt>{d.manualConfirmed}</dt><dd><Bidi>{n(data.manual_confirmed_count)}</Bidi></dd></div><div><dt>{d.duplicateGroups}</dt><dd><Bidi>{data.duplicate_group_count}</Bidi></dd></div></dl></article>
+      <article className="panel"><div className="section-heading"><div><h2>{d.workloadTitle}</h2><p className="subhead">{formatMessage(d.workloadIntro, { count: waiting })}</p></div></div>
+        <dl className="fact-list">{queue.map(([key, value]) => <div key={key}><dt>{canReview(role) ? <Link to={"/review?category=" + key}>{m.review.categories[key]}</Link> : m.review.categories[key]}</dt><dd><Bidi>{value}</Bidi></dd></div>)}</dl>
+        <h3>{d.smsTitle}</h3><dl className="fact-list">{["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"].map((key) => <div key={key}><dt>{(d.sms as Record<string, string>)[key]}</dt><dd><Bidi>{n(sms[key])}</Bidi></dd></div>)}</dl></article></div>
+      <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.total}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
+      <article className="panel pulse-panel"><div className="section-heading"><div><h2>{d.activity}</h2><p className="subhead">{d.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div><dt>{d.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div><div><dt>{d.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div><dt>{d.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div><dt>{d.failedProcessing}</dt><dd><Bidi>{data.processing_failure_count}</Bidi></dd></div></dl></article>
+    </>}
   </section>;
 }
 
@@ -99,7 +124,7 @@ export function DuplicateDetail({ token }: { token: string }) {
 
 export function ReviewQueue({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const initial = defaultDates(); const [dateFrom, setDateFrom] = useState(initial.dateFrom); const [dateTo, setDateTo] = useState(initial.dateTo); const [search, setSearch] = useState(""); const [direction, setDirection] = useState("asc"); const [offset, setOffset] = useState(0); const limit = 25;
-  const [category, setCategory] = useState("");
+  const [params] = useSearchParams(); const [category, setCategory] = useState(params.get("category") || "");
   const filters = { date_from: dateFrom, date_to: dateTo, search: search || undefined };
   const { data, error, loading } = useApi<Page<Transaction>>("/review-queue" + query({ ...filters, category: category || undefined, sort_direction: direction, limit, offset }), token);
   const { data: counts } = useApi<Record<string, number>>("/review-queue/categories" + query(filters), token);

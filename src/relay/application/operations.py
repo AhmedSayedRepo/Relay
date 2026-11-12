@@ -57,7 +57,19 @@ class OperationsService:
         self.audit_retention_days = audit_retention_days
 
     async def dashboard(self, window: DateWindow) -> dict[str, JsonValue]:
-        return await self.uow.operations.dashboard(window)
+        """Range summary plus today's and the last 7 days' confirmed money,
+        on the same date basis and time zone as the range."""
+        data = await self.uow.operations.dashboard(window)
+        zone = window.start.tzinfo or UTC
+        today = datetime.now(zone).date()
+        for key, start in (
+            ("today_totals", today),
+            ("week_totals", today - timedelta(days=6)),
+        ):
+            data[key] = await self.uow.operations.money_totals(
+                date_window(start, today, zone=zone, folder_time=window.folder_time)
+            )
+        return data
 
     async def transactions(
         self, query: TransactionQuery

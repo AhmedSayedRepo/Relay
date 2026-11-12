@@ -66,11 +66,14 @@ def _transaction_query(
 @router.get("/dashboard", response_model=OperationData)
 async def dashboard(
     service: Service,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> dict[str, JsonValue]:
-    start, end = _dates(date_from, date_to)
-    return await service.dashboard(date_window(start, end))
+    # Same basis as Reports: when receipts reached the phone's folder.
+    return await service.dashboard(
+        _folder_window(request, date_from, date_to, None, None)
+    )
 
 
 @router.get("/transactions", response_model=OperationPage)
