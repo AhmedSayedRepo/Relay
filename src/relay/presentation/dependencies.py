@@ -46,8 +46,8 @@ async def current_user(
     if credentials is None or len(credentials.credentials) > 4096:
         raise AuthenticationFailed("Authentication required.")
     user = await service.current_user(credentials.credentials)
-    route = request.scope.get("route")
-    path = getattr(route, "path", request.url.path)
+    root = str(request.scope.get("root_path") or "")
+    path = request.url.path.removeprefix(root) if root else request.url.path
     if not allowed(user.role, request.method, path):
         raise Forbidden("Your role does not allow this action.")
     return user
