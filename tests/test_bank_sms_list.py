@@ -24,7 +24,7 @@ async def test_bank_sms_lists_unused_and_amountless_messages(client, auth_header
     await _send_sms(
         client, bundle, "notice: You have received EGP 640.00 via InstaPay", now
     )
-    await _send_sms(client, bundle, "Your verification code is 482913", now)
+    await _send_sms(client, bundle, "notice: your verification code is 482913", now)
     today = datetime.now(CAIRO).date()
     listed = await client.get(
         "/api/v1/bank-sms",
