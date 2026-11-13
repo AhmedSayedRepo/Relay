@@ -10,6 +10,7 @@ from relay.domain.operations import TransactionQuery
 from relay.domain.users import Role
 from relay.infrastructure.config import Settings
 from relay.infrastructure.database import Database
+from relay.infrastructure.email_settings import mail_config
 from relay.infrastructure.excel_export import OpenpyxlWorkbookExporter
 from relay.infrastructure.mailer import SmtpMailer
 from relay.infrastructure.repositories import SqlUnitOfWork
@@ -154,15 +155,17 @@ async def send_daily_report(
     local = (now or datetime.now(UTC)).astimezone(zone)
     if not force and local.hour != SEND_HOUR:
         return False
-    recipient = settings.daily_report_email
-    if not recipient or not settings.smtp_host:
-        print("Daily report email is not configured; nothing sent.")
-        return False
     day = local.date()
     window = date_window(day, day, zone=zone, folder_time=True)
     database = Database(settings)
     try:
         async with database.session() as session:
+            config = await mail_config(session, settings)
+            if config is None or not config.report_email:
+                print("Daily report email is not configured; nothing sent.")
+                return False
+            recipient: str = config.report_email
+            mailer = SmtpMailer(config)
             uow = SqlUnitOfWork(session)
             service = OperationsService(
                 uow,
@@ -186,7 +189,7 @@ async def send_daily_report(
         await database.close()
     text, html = render(day, dict(summary), dict(sms))
     attachment = (f"relay-{day.isoformat()}.xlsx", workbook) if workbook else None
-    await SmtpMailer(settings).send_report(
+    await mailer.send_report(
         recipient,
         f"Relay daily report: {day.isoformat()}",
         text,

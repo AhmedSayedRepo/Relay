@@ -3,6 +3,7 @@
 package com.relay.agent.presentation
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -27,16 +28,30 @@ import com.relay.agent.R
 import com.relay.agent.presentation.theme.RelayTheme
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // The header is deep teal in both themes, so status-bar icons stay light.
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
-        setContent { RelayTheme { AgentScreen() } }
+        setContent {
+            RelayTheme {
+                AgentScreen(
+                    switchLanguage = {
+                        AppLanguage.toggle(this)
+                        recreate()
+                    }
+                )
+                UpdatePrompt(BuildConfig.VERSION_NAME)
+            }
+        }
     }
 }
 
 @Composable
-private fun AgentScreen(model: AgentViewModel = viewModel()) {
+private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = viewModel()) {
     val status by model.status.collectAsStateWithLifecycle()
     LifecycleResumeEffect(model) {
         model.permissionChanged()
@@ -64,6 +79,7 @@ private fun AgentScreen(model: AgentViewModel = viewModel()) {
     AgentContent(
         status = status,
         appVersion = BuildConfig.VERSION_NAME,
+        switchLanguage = switchLanguage,
         actions = AgentActions(
             enroll = model::enroll,
             sync = model::sync,

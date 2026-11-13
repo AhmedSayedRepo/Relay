@@ -1,6 +1,8 @@
 # Relay landing site
 
-Static English (`index.html`) and Arabic (`ar/index.html`) pages, hosted on Vercel
+Static Arabic (`index.html`, the default home page) and English (`en/index.html`)
+pages, hosted on Vercel; `ar/index.html` only redirects old links to `/`. Download
+buttons show the newest app version from the latest GitHub release
 (free `*.vercel.app` address). They were first generated from the Design canvas with
 `build_site.py`; they are now edited directly (download link, share tags), so don't
 regenerate them over these edits.

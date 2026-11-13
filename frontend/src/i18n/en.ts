@@ -12,11 +12,13 @@ export const en = {
     switchLanguage: "Change language", switchTheme: "Change color theme",
   },
   navigation: {
+    emailSettings: "Email",
     bankSms: "Bank SMS",
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
     processing: "Processing", reports: "Reports", devices: "Devices", users: "Users", account: "Account", help: "Help",
   },
   pages: {
+    emailSettings: ["Email settings", "The Gmail account Relay sends from: password reset links and the daily report."],
     bankSms: ["Bank SMS", "Every bank SMS the SMS phone received, and whether it confirmed a receipt."],
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
     transactions: ["Transactions", "Scan final and pending evidence, then open any receipt without losing context."],
@@ -131,6 +133,16 @@ export const en = {
     training: "Model training data", trainingToggle: "Use this device’s reviewed receipts for model training", trainingOn: "On: reviewed receipts from this device can be copied into the training dataset.", trainingOff: "Off: nothing from this device is copied into the training dataset.", trainingLoading: "Checking training consent…", trainingUnavailable: "Training consent could not be loaded.", trainingFailed: "The change was not saved. Try again.",
     collectionSave: "Save", collectionSaving: "Saving…", collectionSaved: "Saved. The phone gets this on its next sync — tap Sync now on the phone.", collectionFailed: "Not saved. Try again.", collectionTitle: "What this phone collects", imagesToggle: "Receipt images from a folder", smsToggle: "Bank SMS", senders: "Bank SMS senders (comma-separated)", sendersNeeded: "Add at least one bank SMS sender first.", collectionHint: "The phone picks this up on its next sync. Then turn the matching switch on in the app and choose the folder.", collectionChanged: "Someone else changed this device. The latest settings are shown; try again.", collectionUnavailable: "Collection settings could not be loaded.",
     smsAnySender: "Any sender: Relay keeps only messages that show an amount (EGP or جنيه), so codes and ads are skipped.", sendersOptional: "Only these senders (optional, comma-separated)", sectionMatching: "Bank SMS matching", sectionTraining: "Model training", bulkTitle: "Bank SMS phone", bulkHint: "Pick the phone that receives the bank SMS. Receipts from every other phone are then checked against its SMS.", bulkPick: "SMS phone", bulkApply: "Use for all receipt phones", bulkDone: "Done: {count} phones are checked against {name}.", bulkFailed: "Some phones could not be updated. Try again.", bulkNone: "Add the phone that receives the bank SMS first.", settingsFor: "Settings for {name}",
+  },
+  emailSettings: {
+    senderName: "Sender name (what people see)", senderEmail: "Gmail address", appPassword: "Gmail app password", reportEmail: "Daily report goes to",
+    passwordKept: "Saved. Leave empty to keep it", save: "Save", test: "Send a test email", saved: "Saved.", saveFailed: "Could not save. Try again.",
+    invalid: "Check the email addresses.", passwordNeeded: "Enter the Gmail app password.", saveFirst: "Save the settings first.",
+    testSent: "Test email sent to {email}.", rejected: "Gmail rejected the address or app password. Check them and try again.", unreachable: "Could not reach Gmail. Try again in a minute.",
+    source: { portal: "Active: these settings", server: "Active: the server’s .env settings", none: "Off: no email is sent yet" },
+    howTitle: "Get a Gmail app password",
+    how: ["Open myaccount.google.com and go to Security.", "Turn on 2-Step Verification if it is off.", "Search for “App passwords”, create one named Relay.", "Copy the 16 letters here and press Save, then Send a test email."],
+    privacy: "The app password is stored encrypted on the server and is never shown again.",
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",

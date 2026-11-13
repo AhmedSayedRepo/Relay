@@ -11,7 +11,6 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.device_security import DeviceTokens
 from relay.infrastructure.logging import configure_logging
-from relay.infrastructure.mailer import SmtpMailer
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.security import Argon2Passwords, JwtTokens
 from relay.presentation.errors import ErrorResponse, register_error_handlers
@@ -21,6 +20,7 @@ from relay.presentation.middleware import (
     RequestMiddleware,
 )
 from relay.presentation.routes import (
+    admin_settings,
     agents,
     auth,
     binary_objects,
@@ -49,7 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.passwords = Argon2Passwords()
             app.state.tokens = JwtTokens(config)
             app.state.device_tokens = DeviceTokens(config)
-            app.state.mailer = SmtpMailer(config) if config.smtp_host else None
+            app.state.mailer = None  # tests may set a fake; else per-send config
             app.state.object_storage = FilesystemObjectStorage(
                 config.object_storage_root
             )
@@ -94,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(training.router, prefix="/api/v1")
     app.include_router(sms_verification.router, prefix="/api/v1")
     app.include_router(users.router, prefix="/api/v1")
+    app.include_router(admin_settings.router, prefix="/api/v1")
     frontend = config.operator_frontend_dir.expanduser().resolve()
     if frontend.is_dir():
 

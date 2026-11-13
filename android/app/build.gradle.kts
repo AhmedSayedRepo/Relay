@@ -96,6 +96,8 @@ android {
             "OldTargetApi"
         )
     }
+    // The app switches between Arabic and English itself, so bundles keep every language.
+    bundle.language.enableSplit = false
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     // Screenshot tests render Compose under Robolectric with real resources.
     testOptions.unitTests.isIncludeAndroidResources = true

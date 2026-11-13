@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from relay.infrastructure import (
     agent_models,  # noqa: F401
     binary_models,  # noqa: F401
+    email_settings,  # noqa: F401
     event_models,  # noqa: F401
     models,  # noqa: F401
     operation_models,  # noqa: F401

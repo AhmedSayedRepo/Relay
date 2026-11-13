@@ -8,7 +8,8 @@ export const localeCatalogs: Record<Locale, Messages> = { en, ar };
 
 function savedLocale(): Locale {
   const value = localStorage.getItem(LOCALE_KEY);
-  return value === "ar" || value === "en" ? value : "en";
+  // Arabic first; tests keep English so their labels stay readable.
+  return value === "ar" || value === "en" ? value : import.meta.env.MODE === "test" ? "en" : "ar";
 }
 
 type I18nValue = { locale: Locale; setLocale: (locale: Locale) => void; messages: Messages; dir: "ltr" | "rtl" };
