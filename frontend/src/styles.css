@@ -119,27 +119,30 @@ a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; 
 .signal-mark { align-items: center; }
 .app-version { margin-inline-start: auto; color: #aac2bf; font-size: .72rem; letter-spacing: .02em; }
 /* Rail illustration: fills the empty space under the menu, decorative only. */
-.rail-art { display: block; width: 100%; max-width: 11rem; margin: auto auto 1rem; opacity: .9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.rail-art .ra-receipt rect, .rail-art .ra-sms > path:first-child { fill: rgba(255,255,255,.06); stroke: #aac2bf; stroke-width: 2; }
-.rail-art .ra-receipt path, .rail-art .ra-sms path + path { stroke: #6f9693; stroke-width: 2; }
-.rail-art .ra-ring { stroke: rgba(255,255,255,.14); stroke-width: 2; }
-.rail-art .ra-check { stroke: var(--signal); stroke-width: 4; stroke-dasharray: 48; stroke-dashoffset: 48; }
+.relay-art { display: block; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rail-art { display: block; flex: 0 1 auto; min-height: 4.5rem; width: 100%; max-width: 11rem; height: auto; aspect-ratio: 160 / 150; margin: auto auto 1rem; opacity: .9; }
+.relay-art .ra-receipt rect, .relay-art .ra-sms > path:first-child { fill: rgba(255,255,255,.06); stroke: #aac2bf; stroke-width: 2; }
+.relay-art .ra-receipt path, .relay-art .ra-sms path + path { stroke: #6f9693; stroke-width: 2; }
+.relay-art .ra-ring { stroke: rgba(255,255,255,.14); stroke-width: 2; }
+.relay-art .ra-check { stroke: var(--signal); stroke-width: 4; stroke-dasharray: 48; stroke-dashoffset: 48; }
 @media (prefers-reduced-motion: no-preference) {
-  .rail-art .ra-receipt { animation: ra-left 6s ease-in-out infinite; }
-  .rail-art .ra-sms { animation: ra-right 6s ease-in-out infinite; }
-  .rail-art .ra-check { animation: ra-check 6s ease-in-out infinite; }
-  .rail-art .ra-ring { animation: ra-ring 6s ease-in-out infinite; transform-origin: 80px 96px; }
+  .relay-art .ra-receipt { animation: ra-left 6s ease-in-out infinite; }
+  .relay-art .ra-sms { animation: ra-right 6s ease-in-out infinite; }
+  .relay-art .ra-check { animation: ra-check 6s ease-in-out infinite; }
+  .relay-art .ra-ring { animation: ra-ring 6s ease-in-out infinite; transform-origin: 80px 96px; }
 }
-@media (prefers-reduced-motion: reduce) { .rail-art .ra-check { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .relay-art .ra-check { stroke-dashoffset: 0; } }
 @keyframes ra-left { 0%, 10% { transform: translate(0, 0); opacity: 1; } 40%, 55% { transform: translate(34px, 46px) scale(.6); opacity: 0; } 85%, 100% { transform: translate(0, 0); opacity: 1; } }
 @keyframes ra-right { 0%, 10% { transform: translate(0, 0); opacity: 1; } 40%, 55% { transform: translate(-40px, 42px) scale(.6); opacity: 0; } 85%, 100% { transform: translate(0, 0); opacity: 1; } }
 @keyframes ra-check { 0%, 38% { stroke-dashoffset: 48; } 50%, 70% { stroke-dashoffset: 0; } 82%, 100% { stroke-dashoffset: 48; } }
 @keyframes ra-ring { 0%, 38% { transform: scale(1); stroke: rgba(255,255,255,.14); } 50%, 70% { transform: scale(1.08); stroke: var(--signal); } 85%, 100% { transform: scale(1); stroke: rgba(255,255,255,.14); } }
-.rail-art g { transform-box: fill-box; transform-origin: center; }
+.relay-art g { transform-box: fill-box; transform-origin: center; }
 .form-panel { display: grid; gap: .9rem; align-content: start; }.form-panel label { display: grid; gap: .35rem; }.form-panel .badge { justify-self: start; }
 .form-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
 .steps { margin: 0 0 1rem; padding-inline-start: 1.25rem; line-height: 1.7; }
-@media (max-height: 720px) { .rail-art { display: none; } }
+@media (max-height: 520px) { .rail-art { display: none; } }
+/* Sign-in page: the same scene, large, filling the empty brand panel. */
+.login-art { flex: 0 0 auto; width: min(80%, 26rem); height: auto; aspect-ratio: 160 / 150; margin: auto auto 2rem; }
 .topbar {
   position: sticky; inset-block-start: 0; z-index: 20; min-height: 4.75rem; margin-inline-start: var(--rail-width); padding: .65rem clamp(1rem, 3vw, 2.5rem);
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--ink); background: color-mix(in srgb, var(--canvas) 88%, transparent);

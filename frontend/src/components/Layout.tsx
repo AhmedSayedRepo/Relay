@@ -21,8 +21,8 @@ export function PreferenceControls({ compact = false }: { compact?: boolean }) {
 }
 
 /** Quiet loop for the rail's empty space: a receipt and a bank SMS meet and turn into a check. */
-function RailArt() {
-  return <svg className="rail-art" viewBox="0 0 160 150" aria-hidden="true" focusable="false">
+export function RailArt({ className = "rail-art" }: { className?: string }) {
+  return <svg className={"relay-art " + className} viewBox="0 0 160 150" aria-hidden="true" focusable="false">
     <circle className="ra-ring" cx="80" cy="96" r="30" />
     <g className="ra-receipt"><rect x="14" y="26" width="38" height="50" rx="6" /><path d="M22 40h22M22 49h16M22 58h20" /></g>
     <g className="ra-sms"><path d="M110 28h36a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6h-22l-9 8v-8h-5a6 6 0 0 1-6-6V34a6 6 0 0 1 6-6Z" /><path d="M118 40h20M118 48h12" /></g>

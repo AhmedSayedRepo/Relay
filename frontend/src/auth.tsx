@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { ApiError, send } from "./api";
 import { Icon, RelayMark } from "./components/Brand";
-import { PreferenceControls } from "./components/Layout";
+import { PreferenceControls, RailArt } from "./components/Layout";
 import { useI18n } from "./i18n";
 
 type View = "sign-in" | "email" | "reset";
@@ -14,7 +14,7 @@ function resetToken(): string {
 function AuthFrame({ title, intro, children }: { title: string; intro?: string; children: ReactNode }) {
   const { messages: m } = useI18n();
   return <main className="login-page" id="main-content">
-    <section className="login-brand" aria-hidden="true"><RelayMark size={64} /><p>{m.common.secureEvidence}</p></section>
+    <section className="login-brand" aria-hidden="true"><RailArt className="login-art" /><RelayMark size={64} /><p>{m.common.secureEvidence}</p></section>
     <section className="login-card" aria-labelledby="login-title">
       <div className="login-top"><div className="brand large"><RelayMark /><b>{m.common.appName}</b></div><PreferenceControls compact /></div>
       <h1 id="login-title">{title}</h1>{intro && <p className="login-intro">{intro}</p>}
