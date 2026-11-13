@@ -34,7 +34,7 @@ def html_page(title: str, body: str) -> str:
     )
     return (
         '<!doctype html><html><body style="margin:0;padding:24px;'
-        'background:#f4f6f3;font-family:Segoe UI,Tahoma,Arial,sans-serif;'
+        "background:#f4f6f3;font-family:Segoe UI,Tahoma,Arial,sans-serif;"
         'color:#103e46"><div style="max-width:560px;margin:auto;background:#fff;'
         'border:1px solid #dce7e2;border-radius:12px;padding:24px">'
         f'<h1 style="font-size:20px;margin:0 0 16px">{escape(title)}</h1>'

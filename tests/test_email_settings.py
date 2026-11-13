@@ -38,6 +38,7 @@ async def test_admin_saves_gmail_sender_and_sends_a_test(
     assert again.status_code == 200 and again.json()["password_set"] is True
 
     sent: list[EmailMessage] = []
+
     def deliver(self: SmtpMailer, message: EmailMessage) -> None:
         sent.append(message)
 

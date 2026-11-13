@@ -58,8 +58,7 @@ async def _view(request: Request, uow: SqlUnitOfWork) -> EmailSettingsResponse:
     return EmailSettingsResponse(
         sender_name=row.sender_name if row else "Relay",
         sender_email=row.sender_email if row else (settings.smtp_from or ""),
-        report_email=(row.report_email if row else None)
-        or settings.daily_report_email,
+        report_email=(row.report_email if row else None) or settings.daily_report_email,
         password_set=bool(row and row.password_encrypted),
         source=source,
     )
@@ -90,9 +89,9 @@ async def put_email_settings(
         sender_name=body.sender_name.strip(),
         sender_email=str(body.sender_email).strip().lower(),
         password=password or None,
-        report_email=str(body.report_email).strip().lower()
-        if body.report_email
-        else None,
+        report_email=(
+            str(body.report_email).strip().lower() if body.report_email else None
+        ),
         actor_id=user.id,
     )
     return await _view(request, uow)

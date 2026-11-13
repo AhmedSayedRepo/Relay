@@ -79,11 +79,11 @@ private suspend fun latestRelease(): AppRelease? = withContext(Dispatchers.IO) {
             .header("Accept", "application/vnd.github+json")
             .build()
         http.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) return@use null
-        val body = response.body?.string().orEmpty()
-        parseRelease(body, updateAssetName(BuildConfig.SMS_CAPTURE))
-    }
-}.getOrNull()
+            if (!response.isSuccessful) return@use null
+            val body = response.body?.string().orEmpty()
+            parseRelease(body, updateAssetName(BuildConfig.SMS_CAPTURE))
+        }
+    }.getOrNull()
 }
 
 private suspend fun download(
