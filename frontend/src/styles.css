@@ -120,7 +120,7 @@ a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; 
 .app-version { margin-inline-start: auto; color: #aac2bf; font-size: .72rem; letter-spacing: .02em; }
 /* Rail illustration: fills the empty space under the menu, decorative only. */
 .relay-art { display: block; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.rail-art { display: block; width: 100%; max-width: 11rem; margin: auto auto 1rem; opacity: .9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rail-art { display: block; flex: 0 1 auto; min-height: 4.5rem; width: 100%; max-width: 11rem; height: auto; aspect-ratio: 160 / 150; margin: auto auto 1rem; opacity: .9; }
 .relay-art .ra-receipt rect, .relay-art .ra-sms > path:first-child { fill: rgba(255,255,255,.06); stroke: #aac2bf; stroke-width: 2; }
 .relay-art .ra-receipt path, .relay-art .ra-sms path + path { stroke: #6f9693; stroke-width: 2; }
 .relay-art .ra-ring { stroke: rgba(255,255,255,.14); stroke-width: 2; }
@@ -140,9 +140,9 @@ a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; 
 .form-panel { display: grid; gap: .9rem; align-content: start; }.form-panel label { display: grid; gap: .35rem; }.form-panel .badge { justify-self: start; }
 .form-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
 .steps { margin: 0 0 1rem; padding-inline-start: 1.25rem; line-height: 1.7; }
-@media (max-height: 720px) { .rail-art { display: none; } }
+@media (max-height: 520px) { .rail-art { display: none; } }
 /* Sign-in page: the same scene, large, filling the empty brand panel. */
-.login-art { width: min(80%, 26rem); margin: auto auto 2rem; }
+.login-art { flex: 0 0 auto; width: min(80%, 26rem); height: auto; aspect-ratio: 160 / 150; margin: auto auto 2rem; }
 .topbar {
   position: sticky; inset-block-start: 0; z-index: 20; min-height: 4.75rem; margin-inline-start: var(--rail-width); padding: .65rem clamp(1rem, 3vw, 2.5rem);
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--ink); background: color-mix(in srgb, var(--canvas) 88%, transparent);
