@@ -33,6 +33,7 @@ from relay.presentation.routes import (
     training,
     users,
 )
+from relay.presentation.throttle import LoginThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.tokens = JwtTokens(config)
             app.state.device_tokens = DeviceTokens(config)
             app.state.mailer = None  # tests may set a fake; else per-send config
+            app.state.login_throttle = LoginThrottle()
             app.state.object_storage = FilesystemObjectStorage(
                 config.object_storage_root
             )

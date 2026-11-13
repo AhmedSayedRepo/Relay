@@ -1,6 +1,11 @@
 # Caddy gets and renews the HTTPS certificate for RELAY_DOMAIN automatically.
 {$RELAY_DOMAIN} {
 	encode zstd gzip
+	# Browsers keep using HTTPS for this site; hide the server name.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
 	request_body {
 		max_size 25MB
 	}

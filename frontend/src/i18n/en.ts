@@ -36,7 +36,7 @@ export const en = {
   auth: {
     eyebrow: "Secure operator access", welcome: "Welcome to Relay", intro: "Sign in with an administrator account. Your access token stays in this browser tab only.",
     email: "Email", password: "Password", signIn: "Sign in", signingIn: "Signing in…",
-    failed: "Sign-in failed. Check your credentials and try again.", pilotNote: "Built for controlled, authorized operational use.",
+    failed: "Sign-in failed. Check your credentials and try again.", tooMany: "Too many sign-in attempts. Wait 15 minutes, then try again.", pilotNote: "Built for controlled, authorized operational use.",
   },
   state: {
     loading: "Loading operational data…", loadError: "Couldn’t load this view.", authExpired: "Your session is invalid or expired. Sign out and sign in again.",
