@@ -56,6 +56,7 @@ function SignIn({ onLogin, onForgot, notice, email }: { onLogin: (token: string)
     event.preventDefault(); setBusy(true); setError(""); const form = new FormData(event.currentTarget);
     try {
       const response = await fetch("/api/v1/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) });
+      if (response.status === 429) { setError(m.auth.tooMany); return; }
       if (!response.ok) throw new Error();
       const body = await response.json() as { access_token: string }; onLogin(body.access_token);
     } catch { setError(m.auth.failed); } finally { setBusy(false); }

@@ -2,7 +2,15 @@ import hashlib
 from typing import Annotated, Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 from relay.application.account_recovery import AccountRecoveryService
@@ -26,6 +34,7 @@ from relay.presentation.schemas import (
     TokenResponse,
     UserResponse,
 )
+from relay.presentation.throttle import LoginThrottle
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -81,6 +90,16 @@ class PasswordChangeRequest(InputModel):
 SESSION_COOKIE = "relay_session"
 
 
+def _client(request: Request) -> str:
+    """The caller's address. Behind Caddy the backend is not reachable
+    directly, and Caddy puts the real address last in X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    last = forwarded.rsplit(",", 1)[-1].strip()
+    if last and len(last) <= 64:
+        return last
+    return request.client.host if request.client else "unknown"
+
+
 def _fingerprint(password_hash: str) -> str:
     return hashlib.sha256(password_hash.encode("utf-8")).hexdigest()[:16]
 
@@ -116,7 +135,21 @@ async def login(
     response: Response,
     service: Annotated[AuthService, Depends(auth_service)],
 ) -> TokenResponse:
-    token = await service.login(str(body.email), body.password.get_secret_value())
+    throttle = cast(LoginThrottle, request.app.state.login_throttle)
+    email, client = str(body.email), _client(request)
+    wait = throttle.retry_after(email, client)
+    if wait:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many sign-in attempts. Try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+    try:
+        token = await service.login(email, body.password.get_secret_value())
+    except AuthenticationFailed:
+        throttle.failed(email, client)
+        raise
+    throttle.succeeded(email, client)
     user = await service.uow.users.get_by_email(str(body.email).strip().lower())
     if user is not None:
         _set_session(request, response, user.id, user.password_hash)

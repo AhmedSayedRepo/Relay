@@ -37,6 +37,9 @@ import okhttp3.Request
 private const val LATEST_RELEASE =
     "https://api.github.com/repos/AhmedSayedRepo/relay-releases/releases/latest"
 
+private const val RELEASE_DOWNLOADS =
+    "https://github.com/AhmedSayedRepo/relay-releases/releases/download/"
+
 data class AppRelease(val version: String, val downloadUrl: String)
 
 /** True when [latest] (e.g. "0.6.3") is a newer x.y.z than [current]. */
@@ -67,7 +70,9 @@ fun parseRelease(body: String, assetName: String): AppRelease? {
         ?.firstOrNull { it["name"]?.jsonPrimitive?.contentOrNull == assetName }
         ?: return null
     val url = asset["browser_download_url"]?.jsonPrimitive?.contentOrNull
-    return if (url != null && url.startsWith("https://")) AppRelease(version, url) else null
+    // Only ever download from Relay's own release page.
+    val trusted = url != null && url.startsWith(RELEASE_DOWNLOADS)
+    return if (url != null && trusted) AppRelease(version, url) else null
 }
 
 private val http = OkHttpClient()

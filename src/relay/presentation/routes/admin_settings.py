@@ -35,7 +35,10 @@ class EmailSettingsResponse(BaseModel):
 
 
 class EmailSettingsRequest(InputModel):
-    sender_name: str = Field(min_length=1, max_length=120)
+    # Printable text only: it goes into the email's From header.
+    sender_name: str = Field(
+        min_length=1, max_length=120, pattern=r"^[^\x00-\x1f\x7f<>\"]+$"
+    )
     sender_email: EmailStr = Field(max_length=254)
     # Empty keeps the saved app password.
     app_password: SecretStr | None = Field(default=None, max_length=200)

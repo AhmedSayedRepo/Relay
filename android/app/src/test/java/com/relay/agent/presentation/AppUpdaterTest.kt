@@ -17,18 +17,22 @@ class AppUpdaterTest {
 
     @Test
     fun picksOnlyThisAppsFileFromTheRelease() {
+        val base =
+            "https://github.com/AhmedSayedRepo/relay-releases/releases/download/agent-v0.6.3"
         val body = """
             {"tag_name": "agent-v0.6.3", "assets": [
-              {"name": "relay-bank-sms.apk", "browser_download_url": "https://example.com/sms.apk"},
-              {"name": "relay-receipts.apk", "browser_download_url": "https://example.com/rx.apk"}
+              {"name": "relay-bank-sms.apk", "browser_download_url": "$base/relay-bank-sms.apk"},
+              {"name": "relay-receipts.apk", "browser_download_url": "$base/relay-receipts.apk"}
             ]}
         """.trimIndent()
         val receipts = parseRelease(body, updateAssetName(smsCapture = false))
-        assertEquals(AppRelease("0.6.3", "https://example.com/rx.apk"), receipts)
+        assertEquals(AppRelease("0.6.3", "$base/relay-receipts.apk"), receipts)
         assertEquals(
-            "https://example.com/sms.apk",
+            "$base/relay-bank-sms.apk",
             parseRelease(body, updateAssetName(smsCapture = true))?.downloadUrl
         )
         assertNull(parseRelease("""{"tag_name": "v1.0.0", "assets": []}""", "relay-receipts.apk"))
+        val elsewhere = body.replace("https://github.com/", "https://evil.example/")
+        assertNull(parseRelease(elsewhere, "relay-receipts.apk"))
     }
 }
