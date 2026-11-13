@@ -132,6 +132,9 @@ services:
     # Long-running: the model stays loaded; every minute it reads new
     # receipts, matches bank SMS and auto-confirms.
     command: ["python", "-m", "relay.infrastructure.cli", "reader-loop"]
+    # No web server here, so the backend image's HTTP health check does not apply.
+    healthcheck:
+      disable: true
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_NAME: ${APP_NAME:-Relay Reader}
