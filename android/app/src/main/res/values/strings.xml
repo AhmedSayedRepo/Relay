@@ -101,4 +101,6 @@
     <string name="watched_folders">Watched folders</string>
     <string name="add_folder">Add another folder (e.g. Bluetooth)</string>
     <string name="remove">Remove</string>
+    <string name="whats_new_title">What\'s new in v%1$s</string>
+    <string name="whats_new_ok">Got it</string>
 </resources>

@@ -5,6 +5,7 @@ import { canReview, isAdmin, useRole } from "../role";
 import { useTheme, type Theme } from "../preferences";
 import { Icon, RelayMark } from "./Brand";
 import { HelpDialog } from "./HelpDialog";
+import { WhatsNew } from "./WhatsNew";
 
 // Duplicates, Processing and Reports stay reachable (Review links to duplicates;
 // the Dashboard exports Excel) but are kept out of the menu.
@@ -37,7 +38,7 @@ export function Layout({ signOut }: { signOut: () => void }) {
     <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
     <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
-    <main id="main-content"><Outlet /></main>
+    <main id="main-content"><Outlet /></main><WhatsNew />
   </div>;
 }
 

@@ -96,4 +96,6 @@
     <string name="watched_folders">المجلدات المراقَبة</string>
     <string name="add_folder">إضافة مجلد آخر (مثل البلوتوث)</string>
     <string name="remove">إزالة</string>
+    <string name="whats_new_title">الجديد في الإصدار %1$s</string>
+    <string name="whats_new_ok">تمام</string>
 </resources>
