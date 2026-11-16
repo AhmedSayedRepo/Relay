@@ -137,8 +137,51 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
         "found": found,
         "values": values,
         "sender": sender(text),
+        "parties": parties(text) or (parties(other) if other is not None else {}),
         "text": text[:MAX_TEXT],
     }
+
+
+_TO = re.compile(r"^\W*(?:[اإ]ل[ىي]|to)\b", re.I)
+_END = re.compile(r"powered\s*by", re.I)
+_NOT_NAMES = {"ACCOUNT", "BANK", "EGP", "IPN", "INSTAPAY", "MISR", "POWERED"}
+
+
+def _person(line: str) -> str | None:
+    """A name printed in capitals: "SALMA MOHAMED GALAL" in full, or only the
+    first name when the rest is masked ("YOUSSEF M***** Y******")."""
+    if not re.match(r"\s*[A-Z]", line):
+        return None
+    words = re.findall(r"[A-Za-z*]{2,}", line)
+    first = words[0] if words else ""
+    if len(first) < 3 or not first.isupper() or first in _NOT_NAMES:
+        return None
+    rest = words[1:]
+    if any("*" in word for word in rest):
+        return first
+    rest = [w for w in rest if w.isupper() and w not in _NOT_NAMES]
+    return " ".join([first, *rest[:4]])
+
+
+def parties(text: str) -> dict[str, str]:
+    """Sender name above the "to" line; recipient name and phone below it."""
+    lines = text.splitlines()
+    to = next((i for i, line in enumerate(lines) if _TO.match(line)), None)
+    if to is None:
+        return {}
+    after: list[str] = []
+    for line in lines[to + 1 :]:
+        if _END.search(line):
+            break
+        after.append(line)
+    found = {
+        "sender_name": next(filter(None, map(_person, lines[:to])), None),
+        "recipient_name": next(filter(None, map(_person, after)), None),
+        "recipient_phone": next(
+            (m.group(1) for m in map(_PHONE.search, after) if m), None
+        ),
+    }
+    return {key: value for key, value in found.items() if value}
 
 
 def sender(text: str) -> str | None:

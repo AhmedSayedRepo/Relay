@@ -227,7 +227,14 @@ async def text_pass(
             machine = copy.deepcopy(row.machine_result)
             machine[text_recheck.VERSION] = {
                 key: result[key]
-                for key in ("receipt", "payment_request", "found", "sender", "text")
+                for key in (
+                    "receipt",
+                    "payment_request",
+                    "found",
+                    "sender",
+                    "parties",
+                    "text",
+                )
             } | {"at": now.isoformat()}
             row.machine_result = machine
             row.updated_at = now

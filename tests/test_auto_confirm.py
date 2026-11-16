@@ -225,3 +225,21 @@ def test_recipient_and_payment_request_reading() -> None:
         "amount": "535.00",
         "currency": "EGP",
     }
+
+
+def test_sender_and_recipient_names() -> None:
+    from relay.infrastructure.text_recheck import parties
+
+    assert parties(
+        "SALMA MOHAMED GALAL ©\nsalma@instapay\nإلى انستاباي\n"
+        "YOUSSEF Mi*t**** Y***\n01003405232\nPOWERED BY\nOTHER NAME"
+    ) == {
+        "sender_name": "SALMA MOHAMED GALAL",
+        "recipient_name": "YOUSSEF",
+        "recipient_phone": "01003405232",
+    }
+    # Nothing past "powered by", and nothing without a "to" line.
+    assert parties("SALMA MOHAMED\nالى المحفظة\nPOWERED BY\nYOUSSEF") == {
+        "sender_name": "SALMA MOHAMED"
+    }
+    assert parties("YOUSSEF\n01003405232") == {}
