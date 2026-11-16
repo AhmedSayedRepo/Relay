@@ -120,6 +120,9 @@ async def test_without_sms_waits(client, auth_headers, app):
     assert counts["sms_day"] == 0 and counts["waiting"] == 1
     detail = await _detail(client, auth_headers, candidate)
     assert "auto_confirmed" not in detail["resolution_result"]
+    listed = await client.get("/api/v1/transactions", headers=auth_headers)
+    (item,) = [i for i in listed.json()["items"] if i["id"] == candidate["id"]]
+    assert item["status_reason"] == "no_sms"
 
 
 async def test_outgoing_sms_does_not_confirm(client, auth_headers, app):

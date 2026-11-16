@@ -81,6 +81,37 @@ def _safe_configuration(value: dict[str, Any]) -> dict[str, JsonValue]:
     }
 
 
+def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
+    """Why a receipt waits for review or was rejected, as a short code the
+    portal translates. None for accepted receipts."""
+    resolution = value.resolution_result
+    resolution = resolution if isinstance(resolution, dict) else {}
+    machine = value.machine_result if isinstance(value.machine_result, dict) else {}
+    read = machine.get(TEXT_READING)
+    read = read if isinstance(read, dict) else {}
+    if value.review_status == "REJECTED":
+        if resolution.get("rejected_reason") == "payment_request":
+            return "payment_request"
+        if isinstance(value.reviewed_result, dict):
+            return "rejected_by_reviewer"
+        if read.get("failed"):
+            return "transfer_failed"
+        return "not_recognized"
+    if value.review_status != "NEEDS_REVIEW":
+        return None
+    if value.duplicate_of_candidate_id is not None:
+        return "duplicate"
+    if resolution.get("recipient_mismatch"):
+        return "other_recipient"
+    if resolution.get("possible_repeat"):
+        return "repeated_amount"
+    if not read:
+        return "reading"
+    if sms != "VERIFIED":
+        return "no_sms"
+    return "missing_fields"
+
+
 def _read_parties(machine: Any) -> dict[str, JsonValue]:
     """Sender and recipient as the plain-text reader saw them (unconfirmed)."""
     read = machine.get(TEXT_READING) if isinstance(machine, dict) else None
@@ -298,6 +329,7 @@ class SqlOperationsRepository:
             or reviewed_value(resolution, "handle"),
             "recipient_name": reviewed_value(resolution, "recipient"),
             **_read_parties(value.machine_result),
+            "status_reason": _status_reason(value, row.sms_verification),
             "recipient_identifier": reviewed_value(resolution, "recipient_identifier"),
             "transfer_status": reviewed_value(resolution, "transfer_status"),
             "authoritative_status": (

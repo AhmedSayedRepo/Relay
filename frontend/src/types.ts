@@ -25,6 +25,7 @@ export type Transaction = {
   recipient_name: string | null;
   suggested_sender: string | null;
   suggested_recipient: string | null;
+  status_reason: string | null;
   duplicate_group_id: string | null;
   duplicate_of_candidate_id: string | null;
   duplicate_reason: string | null;
