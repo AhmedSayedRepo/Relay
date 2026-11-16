@@ -10,6 +10,7 @@ from sqlalchemy import cast as sql_cast
 from sqlalchemy.orm import aliased
 
 from relay.domain.agent import JsonValue
+from relay.domain.devices import DeviceStatus
 from relay.domain.operations import DateWindow, DuplicateGroupQuery, TransactionQuery
 from relay.domain.processing import JobStatus, ProcessingFailure, ProcessingJob
 from relay.domain.review_trust import initial_resolution, reviewed_value
@@ -535,12 +536,31 @@ class SqlOperationsRepository:
                 func.sum(case((final, ReceiptCandidateRow.amount), else_=0)),
                 func.sum(case((SmsVerificationRow.status == "VERIFIED", 1), else_=0)),
             )
-            .join(ReceiptCandidateRow, ReceiptCandidateRow.device_id == DeviceRow.id)
+            .select_from(DeviceRow)
+            # Every active receipts phone is listed, with zeros when it sent
+            # nothing in this range, so a quiet phone never just disappears.
+            .outerjoin(
+                ReceiptCandidateRow,
+                and_(ReceiptCandidateRow.device_id == DeviceRow.id, *receipt_range),
+            )
             .outerjoin(
                 SmsVerificationRow,
                 SmsVerificationRow.candidate_id == ReceiptCandidateRow.id,
             )
-            .where(*receipt_range)
+            .where(
+                or_(
+                    ReceiptCandidateRow.id.is_not(None),
+                    and_(
+                        DeviceRow.status == DeviceStatus.ACTIVE,
+                        select(RawEventRow.id)
+                        .where(
+                            RawEventRow.device_id == DeviceRow.id,
+                            RawEventRow.collector == "images",
+                        )
+                        .exists(),
+                    ),
+                )
+            )
             .group_by(DeviceRow.id, DeviceRow.name)
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
             .limit(20)
