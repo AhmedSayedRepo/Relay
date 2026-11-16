@@ -473,6 +473,23 @@ async def _tag(
         await session.commit()
 
 
+async def _untag(database: Database, candidate_id: UUID, key: str) -> None:
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.id == candidate_id)
+            .with_for_update()
+        )
+        if row is None or not isinstance(row.resolution_result, dict):
+            return
+        if key in row.resolution_result:
+            untagged = copy.deepcopy(row.resolution_result)
+            untagged.pop(key)
+            row.resolution_result = untagged
+            row.updated_at = datetime.now(UTC)
+            await session.commit()
+
+
 async def _confirm(
     database: Database,
     storage: FilesystemObjectStorage,
@@ -523,7 +540,7 @@ async def auto_confirm(
     from relay.application.errors import Conflict
     from relay.infrastructure.email_settings import recipient
     from relay.infrastructure.models import UserRow
-    from relay.infrastructure.text_recheck import VERSION, recipient_matches
+    from relay.infrastructure.text_recheck import VERSION, recipient_check
 
     counts = {"sms_day": 0, "waiting": 0, "failed": 0}
     async with database.session() as session:
@@ -576,15 +593,21 @@ async def auto_confirm(
         for candidate_id, _, resolution, machine, _, folder_at in rows
     ]
 
-    def repeated(candidate_id: UUID, day: str, mine: dict[str, Any]) -> bool:
+    def repeated(candidate_id: UUID, day: str, mine: dict[str, Any]) -> str | None:
         """Another receipt that day with this amount that could be the same
-        transfer: same sender (or one that cannot be read) and no proof by
-        two different references."""
+        transfer: "reference" when both show the same reference, "sender"
+        when the sender is the same (or unreadable) and the references do not
+        prove two transfers; None otherwise."""
         for other_id, other_day, other in known:
             if other_id == candidate_id or other_day != day:
                 continue
             if other["amount"] != mine["amount"]:
                 continue
+            if (
+                mine["reference"] is not None
+                and mine["reference"] == other["reference"]
+            ):
+                return "reference"
             same_sender = (
                 mine["sender"] is None
                 or other["sender"] is None
@@ -596,8 +619,8 @@ async def auto_confirm(
                 and mine["reference"] != other["reference"]
             )
             if same_sender and not different_refs:
-                return True
-        return False
+                return "sender"
+        return None
 
     used: set[UUID] = set()
     for candidate_id, device_id, resolution, machine, status, folder_at in rows:
@@ -614,19 +637,32 @@ async def auto_confirm(
             found = text.get("found")
             instapay = bool(found.get("brand")) if isinstance(found, dict) else False
             printed = str(text.get("text") or "")
-            if not recipient_matches(printed, name, phone, instapay):
-                if "recipient_mismatch" not in resolution:
-                    await _tag(database, candidate_id, "recipient_mismatch", {})
+            verdict = recipient_check(printed, name, phone, instapay)
+            tagged = resolution.get("recipient_mismatch")
+            if verdict != "match":
+                if not isinstance(tagged, dict) or tagged.get("kind") != verdict:
+                    await _tag(
+                        database, candidate_id, "recipient_mismatch", {"kind": verdict}
+                    )
                 counts["waiting"] += 1
                 continue
+            if tagged is not None:
+                await _untag(database, candidate_id, "recipient_mismatch")
         core = model_values(resolution, ("amount", "currency"))
         if core is None:
             counts["waiting"] += 1
             continue
         day = _local_day(folder_at, settings)
-        if repeated(candidate_id, day, facts(resolution, machine)):
-            if "possible_repeat" not in resolution:
-                await _tag(database, candidate_id, "possible_repeat", {"day": day})
+        repeat = repeated(candidate_id, day, facts(resolution, machine))
+        if repeat is not None:
+            previous = resolution.get("possible_repeat")
+            if not isinstance(previous, dict) or previous.get("kind") != repeat:
+                await _tag(
+                    database,
+                    candidate_id,
+                    "possible_repeat",
+                    {"day": day, "kind": repeat},
+                )
             counts["waiting"] += 1
             continue
         async with database.session() as session:

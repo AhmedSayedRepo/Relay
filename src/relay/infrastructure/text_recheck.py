@@ -142,7 +142,8 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
         "values": values,
         "sender": sender(text),
         "parties": parties(text) or (parties(other) if other is not None else {}),
-        "text": text[:MAX_TEXT],
+        # Both readings: a phone or name missed by one is often in the other.
+        "text": (text if other is None else text + "\n" + other)[:MAX_TEXT],
     }
 
 
@@ -207,18 +208,30 @@ def _phones(text: str) -> set[str]:
     return set(_PHONE.findall(text.translate(_DIGITS)))
 
 
-def recipient_matches(text: str, name: str, phone: str | None, instapay: bool) -> bool:
-    """The receipt was sent to the owner: the name shows, and on InstaPay
-    receipts the phone number too (one misread digit is tolerated)."""
-    if not name or name.casefold() not in text.casefold():
-        return False
-    if not instapay or not phone:
-        return True
-    return any(
+def recipient_check(text: str, name: str, phone: str | None, instapay: bool) -> str:
+    """Was the receipt sent to the owner? "match", "different" or "unclear".
+
+    The phone is the strongest sign (one misread digit tolerated). Without
+    it, the owner's name is enough unless another phone number is printed.
+    Bank receipts often show no phone, so there the name decides."""
+    folded = text.casefold().replace("0", "o")
+    name_found = bool(name) and name.casefold().replace("0", "o") in folded
+    phones = _phones(text)
+    if phone and any(
         len(found) == len(phone)
         and sum(a != b for a, b in zip(found, phone, strict=True)) <= 1
-        for found in _phones(text)
-    )
+        for found in phones
+    ):
+        return "match"
+    if not instapay or not phone:
+        return "match" if name_found else "unclear"
+    if phones:
+        return "different"
+    return "match" if name_found else "unclear"
+
+
+def recipient_matches(text: str, name: str, phone: str | None, instapay: bool) -> bool:
+    return recipient_check(text, name, phone, instapay) == "match"
 
 
 def read_text(

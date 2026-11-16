@@ -323,3 +323,19 @@ async def test_text_pass_rejects_payment_requests(
     detail = await _detail(client, auth_headers, candidate)
     assert detail["review_status"] == "REJECTED"
     assert detail["resolution_result"]["rejected_reason"] == "payment_request"
+
+
+def test_recipient_check_cases() -> None:
+    from relay.infrastructure.text_recheck import recipient_check
+
+    owner = ("YOUSSEF", "01003405232")
+    # Phone read, name lost by OCR: still the owner.
+    assert recipient_check("To Instapay\n01003405232", *owner, True) == "match"
+    # Name read, phone too faint to read: the owner.
+    assert recipient_check("YOUSSEF M***** Y***", *owner, True) == "match"
+    # "Y0USSEF" misread with a zero.
+    assert recipient_check("Y0USSEF M*****", *owner, True) == "match"
+    # Another number printed: someone else.
+    assert recipient_check("YOUSSEF A\n01021204916", *owner, True) == "different"
+    # Nothing readable about the recipient.
+    assert recipient_check("nouranabokora01@instapay", *owner, True) == "unclear"
