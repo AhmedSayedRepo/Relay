@@ -51,3 +51,22 @@ async def test_admin_saves_gmail_sender_and_sends_a_test(
 
 async def test_email_settings_need_a_signed_in_admin(client: Any) -> None:
     assert (await client.get("/api/v1/settings/email")).status_code == 401
+
+
+async def test_report_goes_to_several_comma_separated_emails(
+    client: Any, auth_headers: dict[str, str]
+) -> None:
+    url = "/api/v1/settings/email"
+    body = {
+        "sender_name": "Relay",
+        "sender_email": "relay.sender@gmail.com",
+        "app_password": "abcd efgh ijkl mnop",
+        "report_email": " Boss@Example.com,ops@example.com , boss@example.com,",
+    }
+    saved = await client.put(url, headers=auth_headers, json=body)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["report_email"] == "boss@example.com, ops@example.com"
+    bad = await client.put(
+        url, headers=auth_headers, json=body | {"report_email": "ok@x.com, nope"}
+    )
+    assert bad.status_code == 422

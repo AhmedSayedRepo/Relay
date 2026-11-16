@@ -4,7 +4,14 @@ import smtplib
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, EmailStr, Field, SecretStr
+from pydantic import (
+    BaseModel,
+    EmailStr,
+    Field,
+    SecretStr,
+    TypeAdapter,
+    field_validator,
+)
 
 from relay.application.account_recovery_ports import OutgoingEmail
 from relay.application.errors import Conflict
@@ -40,6 +47,21 @@ class EmailSettingsResponse(BaseModel):
     source: str
 
 
+MAX_REPORT_EMAILS = 8
+_EMAIL = TypeAdapter(EmailStr)
+
+
+def report_addresses(value: str | None) -> str | None:
+    """Check each comma-separated address; store them as "a@x.com, b@y.com"."""
+    parts = [part.strip().lower() for part in (value or "").split(",")]
+    addresses = list(dict.fromkeys(part for part in parts if part))
+    if len(addresses) > MAX_REPORT_EMAILS:
+        raise ValueError(f"At most {MAX_REPORT_EMAILS} report emails.")
+    for address in addresses:
+        _EMAIL.validate_python(address)
+    return ", ".join(addresses) or None
+
+
 class EmailSettingsRequest(InputModel):
     # Printable text only: it goes into the email's From header.
     sender_name: str = Field(
@@ -48,7 +70,13 @@ class EmailSettingsRequest(InputModel):
     sender_email: EmailStr = Field(max_length=254)
     # Empty keeps the saved app password.
     app_password: SecretStr | None = Field(default=None, max_length=200)
-    report_email: EmailStr | None = Field(default=None, max_length=254)
+    # One or more addresses, comma separated: "a@x.com, b@y.com".
+    report_email: str | None = Field(default=None, max_length=254)
+
+    @field_validator("report_email")
+    @classmethod
+    def _addresses(cls, value: str | None) -> str | None:
+        return report_addresses(value)
 
 
 class TestEmailResponse(BaseModel):
@@ -98,9 +126,7 @@ async def put_email_settings(
         sender_name=body.sender_name.strip(),
         sender_email=str(body.sender_email).strip().lower(),
         password=password or None,
-        report_email=(
-            str(body.report_email).strip().lower() if body.report_email else None
-        ),
+        report_email=body.report_email,
         actor_id=user.id,
     )
     return await _view(request, uow)

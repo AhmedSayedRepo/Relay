@@ -140,7 +140,7 @@ export const en = {
   },
   whatsNew: { title: "What's new in v{version}", ok: "Got it" },
   emailSettings: {
-    senderName: "Sender name (what people see)", senderEmail: "Gmail address", appPassword: "Gmail app password", reportEmail: "Daily report goes to",
+    senderName: "Sender name (what people see)", senderEmail: "Gmail address", appPassword: "Gmail app password", reportEmail: "Daily report goes to", reportHint: "Add up to 8 emails. Press Enter or type a comma after each one.", removeEmail: "Remove",
     passwordKept: "Saved. Leave empty to keep it", save: "Save", test: "Send a test email", saved: "Saved.", saveFailed: "Could not save. Try again.",
     invalid: "Check the email addresses.", passwordNeeded: "Enter the Gmail app password.", saveFirst: "Save the settings first.",
     testSent: "Test email sent to {email}.", rejected: "Gmail rejected the address or app password. Check them and try again.", unreachable: "Could not reach Gmail. Try again in a minute.",
