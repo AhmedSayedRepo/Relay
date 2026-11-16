@@ -67,7 +67,7 @@ export const ar = {
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {
-    arrived: "وصل للموبايل", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
+    arrived: "وصل للموبايل", partyFrom: "من", partyTo: "إلى", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
     review: "المراجعة", duplicate: "التكرار", device: "الجهاز / المصدر", noReference: "لا يوجد مرجع",
     to: "إلى", openEvidence: "فتح أدلة المعاملة", canonical: "المعاملة الأساسية", duplicateItem: "معاملة مكررة", unique: "فريدة",
   },

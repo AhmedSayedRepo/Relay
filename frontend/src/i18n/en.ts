@@ -65,7 +65,7 @@ export const en = {
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {
-    arrived: "Reached phone", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
+    arrived: "Reached phone", partyFrom: "From", partyTo: "To", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
     review: "Review", duplicate: "Duplicate", device: "Device / source", noReference: "No reference",
     to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", duplicateItem: "Duplicate", unique: "Unique",
   },

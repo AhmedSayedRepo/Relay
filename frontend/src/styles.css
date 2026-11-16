@@ -405,3 +405,10 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .email-chips .chip-remove:hover { color: #fff; background: var(--accent); transform: rotate(90deg); transition: transform .2s ease, background-color .2s ease; }
 @keyframes chip-shimmer { from { background-position: 0% 0; } to { background-position: 200% 0; } }
 @media (prefers-reduced-motion: reduce) { .chip, .category-tabs button, .email-chips .chip, .email-chips .chip-remove { transition: none; animation: none !important; transform: none !important; } }
+/* Transactions: sender -> recipient as two labelled lines. */
+.parties { display: grid; gap: .35rem; min-width: 14rem; }
+.party { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.party-label { flex: 0 0 auto; min-width: 2.2rem; padding: .05rem .45rem; border-radius: 6px; font-size: .75rem; font-weight: 800; color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 10%, transparent); text-align: center; }
+.party-value { font-weight: 650; letter-spacing: .01em; overflow-wrap: anywhere; }
+.tag-suggested { padding: .05rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; color: var(--accent); border: 1px dashed var(--accent); background: var(--accent-soft); }
+.cell-sub { display: block; margin-top: .2rem; font-size: .78rem; color: var(--ink-soft); }
