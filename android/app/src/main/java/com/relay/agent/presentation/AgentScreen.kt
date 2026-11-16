@@ -561,7 +561,12 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                     discardLabel = R.string.discard_images,
                     discardTitle = R.string.discard_images_title,
                     onDiscard = actions.discardImages,
-                    queuedBytes = status.queuedImageBytes
+                    queuedBytes = status.queuedImageBytes,
+                    below = {
+                        if (status.approvedImageSourceId != null && status.localImageConsent) {
+                            ImageFolders(status.imageFolders, actions)
+                        }
+                    }
                 ) {
                     if (images == Blocker.FOLDER || images == Blocker.FOLDER_LOST) {
                         Button(onClick = actions.chooseFolder) {
@@ -581,7 +586,6 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                         ) {
                             Text(stringResource(R.string.remove_folder))
                         }
-                        ImageFolders(status.imageFolders, actions)
                     }
                 }
             }
@@ -592,22 +596,31 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
 /** The watched folders; extra ones (e.g. Bluetooth) can be added or removed here. */
 @Composable
 private fun ImageFolders(folders: List<ImageFolder>, actions: AgentActions) {
-    Text(
-        stringResource(R.string.watched_folders),
-        style = MaterialTheme.typography.titleSmall
-    )
-    folders.forEachIndexed { index, folder ->
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(folder.name, modifier = Modifier.weight(1f))
-            if (index > 0) {
-                TextButton(onClick = { actions.removeExtraFolder(folder.treeUri) }) {
-                    Text(stringResource(R.string.remove))
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.watched_folders),
+            style = MaterialTheme.typography.titleSmall
+        )
+        folders.forEachIndexed { index, folder ->
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    folder.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                if (index > 0) {
+                    TextButton(onClick = { actions.removeExtraFolder(folder.treeUri) }) {
+                        Text(stringResource(R.string.remove))
+                    }
                 }
             }
         }
-    }
-    TextButton(onClick = actions.addFolder, modifier = Modifier.offset(x = (-12).dp)) {
-        Text(stringResource(R.string.add_folder))
+        TextButton(onClick = actions.addFolder, modifier = Modifier.offset(x = (-12).dp)) {
+            Text(stringResource(R.string.add_folder))
+        }
     }
 }
 
@@ -627,6 +640,7 @@ private fun CollectorBlock(
     @StringRes discardTitle: Int,
     onDiscard: () -> Unit,
     queuedBytes: Long = 0,
+    below: @Composable () -> Unit = {},
     fix: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -648,6 +662,7 @@ private fun CollectorBlock(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) { fix() }
+        below()
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically
