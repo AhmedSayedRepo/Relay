@@ -5,13 +5,13 @@ import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.AgentStore
 import com.relay.agent.domain.ApiFailure
 import com.relay.agent.domain.ApprovedImageSource
-import com.relay.agent.domain.ImageFolder
 import com.relay.agent.domain.BinaryOutbox
 import com.relay.agent.domain.ConfigurationParser
 import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.Credentials
 import com.relay.agent.domain.EnrollmentState
 import com.relay.agent.domain.EventOutbox
+import com.relay.agent.domain.ImageFolder
 import com.relay.agent.domain.RelayApi
 import com.relay.agent.domain.StoredState
 import com.relay.agent.domain.SyncOutcome
