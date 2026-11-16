@@ -124,6 +124,23 @@ class SqlSmsVerificationRepository:
         )
         return list(rows)
 
+    async def sms_devices(self) -> list[UUID]:
+        """Phones that have sent bank SMS, for receipt phones not linked to one."""
+        rows = await self.session.scalars(
+            select(RawEventRow.device_id)
+            .where(RawEventRow.collector == "sms")
+            .distinct()
+        )
+        return list(rows)
+
+    async def day_matched(self) -> set[UUID]:
+        rows = await self.session.scalars(
+            select(SmsVerificationRow.candidate_id).where(
+                SmsVerificationRow.method == MatchMethod.DAY.value
+            )
+        )
+        return set(rows)
+
     async def sms_direction(self, device_id: UUID) -> SmsDirection:
         value = await self.session.scalar(
             select(SmsSourceLinkRow.direction)

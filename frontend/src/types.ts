@@ -23,12 +23,15 @@ export type Transaction = {
   reference_original: string | null;
   sender_name: string | null;
   recipient_name: string | null;
+  suggested_sender: string | null;
+  suggested_recipient: string | null;
   duplicate_group_id: string | null;
   duplicate_of_candidate_id: string | null;
   duplicate_reason: string | null;
   is_canonical: boolean;
   source_type: string;
   received_at: string;
+  folder_at: string | null;
   created_at: string;
   ocr_mean_confidence: number | null;
   sms_verification: string | null;

@@ -44,10 +44,11 @@ def _transaction_query(
     sort_direction: str,
     limit: int,
     offset: int,
+    window: DateWindow | None = None,
 ) -> TransactionQuery:
     start, end = _dates(date_from, date_to)
     return TransactionQuery(
-        window=date_window(start, end),
+        window=window or date_window(start, end),
         search=" ".join(search.split()) if search else None,
         review_status=review_status,
         duplicate_status=duplicate_status,
@@ -81,8 +82,11 @@ async def dashboard(
 @router.get("/transactions", response_model=OperationPage)
 async def transactions(
     service: Service,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     review_status: Literal["AUTO_ACCEPTED", "NEEDS_REVIEW", "REJECTED"] | None = None,
     duplicate_status: (
@@ -99,14 +103,22 @@ async def transactions(
         | None
     ) = None,
     sort_by: Literal[
-        "created_at", "transaction_occurred_at", "amount", "reference", "review_status"
-    ] = "created_at",
+        "folder_at",
+        "created_at",
+        "transaction_occurred_at",
+        "amount",
+        "reference",
+        "review_status",
+    ] = "folder_at",
     sort_direction: Literal["asc", "desc"] = "desc",
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
 ) -> OperationPage:
     values = locals().copy()
-    values.pop("service")
+    for name in ("service", "request", "time_from", "time_to"):
+        values.pop(name)
+    # Same day basis as the dashboard: when the image reached the folder.
+    values["window"] = _folder_window(request, date_from, date_to, time_from, time_to)
     query = _transaction_query(**values)
     rows, total = await service.transactions(query)
     return OperationPage(items=rows, total=total, limit=limit, offset=offset)
@@ -178,8 +190,7 @@ MAX_CATEGORIZED = 5000
 
 
 def _review_query(
-    date_from: date | None,
-    date_to: date | None,
+    window: DateWindow,
     search: str | None,
     device_id: UUID | None,
     sort_by: str,
@@ -188,8 +199,8 @@ def _review_query(
     offset: int,
 ) -> TransactionQuery:
     return _transaction_query(
-        date_from=date_from,
-        date_to=date_to,
+        date_from=None,
+        date_to=None,
         search=search,
         review_status="NEEDS_REVIEW",
         duplicate_status=None,
@@ -202,6 +213,7 @@ def _review_query(
         sort_direction=sort_direction,
         limit=limit,
         offset=offset,
+        window=window,
     )
 
 
@@ -222,20 +234,29 @@ async def _categorized(
 @router.get("/review-queue", response_model=OperationPage)
 async def review_queue(
     service: Service,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     device_id: UUID | None = None,
     category: ReviewCategory | None = None,
     sort_by: Literal[
-        "created_at", "transaction_occurred_at", "amount", "reference"
-    ] = "created_at",
-    sort_direction: Literal["asc", "desc"] = "asc",
+        "folder_at", "created_at", "transaction_occurred_at", "amount", "reference"
+    ] = "folder_at",
+    sort_direction: Literal["asc", "desc"] = "desc",
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
 ) -> OperationPage:
     query = _review_query(
-        date_from, date_to, search, device_id, sort_by, sort_direction, limit, offset
+        _folder_window(request, date_from, date_to, time_from, time_to),
+        search,
+        device_id,
+        sort_by,
+        sort_direction,
+        limit,
+        offset,
     )
     if category is None:
         rows, total = await service.transactions(query)
@@ -255,13 +276,22 @@ async def review_queue(
 @router.get("/review-queue/categories", response_model=OperationData)
 async def review_categories(
     service: Service,
+    request: Request,
     date_from: date | None = None,
     date_to: date | None = None,
+    time_from: time | None = None,
+    time_to: time | None = None,
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     device_id: UUID | None = None,
 ) -> dict[str, JsonValue]:
     query = _review_query(
-        date_from, date_to, search, device_id, "created_at", "asc", 100, 0
+        _folder_window(request, date_from, date_to, time_from, time_to),
+        search,
+        device_id,
+        "folder_at",
+        "desc",
+        100,
+        0,
     )
     _, categories = await _categorized(service, query)
     values = list(categories.values())

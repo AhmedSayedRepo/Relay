@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import DateTime, Integer, String, Text, Uuid
+from sqlalchemy import DateTime, Integer, String, Text, Uuid, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,51 @@ class EmailSettingsRow(Base):
     report_email: Mapped[str | None] = mapped_column(String(254))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_by: Mapped[UUID | None] = mapped_column(Uuid)
+
+
+class AppSettingRow(Base):
+    """Small admin settings kept as text, e.g. who receipts must be sent to."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[UUID | None] = mapped_column(Uuid)
+
+
+RECIPIENT_NAME = "recipient_name"
+RECIPIENT_PHONE = "recipient_phone"
+
+
+async def recipient(session: AsyncSession) -> tuple[str, str | None] | None:
+    """The account receipts must be sent to: (name, phone), or None when the
+    admin has not set it (then the check is skipped)."""
+    rows = {
+        row.key: row.value
+        for row in await session.scalars(
+            select(AppSettingRow).where(
+                AppSettingRow.key.in_((RECIPIENT_NAME, RECIPIENT_PHONE))
+            )
+        )
+    }
+    name = rows.get(RECIPIENT_NAME, "").strip()
+    return (name, rows.get(RECIPIENT_PHONE) or None) if name else None
+
+
+async def save_recipient(
+    session: AsyncSession, name: str, phone: str | None, actor_id: UUID
+) -> None:
+    now = datetime.now(UTC)
+    for key, value in ((RECIPIENT_NAME, name), (RECIPIENT_PHONE, phone or "")):
+        row = await session.get(AppSettingRow, key)
+        if row is None:
+            row = AppSettingRow(key=key)
+            session.add(row)
+        row.value = value
+        row.updated_at = now
+        row.updated_by = actor_id
+    await session.commit()
 
 
 def _fernet(settings: Settings) -> Fernet:

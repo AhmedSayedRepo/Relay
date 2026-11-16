@@ -50,6 +50,10 @@ class SmsVerificationRepository(Protocol):
 
     async def sms_direction(self, device_id: UUID) -> SmsDirection: ...
 
+    async def sms_devices(self) -> list[UUID]: ...
+
+    async def day_matched(self) -> set[UUID]: ...
+
     async def set_sms_sources(
         self,
         device_id: UUID,

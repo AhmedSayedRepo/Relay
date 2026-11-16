@@ -34,6 +34,7 @@ class VerificationStatus(StrEnum):
 class MatchMethod(StrEnum):
     AUTO = "AUTO"
     MANUAL = "MANUAL"
+    DAY = "DAY"  # same-day amount match by the auto-confirm check; kept as is
 
 
 class SmsDirection(StrEnum):

@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
@@ -103,6 +104,172 @@ async def import_images(
     return counts
 
 
+def _reopen(row: ReceiptCandidateRow, by: str, now: datetime) -> dict[str, Any]:
+    """Move a machine-rejected image to Review; every field still needs a
+    decision (or an independent check) before it counts."""
+    resolution = initial_resolution(row.machine_result, supported_receipt=True)
+    resolution["classification_resolved"] = True
+    resolution["supported_layout"] = True
+    resolution["reopened_by"] = by
+    blocking = resolution.get("blocking_fields")
+    if isinstance(blocking, list):
+        resolution["blocking_fields"] = [
+            item for item in blocking if item not in ("classification", "layout")
+        ]
+    row.receipt_type = ReceiptType.INSTAPAY_TRANSFER_RECEIPT.value
+    row.review_status = ReviewStatus.NEEDS_REVIEW.value
+    row.resolution_result = resolution
+    row.updated_at = now
+    return resolution
+
+
+def _machine_only(row: ReceiptCandidateRow) -> bool:
+    """No operator has decided anything on this receipt yet."""
+    if row.reviewed_result is not None:
+        return False
+    fields = (row.resolution_result or {}).get("fields")
+    return not any(
+        isinstance(field, dict)
+        and field.get("trust") in {"OPERATOR_CONFIRMED", "OPERATOR_CORRECTED"}
+        for field in (fields.values() if isinstance(fields, dict) else ())
+    )
+
+
+TEXT_READER = "text_reader_v2"
+
+
+def _suggest_missing(resolution: dict[str, Any], values: dict[str, str]) -> int:
+    """Offer text readings only for fields nothing has suggested yet."""
+    fields = resolution.get("fields")
+    if not isinstance(fields, dict):
+        return 0
+    empty = {
+        name: value
+        for name, value in values.items()
+        if isinstance(fields.get(name), dict) and fields[name].get("value") is None
+    }
+    applied, _ = apply_suggestions(resolution, empty, TEXT_READER, "text")
+    return applied
+
+
+async def text_pass(
+    database: Database,
+    storage: FilesystemObjectStorage,
+    provider: Any,
+    languages: tuple[str, ...],
+    limit: int,
+) -> dict[str, int]:
+    """Read each new receipt image once as enlarged plain text.
+
+    - A payment request (it moves no money) is rejected and labelled.
+    - An image the layout matcher rejected that reads like a receipt goes to
+      Review with the reference, date and time offered as suggestions.
+    - A rejected image that is not a receipt at all (a photo of food, a
+      screenshot) is hidden from Transactions, Review and the dashboard.
+    - The text is kept so the bank SMS check can see sender and recipient.
+    """
+    from relay.infrastructure import text_recheck
+
+    counts = {"read": 0, "reopened": 0, "requests": 0, "hidden": 0}
+    async with database.session() as session:
+        rows = (
+            await session.execute(
+                select(ReceiptCandidateRow.id, BinaryObjectRow.storage_key)
+                .join(
+                    BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id
+                )
+                .where(
+                    ReceiptCandidateRow.hidden_reason.is_(None),
+                    ReceiptCandidateRow.reviewed_result.is_(None),
+                    (
+                        ReceiptCandidateRow.review_status
+                        == ReviewStatus.NEEDS_REVIEW.value
+                    )
+                    | (
+                        (
+                            ReceiptCandidateRow.review_status
+                            == ReviewStatus.REJECTED.value
+                        )
+                        & (
+                            ReceiptCandidateRow.receipt_type
+                            == ReceiptType.UNKNOWN_RECEIPT.value
+                        )
+                    ),
+                )
+                .order_by(ReceiptCandidateRow.created_at.desc())
+            )
+        ).all()
+    for candidate_id, storage_key in rows:
+        if counts["read"] >= limit:
+            break
+        async with database.session() as session:
+            row = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == candidate_id)
+                .with_for_update()
+            )
+            if (
+                row is None
+                or not isinstance(row.machine_result, dict)
+                or text_recheck.VERSION in row.machine_result
+                or not _machine_only(row)
+            ):
+                continue
+            try:
+                data = storage.read(storage_key, MAX_IMAGE_BYTES)
+                result = await asyncio.to_thread(
+                    text_recheck.assess, data, provider, languages
+                )
+            except Exception as error:  # noqa: BLE001 - one bad image, not the batch
+                print(f"Could not read {candidate_id} as text: {type(error).__name__}")
+                continue
+            now = datetime.now(UTC)
+            machine = copy.deepcopy(row.machine_result)
+            machine[text_recheck.VERSION] = {
+                key: result[key]
+                for key in (
+                    "receipt",
+                    "payment_request",
+                    "found",
+                    "sender",
+                    "parties",
+                    "text",
+                )
+            } | {"at": now.isoformat()}
+            row.machine_result = machine
+            row.updated_at = now
+            counts["read"] += 1
+            rejected = row.review_status == ReviewStatus.REJECTED.value
+            if result["payment_request"]:
+                resolution = copy.deepcopy(row.resolution_result or {})
+                resolution["state"] = "REJECTED_OR_UNKNOWN_RECEIPT"
+                resolution["blocking_fields"] = []
+                resolution["rejected_reason"] = "payment_request"
+                row.resolution_result = resolution
+                row.review_status = ReviewStatus.REJECTED.value
+                counts["requests"] += 1
+            elif rejected and result["receipt"]:
+                resolution = _reopen(row, text_recheck.VERSION, now)
+                _suggest_missing(resolution, result["values"])
+                row.resolution_result = resolution
+                counts["reopened"] += 1
+            elif rejected:
+                row.hidden_reason = "not_a_receipt"
+                counts["hidden"] += 1
+            elif isinstance(row.resolution_result, dict):
+                resolution = copy.deepcopy(row.resolution_result)
+                if _suggest_missing(resolution, result["values"]):
+                    row.resolution_result = resolution
+            await session.commit()
+    if counts["read"]:
+        print(
+            f"Read {counts['read']} images as text: {counts['reopened']} moved to "
+            f"Review, {counts['requests']} payment requests rejected, "
+            f"{counts['hidden']} non-receipt photos hidden."
+        )
+    return counts
+
+
 async def reopen_rejected(uow: SqlUnitOfWork, device_id: UUID | None) -> int:
     """Send receipts the reader could not classify back to manual review.
 
@@ -123,19 +290,7 @@ async def reopen_rejected(uow: SqlUnitOfWork, device_id: UUID | None) -> int:
         if row.reviewed_result is None
     ]
     for row in rows:
-        resolution = initial_resolution(row.machine_result, supported_receipt=True)
-        resolution["classification_resolved"] = True
-        resolution["supported_layout"] = True
-        resolution["reopened_by"] = "operator_cli"
-        blocking = resolution.get("blocking_fields")
-        if isinstance(blocking, list):
-            resolution["blocking_fields"] = [
-                item for item in blocking if item not in ("classification", "layout")
-            ]
-        row.receipt_type = ReceiptType.INSTAPAY_TRANSFER_RECEIPT.value
-        row.review_status = ReviewStatus.NEEDS_REVIEW.value
-        row.resolution_result = resolution
-        row.updated_at = now
+        _reopen(row, "operator_cli", now)
     await uow.commit()
     print(f"Reopened {len(rows)} receipts for review.")
     return len(rows)
@@ -260,16 +415,14 @@ async def model_suggest(
 
 
 AUTO_REASONS = {
-    "sms": "auto-confirmed: matches a bank SMS",
-    "readers": "auto-confirmed: model and text reader agree",
+    "sms_day": "auto-confirmed: a bank SMS with this amount arrived the same day",
 }
 
 
-SMS_FIELDS = ("amount", "currency", "date", "time")
-
-
 def model_values(
-    resolution: dict[str, Any], names: tuple[str, ...] | None = None
+    resolution: dict[str, Any],
+    names: tuple[str, ...] | None = None,
+    sources: tuple[str, ...] = ("model", "text"),
 ) -> dict[str, str] | None:
     """The model's reading of the named key fields (all five by default), if
     each is still a machine-only suggestion from the model and passes the
@@ -292,7 +445,7 @@ def model_values(
             isinstance(listed, list)
             and len(listed) == 1
             and isinstance(listed[0], dict)
-            and listed[0].get("source") == "model"
+            and listed[0].get("source") in sources
         ):
             return None
         value = field.get("value")
@@ -300,26 +453,6 @@ def model_values(
             return None
         values[name] = value
     return values
-
-
-def readers_agree(resolution: dict[str, Any], values: dict[str, str]) -> bool:
-    """The original text reader saw the same reference and amount."""
-    fields = resolution.get("fields")
-    if not isinstance(fields, dict):
-        return False
-    for name in ("reference_number", "amount"):
-        field = fields.get(name)
-        listed = (
-            field.get("candidates_before_prefill") if isinstance(field, dict) else None
-        )
-        seen = {
-            item.get("normalized_value")
-            for item in (listed if isinstance(listed, list) else [])
-            if isinstance(item, dict) and item.get("source") == "receipt"
-        }
-        if values[name] not in seen:
-            return False
-    return True
 
 
 async def _tag(
@@ -367,17 +500,32 @@ async def _confirm(
         )
 
 
+def _local_day(moment: datetime, settings: Settings) -> str:
+    zone = ZoneInfo(settings.receipt_timezone)
+    return aware(moment).astimezone(zone).date().isoformat()
+
+
 async def auto_confirm(
     database: Database, storage: FilesystemObjectStorage, settings: Settings
 ) -> dict[str, int]:
-    """Confirm model readings that an independent check backs up: a matching
-    bank SMS, or the old text reader reading the same reference and amount.
+    """Confirm a receipt when an incoming bank SMS backs it up:
+
+    1. The receipt was sent to the owner (name, and phone on InstaPay
+       receipts), when the admin has set who that is.
+    2. A free incoming bank SMS with the same amount arrived on the same day
+       (Cairo time) as the receipt image. Time of day does not matter; each
+       SMS confirms one receipt only.
+    3. When the same amount comes more than once that day, receipts from the
+       same sender (or an unreadable one) need different references.
+
     Everything else stays in Review. Auto-confirmed receipts are tagged and
     never used for training."""
     from relay.application.errors import Conflict
+    from relay.infrastructure.email_settings import recipient
     from relay.infrastructure.models import UserRow
+    from relay.infrastructure.text_recheck import VERSION, recipient_matches
 
-    counts = {"sms": 0, "sms_time": 0, "readers": 0, "waiting": 0, "failed": 0}
+    counts = {"sms_day": 0, "waiting": 0, "failed": 0}
     async with database.session() as session:
         reviewer = await session.scalar(
             select(UserRow.id)
@@ -385,99 +533,139 @@ async def auto_confirm(
             .order_by(UserRow.created_at)
             .limit(1)
         )
+        owner = await recipient(session)
         rows = (
             await session.execute(
                 select(
                     ReceiptCandidateRow.id,
                     ReceiptCandidateRow.device_id,
                     ReceiptCandidateRow.resolution_result,
+                    ReceiptCandidateRow.machine_result,
+                    ReceiptCandidateRow.review_status,
                     RawEventRow.occurred_at,
                 )
                 .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
                 .where(
-                    ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value
+                    ReceiptCandidateRow.hidden_reason.is_(None),
+                    ReceiptCandidateRow.review_status != ReviewStatus.REJECTED.value,
                 )
+                .order_by(RawEventRow.occurred_at, ReceiptCandidateRow.id)
             )
         ).all()
     if reviewer is None:
         return counts
-    # SMS already spent: in this pass, or held by a receipt still waiting for
-    # its date and time to be entered.
+
+    def facts(resolution: Any, machine: Any) -> dict[str, Any]:
+        resolution = resolution if isinstance(resolution, dict) else {}
+        fields = resolution.get("fields")
+        values = {
+            name: field.get("value")
+            for name, field in (fields.items() if isinstance(fields, dict) else ())
+            if isinstance(field, dict)
+        }
+        text = machine.get(VERSION) if isinstance(machine, dict) else None
+        return {
+            "amount": values.get("amount"),
+            "reference": values.get("reference_number"),
+            "sender": text.get("sender") if isinstance(text, dict) else None,
+        }
+
+    # Every receipt of the day, confirmed or waiting, for the repeat check.
+    known = [
+        (candidate_id, _local_day(folder_at, settings), facts(resolution, machine))
+        for candidate_id, _, resolution, machine, _, folder_at in rows
+    ]
+
+    def repeated(candidate_id: UUID, day: str, mine: dict[str, Any]) -> bool:
+        """Another receipt that day with this amount that could be the same
+        transfer: same sender (or one that cannot be read) and no proof by
+        two different references."""
+        for other_id, other_day, other in known:
+            if other_id == candidate_id or other_day != day:
+                continue
+            if other["amount"] != mine["amount"]:
+                continue
+            same_sender = (
+                mine["sender"] is None
+                or other["sender"] is None
+                or mine["sender"] == other["sender"]
+            )
+            different_refs = (
+                mine["reference"] is not None
+                and other["reference"] is not None
+                and mine["reference"] != other["reference"]
+            )
+            if same_sender and not different_refs:
+                return True
+        return False
+
     used: set[UUID] = set()
-    for _, _, resolution, _ in rows:
-        check = (
-            resolution.get("sms_time_check") if isinstance(resolution, dict) else None
-        )
-        if isinstance(check, dict) and isinstance(check.get("event_id"), str):
-            used.add(UUID(check["event_id"]))
-    for candidate_id, device_id, resolution, folder_at in rows:
-        if not isinstance(resolution, dict) or "model_reader" not in resolution:
+    for candidate_id, device_id, resolution, machine, status, folder_at in rows:
+        if status != ReviewStatus.NEEDS_REVIEW.value:
             continue
-        if "auto_confirmed" in resolution:
+        if not isinstance(resolution, dict) or "auto_confirmed" in resolution:
             continue
-        rule = None
-        from_sms: set[str] = set()  # fields whose value comes from the SMS
-        time_check: dict[str, Any] | None = None  # distant SMS: enter date/time
-        values = model_values(resolution, SMS_FIELDS)
-        event = None
-        if values is not None:
-            async with database.session() as session:
-                event = await build_sms_verification_service(
-                    SqlUnitOfWork(session), settings
-                ).matches_reading(device_id, candidate_id, values, frozenset(used))
-        elif (core := model_values(resolution, ("amount", "currency"))) is not None:
-            # No readable date and time: use when the image reached the folder.
-            async with database.session() as session:
-                found = await build_sms_verification_service(
-                    SqlUnitOfWork(session), settings
-                ).match_by_folder_time(
-                    device_id,
-                    candidate_id,
-                    core["amount"],
-                    core["currency"],
-                    aware(folder_at),
-                    frozenset(used),
-                )
-            if found is not None:
-                event, moment, near = found
-                values = dict(core)
-                if near:
-                    values |= {
-                        "date": moment.date().isoformat(),
-                        "time": moment.time().isoformat(),
-                    }
-                    from_sms = {"date", "time"}
-                else:
-                    time_check = {
-                        "event_id": str(event),
-                        "local": moment.isoformat(timespec="minutes"),
-                    }
-        if event is not None and values is not None:
-            rule = "sms_time" if time_check else "sms"
-            used.add(event)
-            # The SMS makes the reference optional: keep it only if the
-            # model read a plausible one.
-            reference = model_values(resolution, ("reference_number",))
-            values |= reference or {}
-        if rule is None:
-            values = model_values(resolution)
-            if values is not None and readers_agree(resolution, values):
-                rule = "readers"
-        if values is None or rule is None:
+        text = machine.get(VERSION) if isinstance(machine, dict) else None
+        if not isinstance(text, dict) or text.get("payment_request"):
+            counts["waiting"] += 1  # wait for the text reading (or a request)
+            continue
+        if owner is not None:
+            name, phone = owner
+            found = text.get("found")
+            instapay = bool(found.get("brand")) if isinstance(found, dict) else False
+            printed = str(text.get("text") or "")
+            if not recipient_matches(printed, name, phone, instapay):
+                if "recipient_mismatch" not in resolution:
+                    await _tag(database, candidate_id, "recipient_mismatch", {})
+                counts["waiting"] += 1
+                continue
+        core = model_values(resolution, ("amount", "currency"))
+        if core is None:
             counts["waiting"] += 1
             continue
+        day = _local_day(folder_at, settings)
+        if repeated(candidate_id, day, facts(resolution, machine)):
+            if "possible_repeat" not in resolution:
+                await _tag(database, candidate_id, "possible_repeat", {"day": day})
+            counts["waiting"] += 1
+            continue
+        async with database.session() as session:
+            sms = await build_sms_verification_service(
+                SqlUnitOfWork(session), settings
+            ).match_by_day(
+                device_id,
+                candidate_id,
+                core["amount"],
+                core["currency"],
+                aware(folder_at),
+                frozenset(used),
+            )
+        if sms is None:
+            counts["waiting"] += 1
+            continue
+        values = dict(core)
+        # The SMS makes the rest optional: keep what was read plausibly.
+        for name in ("reference_number", "date", "time"):
+            values |= model_values(resolution, (name,)) or {}
         try:
-            await _tag(database, candidate_id, "auto_confirmed", {"rule": rule})
+            used.add(sms.event_id)
+            async with database.session() as session:
+                await build_sms_verification_service(
+                    SqlUnitOfWork(session), settings
+                ).record_day_match(candidate_id, sms, reviewer)
+            await _tag(
+                database,
+                candidate_id,
+                "auto_confirmed",
+                {"rule": "sms_day", "sms_event_id": str(sms.event_id)},
+            )
             # Optional-once-verified fields first: they stop being reviewable
             # once the SMS marker leaves only amount and currency blocking.
-            order = ["reference_number", "date", "time", "currency", "amount"]
-            for name in order:
+            for name in ["reference_number", "date", "time", "currency", "amount"]:
                 if name not in values:
                     continue
-                if rule == "sms" and name == "currency":
+                if name == "currency":
                     await _tag(database, candidate_id, "sms_verified", {})
-                if time_check is not None and name == "currency":
-                    await _tag(database, candidate_id, "sms_time_check", time_check)
                 await _confirm(
                     database,
                     storage,
@@ -485,24 +673,15 @@ async def auto_confirm(
                     candidate_id,
                     name,
                     values[name],
-                    "sms" if rule == "sms_time" else rule,
-                    "CORRECT" if name in from_sms else "CONFIRM",
+                    "sms_day",
                 )
-            if rule == "sms":
-                # Record the verification now so the SMS cannot vouch twice.
-                async with database.session() as session:
-                    await build_sms_verification_service(
-                        SqlUnitOfWork(session), settings
-                    ).run()
-            counts[rule] += 1
+            counts["sms_day"] += 1
         except Conflict as error:
             counts["failed"] += 1
             print(f"Left {candidate_id} for review: {error}")
     print(
-        f"Auto-confirmed {counts['sms']} by bank SMS and {counts['readers']} by "
-        f"two readers; {counts['sms_time']} matched an SMS but need their date "
-        f"and time entered; {counts['waiting']} wait for review; "
-        f"{counts['failed']} failed."
+        f"Auto-confirmed {counts['sms_day']} by a same-day bank SMS; "
+        f"{counts['waiting']} wait for review; {counts['failed']} failed."
     )
     return counts
 
@@ -831,6 +1010,9 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                         stale_job_minutes=settings.processing_stale_minutes,
                         evidence_extractor=InstaPayReceiptAdapter(provider),
                     ).process_pending(limit=settings.processing_batch_limit)
+                await text_pass(
+                    database, storage, provider, tuple(settings.ocr_languages), 4
+                )
                 async with database.session() as session:
                     await build_sms_verification_service(
                         SqlUnitOfWork(session), settings

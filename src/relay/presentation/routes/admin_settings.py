@@ -9,7 +9,13 @@ from pydantic import BaseModel, EmailStr, Field, SecretStr
 from relay.application.account_recovery_ports import OutgoingEmail
 from relay.application.errors import Conflict
 from relay.infrastructure.config import Settings
-from relay.infrastructure.email_settings import load_row, mail_config, save
+from relay.infrastructure.email_settings import (
+    load_row,
+    mail_config,
+    recipient,
+    save,
+    save_recipient,
+)
 from relay.infrastructure.mailer import SmtpMailer
 from relay.infrastructure.repositories import SqlUnitOfWork
 from relay.presentation.dependencies import (
@@ -126,3 +132,31 @@ async def send_test_email(
             detail="Could not reach the email server. Try again.",
         ) from None
     return TestEmailResponse(sent_to=to)
+
+
+class RecipientSettings(BaseModel):
+    # Who receipts must be sent to. Empty name: the check is off.
+    name: str
+    phone: str | None
+
+
+class RecipientRequest(InputModel):
+    name: str = Field(default="", max_length=60, pattern=r"^[^\x00-\x1f\x7f<>]*$")
+    phone: str | None = Field(default=None, pattern=r"^01\d{9}$")
+
+
+@router.get("/recipient", response_model=RecipientSettings)
+async def get_recipient(uow: Uow) -> RecipientSettings:
+    found = await recipient(uow.session)
+    return RecipientSettings(
+        name=found[0] if found else "", phone=found[1] if found else None
+    )
+
+
+@router.put("/recipient", response_model=RecipientSettings)
+async def put_recipient(
+    body: RecipientRequest, uow: Uow, user: AuthenticatedUser
+) -> RecipientSettings:
+    name = " ".join(body.name.split())
+    await save_recipient(uow.session, name, body.phone if name else None, user.id)
+    return await get_recipient(uow)

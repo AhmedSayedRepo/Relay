@@ -27,6 +27,7 @@ from relay.infrastructure.processing_models import (
 )
 from relay.infrastructure.processing_repository import to_job
 from relay.infrastructure.sms_verification_models import SmsVerificationRow
+from relay.infrastructure.text_recheck import VERSION as TEXT_READING
 
 RETRYABLE_FAILURES = {
     ProcessingFailure.OCR_TIMEOUT.value,
@@ -77,6 +78,24 @@ def _safe_configuration(value: dict[str, Any]) -> dict[str, JsonValue]:
         "images_enabled": image_value.get("enabled") is True,
         "image_rule_count": len(image_rules) if isinstance(image_rules, list) else 0,
         "image_source_ids": source_ids,
+    }
+
+
+def _read_parties(machine: Any) -> dict[str, JsonValue]:
+    """Sender and recipient as the plain-text reader saw them (unconfirmed)."""
+    read = machine.get(TEXT_READING) if isinstance(machine, dict) else None
+    read = read if isinstance(read, dict) else {}
+    listed = read.get("parties")
+    found: dict[str, Any] = listed if isinstance(listed, dict) else {}
+    sender = found.get("sender_name") or read.get("sender")
+    recipient = " · ".join(
+        str(found[key])
+        for key in ("recipient_name", "recipient_phone")
+        if found.get(key)
+    )
+    return {
+        "suggested_sender": str(sender) if sender else None,
+        "suggested_recipient": recipient or None,
     }
 
 
@@ -131,13 +150,16 @@ class SqlOperationsRepository:
 
     @staticmethod
     def _receipt_range(window: DateWindow) -> tuple[Any, ...]:
+        # Images that turned out not to be receipts are never counted or listed.
+        visible = ReceiptCandidateRow.hidden_reason.is_(None)
         if window.folder_time:
             folder = select(RawEventRow.id).where(
                 RawEventRow.occurred_at >= window.start,
                 RawEventRow.occurred_at < window.end_exclusive,
             )
-            return (ReceiptCandidateRow.raw_event_id.in_(folder),)
+            return (visible, ReceiptCandidateRow.raw_event_id.in_(folder))
         return (
+            visible,
             ReceiptCandidateRow.created_at >= window.start,
             ReceiptCandidateRow.created_at < window.end_exclusive,
         )
@@ -275,6 +297,7 @@ class SqlOperationsRepository:
             "sender_name": reviewed_value(resolution, "sender")
             or reviewed_value(resolution, "handle"),
             "recipient_name": reviewed_value(resolution, "recipient"),
+            **_read_parties(value.machine_result),
             "recipient_identifier": reviewed_value(resolution, "recipient_identifier"),
             "transfer_status": reviewed_value(resolution, "transfer_status"),
             "authoritative_status": (
@@ -575,6 +598,7 @@ class SqlOperationsRepository:
         )
         sort_columns = {
             "created_at": ReceiptCandidateRow.created_at,
+            "folder_at": RawEventRow.occurred_at,
             "transaction_occurred_at": ReceiptCandidateRow.transaction_occurred_at,
             "amount": ReceiptCandidateRow.amount,
             "reference": ReceiptCandidateRow.reference_normalized,

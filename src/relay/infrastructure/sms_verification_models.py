@@ -53,7 +53,9 @@ class SmsVerificationRow(Base):
             "status IN ('VERIFIED','AMBIGUOUS','WAITING','UNMATCHED')",
             name="sms_verification_status",
         ),
-        CheckConstraint("method IN ('AUTO','MANUAL')", name="sms_verification_method"),
+        CheckConstraint(
+            "method IN ('AUTO','MANUAL','DAY')", name="sms_verification_method"
+        ),
         CheckConstraint(
             "(status = 'VERIFIED') = (sms_event_id IS NOT NULL)",
             name="sms_verification_evidence",

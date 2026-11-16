@@ -247,6 +247,9 @@ class ReceiptCandidateRow(Base):
         ForeignKey("receipt_candidates.id", ondelete="SET NULL")
     )
     duplicate_reason: Mapped[str | None] = mapped_column(String(32))
+    # Set for images that turned out not to be receipts (e.g. a photo of food):
+    # kept, but left out of Transactions, Review and the dashboard.
+    hidden_reason: Mapped[str | None] = mapped_column(String(32))
     amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     currency: Mapped[str | None] = mapped_column(String(3))
     transaction_occurred_at: Mapped[datetime | None] = mapped_column(
