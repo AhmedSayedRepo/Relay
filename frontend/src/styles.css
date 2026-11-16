@@ -25,6 +25,7 @@
   --success: #1e6c58;
   --success-soft: #dcefe8;
   --focus: #e2934d;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
   --shadow: 0 12px 32px rgba(15, 52, 58, .08);
   --shadow-strong: 0 22px 65px rgba(8, 35, 40, .22);
   --radius-sm: .45rem;
@@ -91,7 +92,8 @@ button:disabled { opacity: .45; cursor: default; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
   outline: 3px solid var(--focus); outline-offset: 3px;
 }
-a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; text-underline-offset: .2em; }
+a { color: color-mix(in srgb, var(--signal) 70%, var(--ink)); font-weight: 720; text-decoration: none; transition: color .25s var(--ease-out); }
+a:hover { color: var(--accent); }
 .skip-link { position: fixed; inset-block-start: -5rem; inset-inline-start: 1rem; z-index: 100; padding: .75rem 1rem; color: var(--ink); background: var(--surface); border-radius: var(--radius-sm); }
 .skip-link:focus { inset-block-start: 1rem; }
 .app-shell { min-height: 100vh; }
@@ -190,7 +192,6 @@ textarea { min-height: 5rem; resize: vertical; }
 .metric strong { display: block; margin-block-start: .9rem; font-size: 2.25rem; line-height: 1; letter-spacing: -.03em; }
 .metric.money strong { font-size: 1.7rem; }
 .metric-link { display: block; color: inherit; text-decoration: none; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
-.metric-link:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--line-strong); }
 .metric-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .metric small { display: block; margin-top: .5rem; color: var(--ink-soft); }
 .money-line { display: block; }
@@ -417,3 +418,32 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .reason-tag.danger { color: #9b2c2c; background: #fde4e4; }
 [data-theme="dark"] .reason-tag.warning { color: #f5c78f; background: #4a3416; }
 [data-theme="dark"] .reason-tag.danger { color: #f3a5a5; background: #4a1f1f; }
+
+/* Cards respond to the pointer: a short lift, a shadow and wash in the card's
+   own colour (--tone), so a hovered card reads as "this one" without links. */
+.record-card, .help-card, .journey { --tone: var(--signal); }
+.review-row { --tone: var(--accent); }.duplicate-row { --tone: #8e7ac1; }
+.metric, .record-card, .help-card { position: relative; isolation: isolate; transition: transform .45s var(--ease-out), box-shadow .45s var(--ease-out), border-color .45s var(--ease-out); }
+.metric::after, .record-card::after, .help-card::after, .panel::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone, var(--signal)) 15%, transparent), transparent 62%);
+  transition: opacity .45s var(--ease-out);
+}
+[dir="rtl"] .metric::after, [dir="rtl"] .record-card::after, [dir="rtl"] .help-card::after, [dir="rtl"] .panel::after { background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--tone, var(--signal)) 15%, transparent), transparent 62%); }
+.metric:hover, .record-card:hover, .help-card:hover {
+  transform: translateY(-3px); border-color: color-mix(in srgb, var(--tone) 50%, var(--line));
+  box-shadow: 0 16px 32px -16px color-mix(in srgb, var(--tone) 60%, transparent), var(--shadow);
+}
+.metric:hover::after, .record-card:hover::after, .help-card:hover::after, .panel:hover::after { opacity: 1; }
+.metric > span::before { transition: transform .45s var(--ease-out), box-shadow .45s var(--ease-out); }
+.metric:hover > span::before { transform: scale(1.3); box-shadow: 0 0 0 .3rem color-mix(in srgb, var(--tone) 22%, transparent); }
+.metric:active, .record-card:active { transform: translateY(-1px); transition-duration: .12s; }
+/* Big work panels hold forms: they warm up but never move under the cursor. */
+.panel { position: relative; isolation: isolate; transition: border-color .45s var(--ease-out), box-shadow .45s var(--ease-out); }
+.panel:hover { border-color: color-mix(in srgb, var(--signal) 35%, var(--line)); }
+/* Table rows: a coloured wash instead of underlined links. */
+tbody tr { transition: background-color .3s var(--ease-out); }
+tbody tr:hover { background: color-mix(in srgb, var(--signal) 7%, var(--surface)); }
+tbody tr:hover a { color: var(--accent); }
+td { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .metric:hover, .record-card:hover, .help-card:hover, .metric:active, .record-card:active { transform: none; } }

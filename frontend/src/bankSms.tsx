@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { usePersisted } from "./filters";
 import { Link } from "react-router-dom";
 import { query } from "./api";
 import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
@@ -14,9 +14,9 @@ type BankSmsPage = Page<BankSmsRow> & { counts?: Record<string, number>; unused_
 /** Every bank SMS the SMS phone received, and whether it confirmed a receipt. */
 export function BankSms({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const b = m.bankSms;
-  const [dateFrom, setDateFrom] = useState(() => cairoDate()); const [dateTo, setDateTo] = useState(() => cairoDate());
-  const [timeFrom, setTimeFrom] = useState("00:00"); const [timeTo, setTimeTo] = useState("23:59");
-  const [device, setDevice] = useState(""); const [status, setStatus] = useState(""); const [offset, setOffset] = useState(0); const limit = 50;
+  const [dateFrom, setDateFrom] = usePersisted("day.dateFrom", () => cairoDate()); const [dateTo, setDateTo] = usePersisted("day.dateTo", () => cairoDate());
+  const [timeFrom, setTimeFrom] = usePersisted("day.timeFrom", "00:00"); const [timeTo, setTimeTo] = usePersisted("day.timeTo", "23:59");
+  const [device, setDevice] = usePersisted("sms.device", ""); const [status, setStatus] = usePersisted("sms.status", ""); const [offset, setOffset] = usePersisted("sms.offset", 0); const limit = 50;
   const filters = { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined, device_id: device || undefined };
   const { data, error, loading } = useApi<BankSmsPage>("/bank-sms" + query({ ...filters, status: status || undefined, limit, offset }), token);
   const phones = useApi<Page<Record<string, Json>>>("/operations/devices?limit=100", token).data?.items ?? [];

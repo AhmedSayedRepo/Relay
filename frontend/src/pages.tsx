@@ -13,6 +13,7 @@ import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
 import type { DashboardData, DuplicateGroup, Job, Json, Page, Transaction } from "./types";
 import { canReview, isAdmin, useRole } from "./role";
+import { usePersisted } from "./filters";
 
 const dash = "—";
 function formatAmount(amount: string | null, currency: string | null, locale: Locale) {
@@ -59,8 +60,8 @@ function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: 
 export function Dashboard({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const role = useRole(); const d = m.dashboard;
   // Opens on today, 12:00 AM to 11:59 PM Cairo time; every number follows the chosen range.
-  const [dateFrom, setDateFrom] = useState(() => cairoDate()); const [dateTo, setDateTo] = useState(() => cairoDate());
-  const [timeFrom, setTimeFrom] = useState("00:00"); const [timeTo, setTimeTo] = useState("23:59");
+  const [dateFrom, setDateFrom] = usePersisted("day.dateFrom", () => cairoDate()); const [dateTo, setDateTo] = usePersisted("day.dateTo", () => cairoDate());
+  const [timeFrom, setTimeFrom] = usePersisted("day.timeFrom", "00:00"); const [timeTo, setTimeTo] = usePersisted("day.timeTo", "23:59");
   const [message, setMessage] = useState(""); const [messageError, setMessageError] = useState(false);
   const range = { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined };
   const { data, error, loading } = useApi<DashboardData>("/dashboard" + query(range), token);
@@ -99,8 +100,8 @@ export function Dashboard({ token }: { token: string }) {
 
 /** Shared day filter (Dashboard, Transactions, Review): when images reached the folder, Cairo time. */
 function useDayRange() {
-  const [dateFrom, setDateFrom] = useState(() => cairoDate()); const [dateTo, setDateTo] = useState(() => cairoDate());
-  const [timeFrom, setTimeFrom] = useState("00:00"); const [timeTo, setTimeTo] = useState("23:59");
+  const [dateFrom, setDateFrom] = usePersisted("day.dateFrom", () => cairoDate()); const [dateTo, setDateTo] = usePersisted("day.dateTo", () => cairoDate());
+  const [timeFrom, setTimeFrom] = usePersisted("day.timeFrom", "00:00"); const [timeTo, setTimeTo] = usePersisted("day.timeTo", "23:59");
   return { dateFrom, dateTo, timeFrom, timeTo, setDateFrom, setDateTo, setTimeFrom, setTimeTo, params: { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined } };
 }
 
@@ -142,8 +143,8 @@ function ReceiptFlags({ item }: { item: Transaction }) {
 
 export function Transactions({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const range = useDayRange();
-  const [search, setSearch] = useState(""); const [review, setReview] = useState(""); const [duplicate, setDuplicate] = useState("");
-  const [currency, setCurrency] = useState(""); const [sort, setSort] = useState("folder_at"); const [direction, setDirection] = useState("desc"); const [offset, setOffset] = useState(0); const limit = 25;
+  const [search, setSearch] = usePersisted("transactions.search", ""); const [review, setReview] = usePersisted("transactions.review", ""); const [duplicate, setDuplicate] = usePersisted("transactions.duplicate", "");
+  const [currency, setCurrency] = usePersisted("transactions.currency", ""); const [sort, setSort] = usePersisted("transactions.sort", "folder_at"); const [direction, setDirection] = usePersisted("transactions.direction", "desc"); const [offset, setOffset] = usePersisted("transactions.offset", 0); const limit = 25;
   const path = "/transactions" + query({ ...range.params, search: search || undefined, review_status: review || undefined, duplicate_status: duplicate || undefined, currency: currency || undefined, sort_by: sort, sort_direction: direction, limit, offset });
   const { data, error, loading } = useApi<Page<Transaction>>(path, token);
   return <section><PageHeading title={m.pages.transactions[0]} description={m.pages.transactions[1]} help={contextHelp.transactions} />
@@ -182,7 +183,7 @@ export function DuplicateDetail({ token }: { token: string }) {
 }
 
 export function ReviewQueue({ token }: { token: string }) {
-  const { locale, messages: m } = useI18n(); const range = useDayRange(); const [search, setSearch] = useState(""); const [direction, setDirection] = useState("desc"); const [offset, setOffset] = useState(0); const limit = 25;
+  const { locale, messages: m } = useI18n(); const range = useDayRange(); const [search, setSearch] = usePersisted("review.search", ""); const [direction, setDirection] = usePersisted("review.direction", "desc"); const [offset, setOffset] = usePersisted("review.offset", 0); const limit = 25;
   const [params] = useSearchParams(); const [category, setCategory] = useState(params.get("category") || "");
   const filters = { ...range.params, search: search || undefined };
   const { data, error, loading } = useApi<Page<Transaction>>("/review-queue" + query({ ...filters, category: category || undefined, sort_direction: direction, limit, offset }), token);
