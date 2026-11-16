@@ -29,6 +29,8 @@ export type Transaction = {
   is_canonical: boolean;
   source_type: string;
   received_at: string;
+  folder_at?: string | null;
+  resolution_result?: Record<string, unknown> | null;
   created_at: string;
   ocr_mean_confidence: number | null;
   sms_verification: string | null;

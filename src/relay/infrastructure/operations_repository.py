@@ -131,13 +131,16 @@ class SqlOperationsRepository:
 
     @staticmethod
     def _receipt_range(window: DateWindow) -> tuple[Any, ...]:
+        # Images that turned out not to be receipts are never counted or listed.
+        visible = ReceiptCandidateRow.hidden_reason.is_(None)
         if window.folder_time:
             folder = select(RawEventRow.id).where(
                 RawEventRow.occurred_at >= window.start,
                 RawEventRow.occurred_at < window.end_exclusive,
             )
-            return (ReceiptCandidateRow.raw_event_id.in_(folder),)
+            return (visible, ReceiptCandidateRow.raw_event_id.in_(folder))
         return (
+            visible,
             ReceiptCandidateRow.created_at >= window.start,
             ReceiptCandidateRow.created_at < window.end_exclusive,
         )
@@ -575,6 +578,7 @@ class SqlOperationsRepository:
         )
         sort_columns = {
             "created_at": ReceiptCandidateRow.created_at,
+            "folder_at": RawEventRow.occurred_at,
             "transaction_occurred_at": ReceiptCandidateRow.transaction_occurred_at,
             "amount": ReceiptCandidateRow.amount,
             "reference": ReceiptCandidateRow.reference_normalized,

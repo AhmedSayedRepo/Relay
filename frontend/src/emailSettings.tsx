@@ -53,5 +53,35 @@ export function EmailSettingsPage({ token }: { token: string }) {
       {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
     </form>
     <article className="panel"><h2>{e.howTitle}</h2><ol className="steps">{e.how.map((step) => <li key={step}>{step}</li>)}</ol><p className="hint">{e.privacy}</p></article></div>}
+    <RecipientCard token={token} />
   </section>;
+}
+
+type Recipient = { name: string; phone: string | null };
+
+/** Who receipts must be sent to; checked before a bank SMS can confirm one. */
+function RecipientCard({ token }: { token: string }) {
+  const { messages: m } = useI18n(); const r = m.recipientSettings;
+  const { data } = useApi<Recipient>("/settings/recipient", token);
+  const [form, setForm] = useState<Recipient>({ name: "", phone: "" }); const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (data) setForm({ name: data.name, phone: data.phone ?? "" });
+  }, [data]);
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setNotice(null);
+    try {
+      const next = await api<Recipient>("/settings/recipient", token, { method: "PUT", body: JSON.stringify({ name: form.name.trim(), phone: form.phone?.trim() || null }) });
+      setForm({ name: next.name, phone: next.phone ?? "" }); setNotice({ text: r.saved, error: false });
+    } catch (failure) {
+      setNotice({ text: failure instanceof ApiError && failure.status === 422 ? r.invalid : r.saveFailed, error: true });
+    } finally { setBusy(false); }
+  }
+  return <form className="panel form-panel" onSubmit={(event) => void submit(event)}><h2>{r.title}</h2><p className="hint">{r.hint}</p>
+    <label>{r.name}<input dir="ltr" value={form.name} maxLength={60} disabled={busy} placeholder="YOUSSEF" onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+    <label>{r.phone}<input dir="ltr" inputMode="numeric" value={form.phone ?? ""} maxLength={11} disabled={busy} placeholder="01xxxxxxxxx" onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label>
+    <div className="form-actions"><button type="submit" disabled={busy}>{r.save}</button></div>
+    {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
+  </form>;
 }

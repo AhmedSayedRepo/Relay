@@ -50,7 +50,7 @@ export const ar = {
   filters: {
     search: "بحث", searchTransactions: "المرجع أو المرسل أو المستلم", searchReferences: "البحث في المراجع",
     from: "من", to: "إلى", review: "المراجعة", duplicate: "التكرار", currency: "العملة", sort: "الترتيب",
-    order: "الاتجاه", status: "الحالة", newest: "الأحدث أولاً", oldest: "الأقدم أولاً", relayEntry: "وقت الإدخال في Relay",
+    arrived: "وصل للموبايل", order: "الاتجاه", status: "الحالة", newest: "الأحدث أولاً", oldest: "الأقدم أولاً", relayEntry: "وقت الإدخال في Relay",
     transactionDate: "تاريخ المعاملة", amount: "المبلغ", reference: "المرجع", applyHint: "تُحدّث النتائج تلقائياً.",
   },
   dashboard: {
@@ -67,7 +67,7 @@ export const ar = {
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {
-    relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
+    arrived: "وصل للموبايل", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
     review: "المراجعة", duplicate: "التكرار", device: "الجهاز / المصدر", noReference: "لا يوجد مرجع",
     to: "إلى", openEvidence: "فتح أدلة المعاملة", canonical: "المعاملة الأساسية", duplicateItem: "معاملة مكررة", unique: "فريدة",
   },
@@ -135,6 +135,10 @@ export const ar = {
     training: "بيانات تدريب النموذج", trainingToggle: "استخدام الإيصالات المراجَعة من هذا الجهاز لتدريب النموذج", trainingOn: "مفعّل: يمكن نسخ الإيصالات المراجَعة من هذا الجهاز إلى بيانات التدريب.", trainingOff: "معطّل: لا يُنسخ أي شيء من هذا الجهاز إلى بيانات التدريب.", trainingLoading: "جارٍ التحقق من موافقة التدريب…", trainingUnavailable: "تعذر تحميل موافقة التدريب.", trainingFailed: "لم يُحفظ التغيير. حاول مرة أخرى.",
     collectionSave: "حفظ", collectionSaving: "جارٍ الحفظ…", collectionSaved: "تم الحفظ. يستلمه الهاتف في المزامنة التالية — اضغط مزامنة الآن على الهاتف.", collectionFailed: "لم يُحفظ. حاول مرة أخرى.", collectionTitle: "ما يجمعه هذا الهاتف", imagesToggle: "صور الإيصالات من مجلد", smsToggle: "رسائل البنك SMS", senders: "مُرسِلو رسائل البنك (مفصولة بفواصل)", sendersNeeded: "أضف مُرسِلاً واحداً على الأقل لرسائل البنك.", collectionHint: "يستلم الهاتف هذا في المزامنة التالية. ثم فعّل المفتاح نفسه في التطبيق واختر المجلد.", collectionChanged: "غيّر شخص آخر إعدادات هذا الجهاز. تظهر الآن أحدث الإعدادات؛ حاول مرة أخرى.", collectionUnavailable: "تعذّر تحميل إعدادات الجمع.",
     smsAnySender: "أي مرسل: يحتفظ Relay فقط بالرسائل التي فيها مبلغ (EGP أو جنيه)، فتُتجاهل الأكواد والإعلانات.", sendersOptional: "هؤلاء المرسلون فقط (اختياري، مفصولون بفواصل)", sectionMatching: "مطابقة رسائل البنك", sectionTraining: "تدريب النموذج", bulkTitle: "هاتف رسائل البنك", bulkHint: "اختر الهاتف الذي يستقبل رسائل البنك. ستُقارن إيصالات كل الهواتف الأخرى برسائله.", bulkPick: "هاتف الرسائل", bulkApply: "استخدمه لكل هواتف الإيصالات", bulkDone: "تم: {count} هاتف تُقارن إيصالاته بـ {name}.", bulkFailed: "تعذّر تحديث بعض الهواتف. حاول مرة أخرى.", bulkNone: "أضف الهاتف الذي يستقبل رسائل البنك أولاً.", settingsFor: "إعدادات {name}",
+  },
+  recipientSettings: {
+    title: "الإيصالات لازم تتبعت لـ", hint: "رسالة البنك بتأكد الإيصال بس لو متبعت للاسم ده (ولرقم الموبايل ده في إيصالات إنستاباي). سيب الاسم فاضي لو مش عايز الفحص ده.",
+    name: "الاسم بيبدأ بـ", phone: "رقم إنستاباي", save: "حفظ", saved: "اتحفظ.", saveFailed: "مقدرناش نحفظ. جرّب تاني.", invalid: "الرقم لازم يكون 11 رقم ويبدأ بـ 01.",
   },
   emailSettings: {
     senderName: "اسم المرسل (ما يراه المستلم)", senderEmail: "عنوان Gmail", appPassword: "كلمة مرور التطبيق من Gmail", reportEmail: "يُرسل التقرير اليومي إلى",

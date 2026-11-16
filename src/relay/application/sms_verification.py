@@ -192,10 +192,12 @@ class SmsVerificationService:
                 await self.repo.delete(candidate_id)
             else:
                 manual.add(candidate_id)
+        # Same-day matches made by the auto-confirm check are kept as they are.
+        fixed = manual | await self.repo.day_matched()
         receipts = [
             receipt
             for receipt in await self.repo.eligible_receipts(since=since)
-            if receipt.candidate_id not in manual
+            if receipt.candidate_id not in fixed
         ]
         await self.repo.delete_auto_since(since)
         taken = frozenset(await self.repo.held_events())
@@ -312,6 +314,64 @@ class SmsVerificationService:
         event_id, moment = found[0]
         near = moment >= folder_at - FOLDER_NEAR
         return event_id, moment.replace(tzinfo=None, second=0, microsecond=0), near
+
+    async def match_by_day(
+        self,
+        device_id: UUID,
+        candidate_id: UUID,
+        amount: str,
+        currency: str,
+        folder_at: datetime,
+        exclude: frozenset[UUID] = frozenset(),
+    ) -> SmsFacts | None:
+        """The earliest free incoming bank SMS with this amount that arrived
+        on the same local day as the receipt image. Time of day does not
+        matter; a different day never matches."""
+        try:
+            value = Decimal(amount).quantize(Decimal("0.01"))
+        except InvalidOperation:
+            return None
+        if value <= 0 or folder_at.tzinfo is None:
+            return None
+        sources = set(await self.repo.sms_sources(device_id))
+        if not sources:
+            sources = set(await self.repo.sms_devices())
+        if not sources:
+            return None
+        day = folder_at.astimezone(self.zone).date()
+        start = datetime(day.year, day.month, day.day, tzinfo=self.zone)
+        held = await self.repo.held_events(except_candidate=candidate_id)
+        events = await self.repo.sms_events(
+            sources, start - timedelta(hours=1), start + timedelta(hours=25)
+        )
+        for sms in sorted(_facts(events), key=lambda item: item.occurred_at):
+            if (
+                sms.event_id not in held
+                and sms.event_id not in exclude
+                and sms.device_id in sources
+                and sms.direction == SmsDirection.IN
+                and sms.amount == value
+                and sms.currency == currency.upper()
+                and sms.occurred_at.astimezone(self.zone).date() == day
+            ):
+                return sms
+        return None
+
+    async def record_day_match(
+        self, candidate_id: UUID, sms: SmsFacts, actor_id: UUID
+    ) -> None:
+        await self.repo.save(
+            StoredVerification(
+                candidate_id,
+                VerificationStatus.VERIFIED,
+                MatchMethod.DAY,
+                sms,
+                1,
+                actor_id,
+                datetime.now(UTC),
+            )
+        )
+        await self.uow.commit()
 
     async def _receipt(self, candidate_id: UUID) -> ReceiptFacts | None:
         found = await self.repo.eligible_receipts(candidate_id=candidate_id)

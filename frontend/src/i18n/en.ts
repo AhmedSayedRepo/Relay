@@ -48,7 +48,7 @@ export const en = {
   filters: {
     search: "Search", searchTransactions: "Reference, sender, or recipient", searchReferences: "Search references",
     from: "From", to: "To", review: "Review", duplicate: "Duplicate", currency: "Currency", sort: "Sort",
-    order: "Order", status: "Status", newest: "Newest first", oldest: "Oldest first", relayEntry: "Relay entry",
+    arrived: "Reached phone", order: "Order", status: "Status", newest: "Newest first", oldest: "Oldest first", relayEntry: "Relay entry",
     transactionDate: "Transaction date", amount: "Amount", reference: "Reference", applyHint: "Filters update automatically.",
   },
   dashboard: {
@@ -65,7 +65,7 @@ export const en = {
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {
-    relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
+    arrived: "Reached phone", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
     review: "Review", duplicate: "Duplicate", device: "Device / source", noReference: "No reference",
     to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", duplicateItem: "Duplicate", unique: "Unique",
   },
@@ -133,6 +133,10 @@ export const en = {
     training: "Model training data", trainingToggle: "Use this device’s reviewed receipts for model training", trainingOn: "On: reviewed receipts from this device can be copied into the training dataset.", trainingOff: "Off: nothing from this device is copied into the training dataset.", trainingLoading: "Checking training consent…", trainingUnavailable: "Training consent could not be loaded.", trainingFailed: "The change was not saved. Try again.",
     collectionSave: "Save", collectionSaving: "Saving…", collectionSaved: "Saved. The phone gets this on its next sync — tap Sync now on the phone.", collectionFailed: "Not saved. Try again.", collectionTitle: "What this phone collects", imagesToggle: "Receipt images from a folder", smsToggle: "Bank SMS", senders: "Bank SMS senders (comma-separated)", sendersNeeded: "Add at least one bank SMS sender first.", collectionHint: "The phone picks this up on its next sync. Then turn the matching switch on in the app and choose the folder.", collectionChanged: "Someone else changed this device. The latest settings are shown; try again.", collectionUnavailable: "Collection settings could not be loaded.",
     smsAnySender: "Any sender: Relay keeps only messages that show an amount (EGP or جنيه), so codes and ads are skipped.", sendersOptional: "Only these senders (optional, comma-separated)", sectionMatching: "Bank SMS matching", sectionTraining: "Model training", bulkTitle: "Bank SMS phone", bulkHint: "Pick the phone that receives the bank SMS. Receipts from every other phone are then checked against its SMS.", bulkPick: "SMS phone", bulkApply: "Use for all receipt phones", bulkDone: "Done: {count} phones are checked against {name}.", bulkFailed: "Some phones could not be updated. Try again.", bulkNone: "Add the phone that receives the bank SMS first.", settingsFor: "Settings for {name}",
+  },
+  recipientSettings: {
+    title: "Receipts must be sent to", hint: "A bank SMS confirms a receipt only when it was sent to this name (and this phone on InstaPay receipts). Leave the name empty to skip this check.",
+    name: "Name starts with", phone: "InstaPay phone", save: "Save", saved: "Saved.", saveFailed: "Could not save. Try again.", invalid: "The phone must be 11 digits starting with 01.",
   },
   emailSettings: {
     senderName: "Sender name (what people see)", senderEmail: "Gmail address", appPassword: "Gmail app password", reportEmail: "Daily report goes to",
