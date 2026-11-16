@@ -280,7 +280,9 @@ describe("Sprint 7 operator experience", () => {
     renderRelay(<App />);
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "admin@example.com" } }); fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret-password" } }); fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Operations overview" })).toBeInTheDocument());
-    expect(localStorage.getItem("access_token")).toBeNull(); expect(sessionStorage.length).toBe(0);
+    expect(localStorage.getItem("access_token")).toBeNull(); // Only saved filters live in sessionStorage; never the token.
+    expect(Object.keys(sessionStorage).filter((key) => !key.startsWith("relay.filters."))).toEqual([]);
+    expect(Object.values(sessionStorage).some((value) => String(value).includes("memory-token"))).toBe(false);
     expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.theme"]);
   });
 });

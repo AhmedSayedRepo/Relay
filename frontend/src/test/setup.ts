@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import { beforeEach } from "vitest";
+
+// Saved filters must not leak from one test into the next.
+beforeEach(() => window.sessionStorage.clear());
 
 if (!window.matchMedia) {
   Object.defineProperty(window, "matchMedia", {
