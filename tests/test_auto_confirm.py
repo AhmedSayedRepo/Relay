@@ -199,7 +199,7 @@ def test_recipient_and_payment_request_reading() -> None:
     receipt = "تم التحويل بنجاح\nYOUSSEF M***** Y****** M******\n01003405232"
     assert recipient_matches(receipt, "Youssef", "01003405232", instapay=True)
     # One misread digit is tolerated; another number is not.
-    misread = receipt.replace("0100", "0700")
+    misread = receipt.replace("3405", "3485")
     assert recipient_matches(misread, "YOUSSEF", "01003405232", instapay=True)
     assert not recipient_matches(receipt, "YOUSSEF", "01021204916", instapay=True)
     assert not recipient_matches("Mohamed A 01003405232", "YOUSSEF", None, False)

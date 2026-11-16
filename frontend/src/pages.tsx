@@ -115,13 +115,14 @@ function DayRange({ range, changed }: { range: ReturnType<typeof useDayRange>; c
 
 /** A value read by a machine but not yet confirmed, shown as a suggestion. */
 function suggested(item: Transaction, field: string): string | null {
-  const fields = item.resolution_result?.fields as Record<string, { value?: unknown; trust?: unknown }> | undefined;
+  const resolution = item.resolution_result as { fields?: Record<string, { value?: unknown; trust?: unknown }> } | null | undefined;
+  const fields = resolution?.fields;
   const entry = fields?.[field];
   return entry && entry.trust === "MACHINE_ONLY" && typeof entry.value === "string" ? entry.value : null;
 }
 
 function ReceiptFlags({ item }: { item: Transaction }) {
-  const { messages: m } = useI18n(); const resolution = item.resolution_result ?? {};
+  const { messages: m } = useI18n(); const resolution = (item.resolution_result ?? {}) as Record<string, unknown>;
   const flags: [string, string][] = [];
   if (resolution.rejected_reason === "payment_request") flags.push(["danger", m.transactions.paymentRequest]);
   if (resolution.recipient_mismatch) flags.push(["warning", m.transactions.otherRecipient]);

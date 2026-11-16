@@ -58,8 +58,7 @@ _STAMP = re.compile(
     r"(20\d\d)\s+(\d{1,2}):(\d{2})\s*([AP]M)\b",
     re.I,
 )
-_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct")
-_MONTHS += ("nov", "dec")
+_MONTHS = "jan feb mar apr may jun jul aug sep oct nov dec".split()
 
 
 def _stamps(text: str) -> set[tuple[str, str]]:
