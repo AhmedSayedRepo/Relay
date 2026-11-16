@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
                 UpdatePrompt(BuildConfig.VERSION_NAME)
+                WhatsNewPrompt(BuildConfig.VERSION_NAME)
             }
         }
     }

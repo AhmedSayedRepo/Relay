@@ -138,6 +138,7 @@ export const en = {
     title: "Receipts must be sent to", hint: "A bank SMS confirms a receipt only when it was sent to this name (and this phone on InstaPay receipts). Leave the name empty to skip this check.",
     name: "Name starts with", phone: "InstaPay phone", save: "Save", saved: "Saved.", saveFailed: "Could not save. Try again.", invalid: "The phone must be 11 digits starting with 01.",
   },
+  whatsNew: { title: "What's new in v{version}", ok: "Got it" },
   emailSettings: {
     senderName: "Sender name (what people see)", senderEmail: "Gmail address", appPassword: "Gmail app password", reportEmail: "Daily report goes to",
     passwordKept: "Saved. Leave empty to keep it", save: "Save", test: "Send a test email", saved: "Saved.", saveFailed: "Could not save. Try again.",
