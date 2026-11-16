@@ -11,7 +11,7 @@ import { WhatsNew } from "./WhatsNew";
 // the Dashboard exports Excel) but are kept out of the menu.
 const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users", "emailSettings"] as const;
 const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users", "/email-settings"];
-const adminOnly = new Set<string>(["devices", "users", "emailSettings"]);
+const adminOnly = new Set<string>(["bankSms", "devices", "users", "emailSettings"]);
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, messages: m } = useI18n(); const { theme, setTheme } = useTheme();
