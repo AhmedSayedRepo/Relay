@@ -181,19 +181,10 @@ async def text_pass(
                 .where(
                     ReceiptCandidateRow.hidden_reason.is_(None),
                     ReceiptCandidateRow.reviewed_result.is_(None),
-                    (
-                        ReceiptCandidateRow.review_status
-                        == ReviewStatus.NEEDS_REVIEW.value
-                    )
-                    | (
-                        (
-                            ReceiptCandidateRow.review_status
-                            == ReviewStatus.REJECTED.value
-                        )
-                        & (
-                            ReceiptCandidateRow.receipt_type
-                            == ReceiptType.UNKNOWN_RECEIPT.value
-                        )
+                    # Machine-rejected of any type: the layout reader can call
+                    # a clear InstaPay receipt unknown or failed.
+                    ReceiptCandidateRow.review_status.in_(
+                        (ReviewStatus.NEEDS_REVIEW.value, ReviewStatus.REJECTED.value)
                     ),
                 )
                 .order_by(ReceiptCandidateRow.created_at.desc())
@@ -230,6 +221,7 @@ async def text_pass(
                 for key in (
                     "receipt",
                     "payment_request",
+                    "failed",
                     "found",
                     "sender",
                     "parties",
@@ -248,12 +240,16 @@ async def text_pass(
                 row.resolution_result = resolution
                 row.review_status = ReviewStatus.REJECTED.value
                 counts["requests"] += 1
-            elif rejected and result["receipt"]:
+            elif rejected and result["receipt"] and not result.get("failed"):
                 resolution = _reopen(row, text_recheck.VERSION, now)
                 _suggest_missing(resolution, result["values"])
                 row.resolution_result = resolution
                 counts["reopened"] += 1
-            elif rejected:
+            elif (
+                rejected
+                and not result["receipt"]
+                and row.receipt_type == ReceiptType.UNKNOWN_RECEIPT.value
+            ):
                 row.hidden_reason = "not_a_receipt"
                 counts["hidden"] += 1
             elif isinstance(row.resolution_result, dict):

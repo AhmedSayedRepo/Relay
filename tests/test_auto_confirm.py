@@ -243,3 +243,17 @@ def test_sender_and_recipient_names() -> None:
         "sender_name": "SALMA MOHAMED"
     }
     assert parties("YOUSSEF\n01003405232") == {}
+
+
+def test_noisy_receipt_text() -> None:
+    from relay.infrastructure.text_recheck import parties, sender
+
+    # "to" lost by OCR: the masked name is still the recipient.
+    assert parties("pzqfx@instapay\nب انستاباي\nke YOUSSEF M***** ope 0") == {
+        "recipient_name": "YOUSSEF"
+    }
+    # Stray letters before the address are not part of it.
+    assert sender("gin pzqfx@instapay") == "pzqfx@instapay"
+    assert sender("salma 1594 @instapay") == "salma1594@instapay"
+    failed = signals("فشلت المعاملة\n3,290 EGP\n293686553132\nانستاباي")
+    assert failed["failed"]

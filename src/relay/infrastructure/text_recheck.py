@@ -41,8 +41,11 @@ _AMOUNT = re.compile(
 _REFERENCE = re.compile(r"(?<!\d)(\d{12})(?!\d)")
 _REQUEST = re.compile(r"طلب\s*دفع|payment\s*request|request(?:ed)?\s*money|تحصيل", re.I)
 # OCR often splits an address ("salma 1594 @instapay"); join up to two parts.
-_HANDLE = re.compile(
-    r"([a-z][a-z0-9._-]{1,40}(?:\s[a-z0-9._-]{1,20})?)\s*@\s*instapay", re.I
+_HANDLE = re.compile(r"([a-z][a-z0-9._-]{1,40}(?:\s\d{1,8})?)\s*@\s*instapay", re.I)
+_FAILED = re.compile(
+    r"فشل(?:ت)?\s*(?:ال)?(?:معامل[ةه]|عملي[ةه]|تحويل)|"
+    r"(?:transaction|transfer)\s+failed|unsuccessful",
+    re.I,
 )
 _ACCOUNT = re.compile(r"ACCOUNT\s*X+\s*(\d{4})", re.I)
 _PHONE = re.compile(r"(?<!\d)(01\d{9})(?!\d)")
@@ -134,6 +137,7 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
     return {
         "receipt": receipt and not request,
         "payment_request": request,
+        "failed": bool(_FAILED.search(text)),
         "found": found,
         "values": values,
         "sender": sender(text),
@@ -144,19 +148,18 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
 
 _TO = re.compile(r"^\W*(?:[اإ]ل[ىي]|to)\b", re.I)
 _END = re.compile(r"powered\s*by", re.I)
-_NOT_NAMES = {"ACCOUNT", "BANK", "EGP", "IPN", "INSTAPAY", "MISR", "POWERED"}
+_NOT_NAMES = {"ACCOUNT", "BANK", "EGP", "IPN", "INSTAPAY", "MISR", "POWERED", "XXXX"}
 
 
 def _person(line: str) -> str | None:
     """A name printed in capitals: "SALMA MOHAMED GALAL" in full, or only the
-    first name when the rest is masked ("YOUSSEF M***** Y******")."""
-    if not re.match(r"\s*[A-Z]", line):
+    first name when the rest is masked ("YOUSSEF M***** Y******"). OCR noise
+    before the name ("ke YOUSSEF ...") is skipped."""
+    match = re.search(r"(?<![A-Za-z])([A-Z]{3,})(?![A-Za-z])", line)
+    if match is None or match.group(1) in _NOT_NAMES:
         return None
-    words = re.findall(r"[A-Za-z*]{2,}", line)
-    first = words[0] if words else ""
-    if len(first) < 3 or not first.isupper() or first in _NOT_NAMES:
-        return None
-    rest = words[1:]
+    first = match.group(1)
+    rest = re.findall(r"[A-Za-z*]{2,}", line[match.end() :])
     if any("*" in word for word in rest):
         return first
     rest = [w for w in rest if w.isupper() and w not in _NOT_NAMES]
@@ -168,7 +171,13 @@ def parties(text: str) -> dict[str, str]:
     lines = text.splitlines()
     to = next((i for i, line in enumerate(lines) if _TO.match(line)), None)
     if to is None:
-        return {}
+        # The "to" word is often lost; a masked name is always the recipient.
+        masked = next(
+            (i for i, line in enumerate(lines) if "*" in line and _person(line)), None
+        )
+        if masked is None:
+            return {}
+        to = masked - 1
     after: list[str] = []
     for line in lines[to + 1 :]:
         if _END.search(line):
