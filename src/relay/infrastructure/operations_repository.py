@@ -99,11 +99,18 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         return "not_recognized"
     if value.review_status != "NEEDS_REVIEW":
         return None
-    if value.duplicate_of_candidate_id is not None:
+    repeat = resolution.get("possible_repeat")
+    repeat_kind = repeat.get("kind") if isinstance(repeat, dict) else None
+    if value.duplicate_of_candidate_id is not None or repeat_kind == "reference":
         return "duplicate"
-    if resolution.get("recipient_mismatch"):
-        return "other_recipient"
-    if resolution.get("possible_repeat"):
+    mismatch = resolution.get("recipient_mismatch")
+    if isinstance(mismatch, dict):
+        return (
+            "recipient_unclear"
+            if mismatch.get("kind") == "unclear"
+            else "other_recipient"
+        )
+    if repeat is not None:
         return "repeated_amount"
     if not read:
         return "reading"
@@ -118,7 +125,12 @@ def _read_parties(machine: Any) -> dict[str, JsonValue]:
     read = read if isinstance(read, dict) else {}
     listed = read.get("parties")
     found: dict[str, Any] = listed if isinstance(listed, dict) else {}
-    sender = found.get("sender_name") or read.get("sender")
+    # The InstaPay address names the sender best; a printed name equal to
+    # the recipient's was misread from the "to" part.
+    name = found.get("sender_name")
+    if name and name == found.get("recipient_name"):
+        name = None
+    sender = read.get("sender") or name
     recipient = " · ".join(
         str(found[key])
         for key in ("recipient_name", "recipient_phone")
