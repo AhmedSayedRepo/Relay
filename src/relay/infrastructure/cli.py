@@ -180,7 +180,11 @@ async def text_pass(
                 )
                 .where(
                     ReceiptCandidateRow.hidden_reason.is_(None),
-                    ReceiptCandidateRow.reviewed_result.is_(None),
+                    # Not read yet. (Operator decisions are checked per row: an
+                    # empty reviewed_result is stored as JSON null, not NULL.)
+                    ReceiptCandidateRow.machine_result[text_recheck.VERSION]
+                    .as_string()
+                    .is_(None),
                     # Machine-rejected of any type: the layout reader can call
                     # a clear InstaPay receipt unknown or failed.
                     ReceiptCandidateRow.review_status.in_(

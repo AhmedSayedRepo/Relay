@@ -257,3 +257,66 @@ def test_noisy_receipt_text() -> None:
     assert sender("salma 1594 @instapay") == "salma1594@instapay"
     failed = signals("فشلت المعاملة\n3,290 EGP\n293686553132\nانستاباي")
     assert failed["failed"]
+
+
+def _text_result(receipt=True, request=False):
+    return {
+        "receipt": receipt,
+        "payment_request": request,
+        "failed": False,
+        "found": {"brand": True},
+        "values": {"reference_number": "293686553132"},
+        "sender": "pzqfx@instapay",
+        "parties": {"recipient_name": "YOUSSEF"},
+        "text": "YOUSSEF M*****",
+    }
+
+
+async def _machine_rejected(app):
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.review_status = "REJECTED"
+            row.receipt_type = "UNKNOWN_RECEIPT"
+            row.reviewed_result = None  # stored as JSON null, as in production
+        await session.commit()
+
+
+async def test_text_pass_reopens_rejected_receipts(
+    client, auth_headers, app, monkeypatch
+):
+    from relay.infrastructure import text_recheck
+    from relay.infrastructure.cli import text_pass
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "text-pass")
+    await _machine_rejected(app)
+    monkeypatch.setattr(text_recheck, "assess", lambda *args: _text_result())
+    counts = await text_pass(
+        app.state.database, app.state.object_storage, None, ("eng",), 4
+    )
+    assert counts["read"] == 1 and counts["reopened"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    # Read once only.
+    again = await text_pass(
+        app.state.database, app.state.object_storage, None, ("eng",), 4
+    )
+    assert again["read"] == 0
+
+
+async def test_text_pass_rejects_payment_requests(
+    client, auth_headers, app, monkeypatch
+):
+    from relay.infrastructure import text_recheck
+    from relay.infrastructure.cli import text_pass
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "text-request")
+    monkeypatch.setattr(
+        text_recheck, "assess", lambda *args: _text_result(receipt=False, request=True)
+    )
+    counts = await text_pass(
+        app.state.database, app.state.object_storage, None, ("eng",), 4
+    )
+    assert counts["requests"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "REJECTED"
+    assert detail["resolution_result"]["rejected_reason"] == "payment_request"
