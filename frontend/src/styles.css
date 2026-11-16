@@ -412,3 +412,8 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .party-value { font-weight: 650; letter-spacing: .01em; overflow-wrap: anywhere; }
 .tag-suggested { padding: .05rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; color: var(--accent); border: 1px dashed var(--accent); background: var(--accent-soft); }
 .cell-sub { display: block; margin-top: .2rem; font-size: .78rem; color: var(--ink-soft); }
+.reason-tag { display: block; width: fit-content; margin-top: .35rem; padding: .1rem .55rem; border-radius: 6px; font-size: .76rem; font-weight: 700; line-height: 1.5; }
+.reason-tag.warning { color: #8a4a12; background: #fdf0dc; }
+.reason-tag.danger { color: #9b2c2c; background: #fde4e4; }
+[data-theme="dark"] .reason-tag.warning { color: #f5c78f; background: #4a3416; }
+[data-theme="dark"] .reason-tag.danger { color: #f3a5a5; background: #4a1f1f; }

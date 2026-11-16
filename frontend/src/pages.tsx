@@ -131,13 +131,13 @@ function Party({ label, value, guess, settled }: { label: string; value: string 
     {!value && guess && !settled && <span className="tag-suggested">{m.transactions.suggestedValue}</span>}</div>;
 }
 
+/** Why a receipt waits for review or was rejected. */
 function ReceiptFlags({ item }: { item: Transaction }) {
-  const { messages: m } = useI18n(); const resolution = (item.resolution_result ?? {}) as Record<string, unknown>;
-  const flags: [string, string][] = [];
-  if (resolution.rejected_reason === "payment_request") flags.push(["danger", m.transactions.paymentRequest]);
-  if (resolution.recipient_mismatch) flags.push(["warning", m.transactions.otherRecipient]);
-  if (resolution.possible_repeat) flags.push(["warning", m.transactions.repeatedAmount]);
-  return flags.length ? <span className="flag-list">{flags.map(([tone, text]) => <span key={text} className={"badge " + tone}>{text}</span>)}</span> : null;
+  const { messages: m } = useI18n(); const reasons = m.transactions.reasons as Record<string, string>;
+  const text = item.status_reason ? reasons[item.status_reason] ?? item.status_reason : null;
+  if (!text) return null;
+  const tone = item.review_status === "REJECTED" ? "danger" : "warning";
+  return <span className={"reason-tag " + tone}>{text}</span>;
 }
 
 export function Transactions({ token }: { token: string }) {
