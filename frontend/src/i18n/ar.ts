@@ -142,7 +142,7 @@ export const ar = {
   },
   whatsNew: { title: "الجديد في الإصدار {version}", ok: "تمام" },
   emailSettings: {
-    senderName: "اسم المرسل (ما يراه المستلم)", senderEmail: "عنوان Gmail", appPassword: "كلمة مرور التطبيق من Gmail", reportEmail: "يُرسل التقرير اليومي إلى",
+    senderName: "اسم المرسل (ما يراه المستلم)", senderEmail: "عنوان Gmail", appPassword: "كلمة مرور التطبيق من Gmail", reportEmail: "يُرسل التقرير اليومي إلى", reportHint: "أضف حتى 8 إيميلات. اضغط Enter أو اكتب فاصلة بعد كل واحد.", removeEmail: "إزالة",
     passwordKept: "محفوظة. اتركها فارغة للإبقاء عليها", save: "حفظ", test: "إرسال رسالة تجريبية", saved: "تم الحفظ.", saveFailed: "تعذّر الحفظ. حاول مرة أخرى.",
     invalid: "راجع عناوين البريد.", passwordNeeded: "أدخل كلمة مرور التطبيق من Gmail.", saveFirst: "احفظ الإعدادات أولاً.",
     testSent: "أُرسلت رسالة تجريبية إلى {email}.", rejected: "رفض Gmail العنوان أو كلمة مرور التطبيق. راجعهما وحاول مرة أخرى.", unreachable: "تعذّر الوصول إلى Gmail. حاول بعد دقيقة.",

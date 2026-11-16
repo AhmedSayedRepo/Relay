@@ -5,6 +5,26 @@ import { contextHelp } from "./help/topics";
 import { useApi } from "./hooks";
 import { formatMessage, useI18n } from "./i18n";
 
+const EMAIL = /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/;
+const split = (text: string) => text.split(",").map((part) => part.trim().toLowerCase()).filter(Boolean);
+
+/** Report emails as chips: type or paste addresses, comma or Enter adds them. */
+function EmailChips({ label, value, disabled, remove, hint, onChange }: { label: string; value: string; disabled: boolean; remove: string; hint: string; onChange: (value: string) => void }) {
+  const [draft, setDraft] = useState(""); const emails = split(value);
+  const add = (text: string) => {
+    const fresh = split(text); const bad = fresh.filter((item) => !EMAIL.test(item));
+    const next = [...new Set([...emails, ...fresh.filter((item) => EMAIL.test(item))])].slice(0, 8);
+    onChange(next.join(", ")); setDraft(bad.join(", "));
+  };
+  return <div className="email-chips"><label>{label}<input type="text" inputMode="email" dir="ltr" value={draft} disabled={disabled} placeholder="you@example.com, ops@example.com"
+    onChange={(event) => { const text = event.target.value; if (text.includes(",")) add(text); else setDraft(text); }}
+    onKeyDown={(event) => { if (event.key === "Enter" && draft.trim()) { event.preventDefault(); add(draft); } else if (event.key === "Backspace" && !draft && emails.length) onChange(emails.slice(0, -1).join(", ")); }}
+    onBlur={() => { if (draft.trim()) add(draft); }} /></label>
+    <p className="hint">{hint}</p>
+    {emails.length > 0 && <ul className="chip-list" aria-label={label}>{emails.map((email) => <li key={email} className="chip" dir="ltr">{email}<button type="button" className="chip-remove" aria-label={remove + " " + email} disabled={disabled} onClick={() => onChange(emails.filter((item) => item !== email).join(", "))}>×</button></li>)}</ul>}
+  </div>;
+}
+
 type EmailSettings = { sender_name: string; sender_email: string; report_email: string | null; password_set: boolean; source: "portal" | "server" | "none" };
 
 /** Admin page: the Gmail sender Relay uses for reset links and the daily report. */
@@ -48,7 +68,7 @@ export function EmailSettingsPage({ token }: { token: string }) {
       <label>{e.senderName}<input value={form.sender_name} maxLength={120} required disabled={busy} placeholder="Relay - Ahmed" onChange={(event) => change({ sender_name: event.target.value })} /></label>
       <label>{e.senderEmail}<input type="email" dir="ltr" value={form.sender_email} maxLength={254} required disabled={busy} placeholder="name@gmail.com" onChange={(event) => change({ sender_email: event.target.value })} /></label>
       <label>{e.appPassword}<input type="password" dir="ltr" autoComplete="new-password" value={form.app_password} maxLength={200} disabled={busy} placeholder={current.password_set ? e.passwordKept : "xxxx xxxx xxxx xxxx"} onChange={(event) => change({ app_password: event.target.value })} /></label>
-      <label>{e.reportEmail}<input type="email" dir="ltr" value={form.report_email} maxLength={254} disabled={busy} placeholder="you@example.com" onChange={(event) => change({ report_email: event.target.value })} /></label>
+      <EmailChips label={e.reportEmail} value={form.report_email} disabled={busy} remove={e.removeEmail} hint={e.reportHint} onChange={(report_email) => change({ report_email })} />
       <div className="form-actions"><button type="submit" disabled={busy}>{e.save}</button><button type="button" className="quiet-button" disabled={busy} onClick={() => void test()}>{e.test}</button></div>
       {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
     </form>

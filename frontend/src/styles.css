@@ -392,3 +392,6 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .category-tabs .count { font-weight: 800; font-size: .8rem; opacity: .85; }
 .dialog.whats-new { inset-block: auto; top: 50%; transform: translateY(-50%); inset-inline: max(4vw, calc((100vw - 560px) / 2)); max-height: 86vh; }
 .whats-new-list { display: grid; gap: .55rem; padding-inline-start: 1.2rem; margin-block: 1rem 0; line-height: 1.55; }
+.email-chips .chip-list { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; padding: 0; margin: .5rem 0 0; }
+.email-chips .chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .35rem .2rem .7rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2, var(--surface)); font-size: .9rem; }
+.email-chips .chip-remove { min-width: 1.6rem; min-height: 1.6rem; padding: 0; border-radius: 999px; background: transparent; color: inherit; border: 0; cursor: pointer; font-size: 1.1rem; line-height: 1; }
