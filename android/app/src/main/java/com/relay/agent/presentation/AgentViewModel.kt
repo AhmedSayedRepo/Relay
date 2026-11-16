@@ -38,7 +38,10 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setImageConsent(value: Boolean) {
-        viewModelScope.launch { app.controller.setLocalImageConsent(value) }
+        viewModelScope.launch {
+            app.controller.setLocalImageConsent(value)
+            app.scheduler.schedule()
+        }
     }
 
     fun approveImageSource(treeUri: String) {
@@ -46,7 +49,19 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
             val sourceId = app.store.read().configuration?.images?.sources?.firstOrNull()?.id
                 ?: return@launch
             app.controller.approveImageSource(sourceId, treeUri)
+            app.scheduler.schedule()
         }
+    }
+
+    fun addImageFolder(treeUri: String) {
+        viewModelScope.launch {
+            app.controller.addImageFolder(treeUri)
+            app.uploadScheduler.enqueue()
+        }
+    }
+
+    fun removeImageFolder(treeUri: String) {
+        viewModelScope.launch { app.controller.removeImageFolder(treeUri) }
     }
 
     fun clearImageSource() {

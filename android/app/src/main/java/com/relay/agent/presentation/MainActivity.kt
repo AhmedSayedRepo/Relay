@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -76,6 +77,21 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
             }
         }
     }
+    val extraFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                model.addImageFolder(uri.toString())
+            } catch (_: SecurityException) {
+                model.permissionChanged()
+            }
+        }
+    }
     AgentContent(
         status = status,
         appVersion = BuildConfig.VERSION_NAME,
@@ -100,6 +116,18 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
                     }
                 }
                 model.clearImageSource()
+            },
+            addFolder = { extraFolderLauncher.launch(null) },
+            removeExtraFolder = { treeUri ->
+                try {
+                    context.contentResolver.releasePersistableUriPermission(
+                        treeUri.toUri(),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: SecurityException) {
+                    Unit
+                }
+                model.removeImageFolder(treeUri)
             },
             discardImages = model::discardQueuedImages,
             scanCode = {

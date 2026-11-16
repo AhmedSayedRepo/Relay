@@ -89,6 +89,7 @@ import com.relay.agent.R
 import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.EnrollmentState
+import com.relay.agent.domain.ImageFolder
 import com.relay.agent.presentation.theme.LocalRelayColors
 import java.time.Instant
 import java.time.ZoneId
@@ -105,6 +106,8 @@ data class AgentActions(
     val setImageConsent: (Boolean) -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val removeFolder: () -> Unit = {},
+    val addFolder: () -> Unit = {},
+    val removeExtraFolder: (String) -> Unit = {},
     val discardImages: () -> Unit = {},
     /** Opens the camera code scanner; null when no scanner is available. */
     val scanCode: (() -> Unit)? = null
@@ -578,10 +581,33 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                         ) {
                             Text(stringResource(R.string.remove_folder))
                         }
+                        ImageFolders(status.imageFolders, actions)
                     }
                 }
             }
         }
+    }
+}
+
+/** The watched folders; extra ones (e.g. Bluetooth) can be added or removed here. */
+@Composable
+private fun ImageFolders(folders: List<ImageFolder>, actions: AgentActions) {
+    Text(
+        stringResource(R.string.watched_folders),
+        style = MaterialTheme.typography.titleSmall
+    )
+    folders.forEachIndexed { index, folder ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(folder.name, modifier = Modifier.weight(1f))
+            if (index > 0) {
+                TextButton(onClick = { actions.removeExtraFolder(folder.treeUri) }) {
+                    Text(stringResource(R.string.remove))
+                }
+            }
+        }
+    }
+    TextButton(onClick = actions.addFolder, modifier = Modifier.offset(x = (-12).dp)) {
+        Text(stringResource(R.string.add_folder))
     }
 }
 

@@ -121,6 +121,10 @@ data class ApprovedImageSource(
     override fun toString(): String = "ApprovedImageSource(sourceId=$sourceId,[URI REDACTED])"
 }
 
+data class ImageFolder(val name: String, val treeUri: String) {
+    override fun toString(): String = "ImageFolder(name=$name,[URI REDACTED])"
+}
+
 class StoredState(
     val installationId: String,
     val credentials: Credentials? = null,
@@ -132,8 +136,13 @@ class StoredState(
     val localImageConsent: Boolean = false,
     val approvedImageSource: ApprovedImageSource? = null,
     val lastSuccessfulImageUpload: String? = null,
-    val lastImageUploadError: String? = null
-)
+    val lastImageUploadError: String? = null,
+    /** More folders chosen on the phone, e.g. Bluetooth, read the same way as the first. */
+    val extraImageSources: List<ApprovedImageSource> = emptyList()
+) {
+    val imageSources: List<ApprovedImageSource>
+        get() = listOfNotNull(approvedImageSource) + extraImageSources
+}
 
 enum class EnrollmentState { LOADING, REQUIRED, ENROLLING, ENROLLED }
 enum class ConnectionState { IDLE, SYNCING, CONNECTED, OFFLINE, ERROR }
@@ -159,6 +168,8 @@ data class AgentStatus(
     val serverImagesEnabled: Boolean = false,
     val effectiveImageCollection: Boolean = false,
     val approvedImageSourceId: String? = null,
+    /** Every watched folder, the first one included. */
+    val imageFolders: List<ImageFolder> = emptyList(),
     val queuedImageCount: Int = 0,
     val queuedImageBytes: Long = 0,
     val droppedImageCount: Long = 0,
@@ -201,6 +212,7 @@ interface AgentStore {
     suspend fun uploadStatus(successAt: String?, error: String?)
     suspend fun localImageConsent(value: Boolean) = Unit
     suspend fun approvedImageSource(value: ApprovedImageSource?) = Unit
+    suspend fun extraImageSources(value: List<ApprovedImageSource>) = Unit
     suspend fun imageUploadStatus(successAt: String?, error: String?) = Unit
 }
 

@@ -98,4 +98,7 @@
     <string name="update_channel">App updates</string>
     <string name="update_installed">Relay was updated</string>
     <string name="update_tap_to_open">Tap to open the new version.</string>
+    <string name="watched_folders">Watched folders</string>
+    <string name="add_folder">Add another folder (e.g. Bluetooth)</string>
+    <string name="remove">Remove</string>
 </resources>

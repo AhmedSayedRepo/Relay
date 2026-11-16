@@ -62,6 +62,22 @@ class DataStoreAgentStore(
                 null
             }
         }
+        val extraSources = preferences[EXTRA_IMAGE_SOURCES]?.let {
+            try {
+                sourceCipher.decrypt(Base64.decode(it, Base64.NO_WRAP))
+                    .toString(Charsets.UTF_8)
+                    .lines()
+                    .filter(String::isNotBlank)
+                    .map { line ->
+                        val parts = line.split('\t', limit = 3)
+                        require(parts.size == 3)
+                        ApprovedImageSource(parts[0], parts[2], parts[1].toLong())
+                    }
+            } catch (_: Exception) {
+                dataStore.edit { values -> values.remove(EXTRA_IMAGE_SOURCES) }
+                null
+            }
+        } ?: emptyList()
         return StoredState(
             installationId,
             credentials,
@@ -73,7 +89,8 @@ class DataStoreAgentStore(
             preferences[IMAGE_CONSENT] ?: false,
             approvedSource,
             preferences[LAST_IMAGE_UPLOAD],
-            preferences[LAST_IMAGE_UPLOAD_ERROR]
+            preferences[LAST_IMAGE_UPLOAD_ERROR],
+            extraSources
         )
     }
 
@@ -120,6 +137,25 @@ class DataStoreAgentStore(
         }
     }
 
+    override suspend fun extraImageSources(value: List<ApprovedImageSource>) {
+        val encoded = value.takeIf { it.isNotEmpty() }?.let { sources ->
+            val plaintext = sources.joinToString("\n") {
+                "${it.sourceId}\t${it.approvedAtMillis}\t${it.treeUri}"
+            }
+            Base64.encodeToString(
+                sourceCipher.encrypt(plaintext.toByteArray(Charsets.UTF_8)),
+                Base64.NO_WRAP
+            )
+        }
+        dataStore.edit {
+            if (encoded == null) {
+                it.remove(EXTRA_IMAGE_SOURCES)
+            } else {
+                it[EXTRA_IMAGE_SOURCES] = encoded
+            }
+        }
+    }
+
     override suspend fun imageUploadStatus(successAt: String?, error: String?) {
         dataStore.edit {
             if (successAt != null) it[LAST_IMAGE_UPLOAD] = successAt
@@ -141,6 +177,7 @@ class DataStoreAgentStore(
         private val LAST_UPLOAD_ERROR = stringPreferencesKey("last_upload_error")
         private val IMAGE_CONSENT = booleanPreferencesKey("local_image_consent")
         private val IMAGE_SOURCE = stringPreferencesKey("encrypted_image_source")
+        private val EXTRA_IMAGE_SOURCES = stringPreferencesKey("encrypted_extra_image_sources")
         private val LAST_IMAGE_UPLOAD = stringPreferencesKey("last_successful_image_upload")
         private val LAST_IMAGE_UPLOAD_ERROR = stringPreferencesKey("last_image_upload_error")
     }

@@ -74,6 +74,49 @@ class ImageCollectorTest {
     }
 
     @Test
+    fun readsExtraFoldersNextToTheFirst() = runTest {
+        val bluetooth = ApprovedImageSource("folder", "content://tree/bluetooth", 1000)
+        val source = object : ImageSource {
+            val asked = mutableListOf<String>()
+
+            override fun accessGranted(source: ApprovedImageSource) = true
+
+            override suspend fun candidates(source: ApprovedImageSource, limit: Int) =
+                listOf(
+                    ImageCandidate(
+                        "folder",
+                        "saf_tree",
+                        source.treeUri + "/image",
+                        2000,
+                        2000,
+                        "image/png",
+                        "match.png",
+                        bytes.size.toLong(),
+                        2,
+                        2
+                    )
+                ).also { asked += source.treeUri }
+
+            override suspend fun read(candidate: ImageCandidate, maximumBytes: Int) =
+                candidate.uri.toByteArray()
+        }
+        val store = StaticImageStore(
+            StoredState(
+                "installation",
+                state().credentials,
+                configuration,
+                localImageConsent = true,
+                approvedImageSource = approved,
+                extraImageSources = listOf(bluetooth)
+            )
+        )
+        val outbox = MemoryBinaryOutbox()
+        val summary = ImageCollector(store, source, outbox, log = {}).collect()
+        assertEquals(listOf(approved.treeUri, bluetooth.treeUri), source.asked)
+        assertEquals(2, summary.captured)
+    }
+
+    @Test
     fun filtersBeforeReadHashesBytesAndDeduplicatesContent() = runTest {
         val source = FakeImageSource(access = true)
         val outbox = MemoryBinaryOutbox()
