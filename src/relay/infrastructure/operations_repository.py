@@ -85,7 +85,8 @@ def _read_parties(machine: Any) -> dict[str, JsonValue]:
     """Sender and recipient as the plain-text reader saw them (unconfirmed)."""
     read = machine.get(TEXT_READING) if isinstance(machine, dict) else None
     read = read if isinstance(read, dict) else {}
-    found = read.get("parties") if isinstance(read.get("parties"), dict) else {}
+    listed = read.get("parties")
+    found: dict[str, Any] = listed if isinstance(listed, dict) else {}
     sender = found.get("sender_name") or read.get("sender")
     recipient = " · ".join(
         str(found[key])
