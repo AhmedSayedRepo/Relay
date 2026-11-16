@@ -81,21 +81,20 @@ class ImageCollectorTest {
 
             override fun accessGranted(source: ApprovedImageSource) = true
 
-            override suspend fun candidates(source: ApprovedImageSource, limit: Int) =
-                listOf(
-                    ImageCandidate(
-                        "folder",
-                        "saf_tree",
-                        source.treeUri + "/image",
-                        2000,
-                        2000,
-                        "image/png",
-                        "match.png",
-                        bytes.size.toLong(),
-                        2,
-                        2
-                    )
-                ).also { asked += source.treeUri }
+            override suspend fun candidates(source: ApprovedImageSource, limit: Int) = listOf(
+                ImageCandidate(
+                    "folder",
+                    "saf_tree",
+                    source.treeUri + "/image",
+                    2000,
+                    2000,
+                    "image/png",
+                    "match.png",
+                    bytes.size.toLong(),
+                    2,
+                    2
+                )
+            ).also { asked += source.treeUri }
 
             override suspend fun read(candidate: ImageCandidate, maximumBytes: Int) =
                 candidate.uri.toByteArray()
