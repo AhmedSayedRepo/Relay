@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package com.relay.agent.presentation
 
 import android.content.Context
@@ -38,8 +40,7 @@ object ReleaseNotes {
     )
 
     /** "0.6.5-receipts" and "0.6.5" share one entry. */
-    fun forVersion(versionName: String): ReleaseNote? =
-        byVersion[versionName.substringBefore('-')]
+    fun forVersion(versionName: String): ReleaseNote? = byVersion[versionName.substringBefore('-')]
 }
 
 private const val PREFS = "relay_whats_new"
