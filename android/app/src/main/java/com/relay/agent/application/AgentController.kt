@@ -11,6 +11,7 @@ import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.Credentials
 import com.relay.agent.domain.EnrollmentState
 import com.relay.agent.domain.EventOutbox
+import com.relay.agent.domain.ImageFolder
 import com.relay.agent.domain.RelayApi
 import com.relay.agent.domain.StoredState
 import com.relay.agent.domain.SyncOutcome
@@ -292,10 +293,31 @@ class AgentController(
         publish(store.read(), message = "Image source approved for new images only.")
     }
 
+    /** Watch one more folder (e.g. Bluetooth) next to the first; queued images stay. */
+    suspend fun addImageFolder(treeUri: String) = mutex.withLock {
+        val state = store.read()
+        val first = state.approvedImageSource
+        require(state.localImageConsent && first != null)
+        if (state.imageSources.none { it.treeUri == treeUri }) {
+            store.extraImageSources(
+                state.extraImageSources +
+                    ApprovedImageSource(first.sourceId, treeUri, System.currentTimeMillis())
+            )
+        }
+        publish(store.read(), message = "Image source approved for new images only.")
+    }
+
+    suspend fun removeImageFolder(treeUri: String) = mutex.withLock {
+        val state = store.read()
+        store.extraImageSources(state.extraImageSources.filterNot { it.treeUri == treeUri })
+        publish(store.read(), message = "Image source access removed locally.")
+    }
+
     suspend fun clearImageSource() = mutex.withLock {
         binaryOutbox?.discardAll()
         binaryOutbox?.clearObservations()
         store.approvedImageSource(null)
+        store.extraImageSources(emptyList())
         publish(store.read(), message = "Image source access removed locally.")
     }
 
@@ -365,6 +387,9 @@ class AgentController(
                     stored.configuration?.images?.enabled == true &&
                     stored.credentials != null,
                 approvedImageSourceId = approvedSource?.sourceId,
+                imageFolders = stored.imageSources.map {
+                    ImageFolder(folderName(it.treeUri), it.treeUri)
+                },
                 queuedImageCount = imageQueue?.queued ?: 0,
                 queuedImageBytes = imageQueue?.encryptedBytes ?: 0,
                 droppedImageCount = imageQueue?.dropped ?: 0,
@@ -372,6 +397,16 @@ class AgentController(
                 lastImageUploadError = stored.lastImageUploadError,
                 message = message
             )
+    }
+
+    /** "primary:Download/Bluetooth" in a tree URI → "Download/Bluetooth". */
+    private fun folderName(treeUri: String): String {
+        val decoded = try {
+            java.net.URLDecoder.decode(treeUri.substringAfterLast('/'), "UTF-8")
+        } catch (_: IllegalArgumentException) {
+            treeUri
+        }
+        return decoded.substringAfter(':').ifBlank { decoded }
     }
 
     private fun cancelled(error: Exception) {

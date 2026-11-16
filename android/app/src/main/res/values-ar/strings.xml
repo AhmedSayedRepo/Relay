@@ -93,4 +93,7 @@
     <string name="update_channel">تحديثات التطبيق</string>
     <string name="update_installed">تم تحديث Relay</string>
     <string name="update_tap_to_open">اضغط لفتح الإصدار الجديد.</string>
+    <string name="watched_folders">المجلدات المراقَبة</string>
+    <string name="add_folder">إضافة مجلد آخر (مثل البلوتوث)</string>
+    <string name="remove">إزالة</string>
 </resources>

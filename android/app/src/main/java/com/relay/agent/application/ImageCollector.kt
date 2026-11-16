@@ -50,7 +50,10 @@ class ImageCollector(
                 ?.let { value -> runCatching { Instant.parse(value).toEpochMilli() }.getOrNull() }
         val candidates =
             try {
-                source.candidates(approved, MAX_SCAN_CANDIDATES)
+                // The first folder plus any extra ones (e.g. Bluetooth) still allowed.
+                state.imageSources
+                    .filter { it == approved || source.accessGranted(it) }
+                    .flatMap { source.candidates(it, MAX_SCAN_CANDIDATES) }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 log("images.source_unavailable")

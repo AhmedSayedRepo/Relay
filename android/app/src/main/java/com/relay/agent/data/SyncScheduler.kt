@@ -1,6 +1,7 @@
 package com.relay.agent.data
 
 import android.content.Context
+import android.provider.MediaStore
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -38,10 +39,46 @@ class SyncScheduler(context: Context, private val store: AgentStore) {
             )
             .build()
         workManager.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
+        if (state.localImageConsent && state.approvedImageSource != null) {
+            NewImageWatcher.watch(workManager, ExistingWorkPolicy.KEEP)
+        } else {
+            workManager.cancelUniqueWork(NewImageWatcher.WORK_NAME)
+        }
     }
 
     companion object {
         private const val WORK_NAME = "relay.configuration.sync"
+    }
+}
+
+/**
+ * Wakes the app as soon as a new image is saved to the phone's gallery
+ * (WhatsApp, Bluetooth, ...) instead of waiting for the 15-minute cycle.
+ * The image collector then reads only the folders the person chose.
+ */
+class NewImageWatcher(context: Context, parameters: WorkerParameters) :
+    CoroutineWorker(context, parameters) {
+    override suspend fun doWork(): Result {
+        EventUploadScheduler(applicationContext).enqueue()
+        // A content trigger fires once; queue the next watch behind this one.
+        watch(WorkManager.getInstance(applicationContext), ExistingWorkPolicy.APPEND_OR_REPLACE)
+        return Result.success()
+    }
+
+    companion object {
+        const val WORK_NAME = "relay.images.watch"
+
+        fun watch(workManager: WorkManager, policy: ExistingWorkPolicy) {
+            val constraints = Constraints.Builder()
+                .addContentUriTrigger(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true)
+                .setTriggerContentUpdateDelay(3, TimeUnit.SECONDS)
+                .setTriggerContentMaxDelay(30, TimeUnit.SECONDS)
+                .build()
+            val request = OneTimeWorkRequestBuilder<NewImageWatcher>()
+                .setConstraints(constraints)
+                .build()
+            workManager.enqueueUniqueWork(WORK_NAME, policy, request)
+        }
     }
 }
 
