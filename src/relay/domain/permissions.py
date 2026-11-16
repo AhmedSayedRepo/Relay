@@ -24,9 +24,10 @@ REVIEW_WRITES = frozenset(
         ("POST", "/api/v1/processing/jobs/{job_id}/retry"),
     }
 )
-# Reads only an admin may make: user accounts, raw SMS/event bodies, training,
-# email settings.
+# Reads only an admin may make: user accounts, raw SMS/event bodies (including
+# the Bank SMS list), training, email settings.
 ADMIN_READ_PREFIXES = (
+    "/api/v1/bank-sms",
     "/api/v1/users",
     "/api/v1/events",
     "/api/v1/training",

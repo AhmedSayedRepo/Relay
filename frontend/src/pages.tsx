@@ -12,7 +12,7 @@ import { cairoDate, defaultDates, useApi } from "./hooks";
 import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
 import type { DashboardData, DuplicateGroup, Job, Json, Page, Transaction } from "./types";
-import { canReview, useRole } from "./role";
+import { canReview, isAdmin, useRole } from "./role";
 
 const dash = "—";
 function formatAmount(amount: string | null, currency: string | null, locale: Locale) {
@@ -82,7 +82,7 @@ export function Dashboard({ token }: { token: string }) {
         <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.reviewMoney} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={d.reviewMoneyHint} />
         <MetricCard to="/transactions" label={d.confirmedReceipts} value={<Bidi>{data.final_transaction_count}</Bidi>} hint={<>{d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
         <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.reviewDemand} value={<Bidi>{data.needs_review_count}</Bidi>} hint={canReview(role) ? d.openReview : undefined} />
-        <MetricCard to="/bank-sms" label={d.smsMatchedCard} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(d.smsMatchedHint, { count: received })} />
+        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} label={d.smsMatchedCard} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(d.smsMatchedHint, { count: received })} />
         <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
         <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
