@@ -501,11 +501,27 @@ class SqlOperationsRepository:
             )
             .group_by(ProcessingJobRow.status)
         )
-        event_counts = await self.db.execute(
-            select(RawEventRow.collector, func.count())
+        # Same clock as every other number here: when the image reached the
+        # phone's folder (or the SMS reached the phone), not when it was
+        # uploaded. Photos that turned out not to be receipts are counted
+        # apart so the image total matches the receipts listed by phone.
+        hidden_image = (
+            select(ReceiptCandidateRow.id)
             .where(
-                RawEventRow.received_at >= window.start,
-                RawEventRow.received_at < window.end_exclusive,
+                ReceiptCandidateRow.raw_event_id == RawEventRow.id,
+                ReceiptCandidateRow.hidden_reason.is_not(None),
+            )
+            .exists()
+        )
+        event_counts = await self.db.execute(
+            select(
+                RawEventRow.collector,
+                func.count(),
+                func.sum(case((hidden_image, 1), else_=0)),
+            )
+            .where(
+                RawEventRow.occurred_at >= window.start,
+                RawEventRow.occurred_at < window.end_exclusive,
             )
             .group_by(RawEventRow.collector)
         )
@@ -574,7 +590,12 @@ class SqlOperationsRepository:
             .group_by(SmsVerificationRow.status)
         )
         jobs = {str(status): int(count) for status, count in job_counts}
-        events = {str(source): int(count) for source, count in event_counts}
+        events: dict[str, int] = {}
+        hidden_images = 0
+        for source, count, hidden in event_counts:
+            events[str(source)] = int(count) - int(hidden or 0)
+            if source == "images":
+                hidden_images = int(hidden or 0)
         return {
             "date_from": window.start.date().isoformat(),
             "date_to": (window.end_exclusive.date() - timedelta(days=1)).isoformat(),
@@ -587,6 +608,7 @@ class SqlOperationsRepository:
             "pending_processing_count": jobs.get("PENDING", 0),
             "receipt_image_activity": events.get("images", 0),
             "sms_activity": events.get("sms", 0),
+            "hidden_image_count": hidden_images,
             "totals_by_currency": [
                 {
                     "currency": currency,

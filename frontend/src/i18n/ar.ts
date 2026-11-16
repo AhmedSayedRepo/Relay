@@ -57,7 +57,7 @@ export const ar = {
     finalTransactions: "المعاملات النهائية", reviewDemand: "تحتاج إلى مراجعة", duplicateGroups: "مجموعات التكرار",
     failedProcessing: "مشكلات المعالجة", pendingProcessing: "مهام معلّقة", moneyTitle: "الأموال النهائية حسب العملة",
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",
-    noTotals: "لا توجد إجماليات نهائية في هذا النطاق.", activity: "نبض الجمع", receiptImages: "صور الإيصالات",
+    noTotals: "لا توجد إجماليات نهائية في هذا النطاق.", activity: "نبض الجمع", hiddenImages: "صور مش إيصالات (مخفية)", receiptImages: "صور الإيصالات",
     smsEvents: "رسائل SMS", reviewed: "تمت مراجعتها", deviceHealth: "سلامة الجهاز والمصدر", quiet: "لا تظهر حالة تشغيلية عاجلة.",
     moneyNow: "المبالغ المؤكدة", rangeTotal: "الإجمالي في هذه الفترة", today: "اليوم", week: "آخر 7 أيام", receiptsCount: "{count} إيصالات", onceEach: "كل دفعة تُحسب مرة واحدة", openReview: "فتح المراجعة",
     autoConfirmed: "تأكيد تلقائي", manualConfirmed: "تأكيد يدوي", workloadTitle: "حجم المراجعة", workloadIntro: "{count} إيصالات تنتظر قراراً.",

@@ -55,7 +55,7 @@ export const en = {
     finalTransactions: "Final transactions", reviewDemand: "Needs review", duplicateGroups: "Duplicate groups",
     failedProcessing: "Processing issues", pendingProcessing: "Pending jobs", moneyTitle: "Final money by currency",
     moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",
-    noTotals: "No final transaction totals in this range.", activity: "Collection pulse", receiptImages: "Receipt images",
+    noTotals: "No final transaction totals in this range.", activity: "Collection pulse", hiddenImages: "Photos that are not receipts (hidden)", receiptImages: "Receipt images",
     smsEvents: "SMS events", reviewed: "Reviewed", deviceHealth: "Device/source health", quiet: "No urgent operational condition is visible.",
     moneyNow: "Confirmed money", rangeTotal: "Total in this range", today: "Today", week: "Last 7 days", receiptsCount: "{count} receipts", onceEach: "Each payment counted once", openReview: "Open review",
     autoConfirmed: "Confirmed automatically", manualConfirmed: "Confirmed by people", workloadTitle: "Review workload", workloadIntro: "{count} receipts waiting for a decision.",
