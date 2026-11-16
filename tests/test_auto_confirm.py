@@ -339,3 +339,21 @@ def test_recipient_check_cases() -> None:
     assert recipient_check("YOUSSEF A\n01021204916", *owner, True) == "different"
     # Nothing readable about the recipient.
     assert recipient_check("nouranabokora01@instapay", *owner, True) == "unclear"
+
+
+async def test_quiet_receipts_phone_still_listed_on_dashboard(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "quiet-phone")
+    # A day long ago: the phone sent nothing then, but stays in the list.
+    old = await client.get(
+        "/api/v1/dashboard?date_from=2026-01-01&date_to=2026-01-01",
+        headers=auth_headers,
+    )
+    assert old.status_code == 200, old.text
+    (phone,) = [
+        item
+        for item in old.json()["transactions_by_device"]
+        if item["device_id"] == candidate["device_id"]
+    ]
+    assert phone["count"] == 0 and phone["confirmed_amount"] == "0.00"

@@ -12,7 +12,7 @@ import { ThemeProvider } from "./preferences";
 
 const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } }));
 const page = <T,>(items: T[]) => ({ items, total: items.length, limit: 25, offset: 0 });
-const dashboard = { date_from: "2026-09-01", date_to: "2026-09-07", final_transaction_count: 2, reviewed_count: 1, needs_review_count: 1, duplicate_group_count: 1, duplicate_candidate_count: 1, processing_failure_count: 0, pending_processing_count: 1, receipt_image_activity: 2, sms_activity: 1, totals_by_currency: [{ currency: "EGP", amount: "2501.00", transaction_count: 2 }], processing_by_status: [], activity_by_source: [], transactions_by_device: [] };
+const dashboard = { date_from: "2026-09-01", date_to: "2026-09-07", final_transaction_count: 2, reviewed_count: 1, needs_review_count: 1, duplicate_group_count: 1, duplicate_candidate_count: 1, processing_failure_count: 0, pending_processing_count: 1, receipt_image_activity: 2, sms_activity: 1, hidden_image_count: 0, totals_by_currency: [{ currency: "EGP", amount: "2501.00", transaction_count: 2 }], processing_by_status: [], activity_by_source: [], transactions_by_device: [] };
 const transaction = {
   id: "candidate-1", job_id: "job-1", object_id: "object-1", device_id: "device-1", device_name: "مكتب الاستقبال",
   receipt_type: "INSTAPAY", review_status: "NEEDS_REVIEW", processing_status: "NEEDS_REVIEW", processing_failure: null,
