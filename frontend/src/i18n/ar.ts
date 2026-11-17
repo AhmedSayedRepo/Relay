@@ -7,7 +7,7 @@ export const ar = {
     signOut: "تسجيل الخروج", yes: "نعم", no: "لا", all: "الكل", none: "لا شيء", unknown: "غير معروف",
     previous: "السابق", next: "التالي", page: "الصفحة", records: "سجلات", of: "من", open: "فتح",
     dateBasis: "يعتمد نطاق التاريخ على توقيت UTC الذي استلم فيه Relay كل معاملة مرشحة وأنشأها.",
-    secureEvidence: "أدلة منظّمة مع حفظ مصدرها", mainPages: "الصفحات الرئيسية", more: "المزيد", menu: "فتح قائمة التنقل", skip: "الانتقال إلى المحتوى الرئيسي",
+    secureEvidence: "أدلة منظّمة مع حفظ مصدرها", mainPages: "الصفحات الرئيسية", getApps: "نزّل تطبيقات الموبايل", more: "المزيد", menu: "فتح قائمة التنقل", skip: "الانتقال إلى المحتوى الرئيسي",
   },
   preferences: {
     language: "اللغة", theme: "المظهر", system: "إعداد النظام", light: "فاتح", dark: "داكن",
