@@ -79,7 +79,7 @@ describe("Sprint 7 operator experience", () => {
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe("light"));
     fireEvent.change(screen.getByLabelText("Change color theme"), { target: { value: "system" } });
     await waitFor(() => expect(localStorage.getItem("relay.theme")).toBe("system"));
-    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.theme"]);
+    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.remember", "relay.theme"]);
   });
 
   it("shows dashboard loading and currency-separated operational hierarchy", async () => {
@@ -283,6 +283,6 @@ describe("Sprint 7 operator experience", () => {
     expect(localStorage.getItem("access_token")).toBeNull(); // Only saved filters live in sessionStorage; never the token.
     expect(Object.keys(sessionStorage).filter((key) => !key.startsWith("relay.filters."))).toEqual([]);
     expect(Object.values(sessionStorage).some((value) => String(value).includes("memory-token"))).toBe(false);
-    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.theme"]);
+    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.remember", "relay.theme"]);
   });
 });
