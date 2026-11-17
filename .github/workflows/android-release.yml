@@ -11,6 +11,10 @@ on:
       version:
         description: "Version name, e.g. 0.5.0"
         required: true
+      bank_sms:
+        description: "Also release Relay Bank SMS (rarely needed)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -21,6 +25,8 @@ jobs:
     timeout-minutes: 30
     env:
       VERSION: ${{ inputs.version || github.ref_name }}
+      # Relay Bank SMS updates are rare: built and offered only when asked.
+      BANK_SMS: ${{ inputs.bank_sms && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check release settings
@@ -64,13 +70,16 @@ jobs:
           export RELAY_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           printf '%s' "$RELAY_KEYSTORE_BASE64" | base64 --decode > "$RELAY_KEYSTORE_FILE"
           chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleFullRelease :app:assembleReceiptsRelease :operator:assembleRelease \
+          tasks=(:app:assembleReceiptsRelease :operator:assembleRelease)
+          flavors="receipts"
+          if [ "$BANK_SMS" = true ]; then tasks+=(:app:assembleFullRelease); flavors="full receipts"; fi
+          ./gradlew --no-daemon "${tasks[@]}" \
             -PrelayBaseUrl="$RELAY_BASE_URL" \
             -PrelayVersionName="$version" \
             -PrelayVersionCode="$((1000 + GITHUB_RUN_NUMBER))" 2>&1 | tee release.log
           rm -f "$RELAY_KEYSTORE_FILE"
           mkdir -p "$RUNNER_TEMP/out"
-          for flavor in full receipts; do
+          for flavor in $flavors; do
             apk="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
             "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
             # Each app is named after its job; the unversioned copy keeps the
@@ -105,9 +114,14 @@ jobs:
         run: |
           set -euo pipefail
           tag="agent-v$APP_VERSION"
-          sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-bank-sms-$APP_VERSION.apk.sha256")
           rsha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-receipts-$APP_VERSION.apk.sha256")
-          notes="Relay $APP_VERSION for Android 8.0 or newer. relay-receipts-$APP_VERSION.apk (Relay Receipts): receipts only, no SMS access (SHA-256 $rsha). relay-bank-sms-$APP_VERSION.apk (Relay Bank SMS): for the phone that receives bank SMS (SHA-256 $sha). relay-operator-$APP_VERSION.apk (Relay Operator): the operator portal as a phone app."
+          notes="Relay $APP_VERSION for Android 8.0 or newer. relay-receipts-$APP_VERSION.apk (Relay Receipts): receipts only, no SMS access (SHA-256 $rsha). relay-operator-$APP_VERSION.apk (Relay Operator): the operator portal as a phone app."
+          if [ "$BANK_SMS" = true ]; then
+            sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-bank-sms-$APP_VERSION.apk.sha256")
+            notes="$notes relay-bank-sms-$APP_VERSION.apk (Relay Bank SMS): for the phone that receives bank SMS (SHA-256 $sha)."
+          else
+            notes="$notes Relay Bank SMS is unchanged in this release."
+          fi
           # This commit only exists in this repo; a separate release repo tags its own default branch.
           target=()
           [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ] && target=(--target "$GITHUB_SHA")
@@ -117,8 +131,21 @@ jobs:
             gh release create "$tag" "$RUNNER_TEMP"/out/* --repo "$RELEASE_REPO" \
               --title "Relay Agent $APP_VERSION" --notes "$notes" "${target[@]}"
           fi
-          echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-bank-sms-$APP_VERSION.apk"
+          if [ "$BANK_SMS" = true ]; then
+            # A fixed "bank-sms" release keeps the latest Relay Bank SMS for the
+            # landing page, since most releases leave it out.
+            bank="$RUNNER_TEMP/bank"; mkdir -p "$bank"
+            cp "$RUNNER_TEMP/out/relay-bank-sms.apk" "$bank/relay-bank-sms.apk"
+            if gh release view bank-sms --repo "$RELEASE_REPO" >/dev/null 2>&1; then
+              gh release edit bank-sms --repo "$RELEASE_REPO" --title "$APP_VERSION" --latest=false
+              gh release upload bank-sms "$bank/relay-bank-sms.apk" --repo "$RELEASE_REPO" --clobber
+            else
+              gh release create bank-sms "$bank/relay-bank-sms.apk" --repo "$RELEASE_REPO" \
+                --title "$APP_VERSION" --notes "Latest Relay Bank SMS." --latest=false "${target[@]}"
+            fi
+            echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-bank-sms-$APP_VERSION.apk"
+            echo "::notice title=sha256::$sha"
+          fi
           echo "::notice title=apk-receipts::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-receipts-$APP_VERSION.apk"
           echo "::notice title=apk-operator::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-operator-$APP_VERSION.apk"
-          echo "::notice title=sha256::$sha"
           echo "::notice title=sha256-receipts::$rsha"

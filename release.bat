@@ -4,6 +4,7 @@ rem Releases both Android apps (Relay Receipts + Relay Bank SMS) from this PC.
 rem Needs the GitHub CLI signed in once:  gh auth login
 rem Usage:  release.bat            next patch version (0.6.4 -> 0.6.5)
 rem         release.bat 0.7.0      a version you choose
+rem         release.bat 0.7.0 bank also release Relay Bank SMS (rarely needed)
 
 set REPO=AhmedSayedRepo/Relay
 set RELEASES=AhmedSayedRepo/relay-releases
@@ -27,10 +28,13 @@ if errorlevel 1 (
   echo WARNING: no release notes for %VER% in WhatsNew.kt - the app will not show "What's new".
 )
 
+set BANK=false
+if /i "%~2"=="bank" set BANK=true
+if "%BANK%"=="true" (echo Relay Bank SMS is included.) else (echo Relay Bank SMS is skipped - add "bank" after the version to include it.)
 set /p OK=Release version %VER% now? (Y/N) 
 if /i not "%OK%"=="Y" (echo Cancelled. & exit /b 0)
 
-gh workflow run android-release.yml --repo %REPO% -f version=%VER% || exit /b 1
+gh workflow run android-release.yml --repo %REPO% -f version=%VER% -f bank_sms=%BANK% || exit /b 1
 echo Started. Waiting for GitHub to pick it up...
 timeout /t 8 /nobreak >nul
 for /f "delims=" %%i in ('gh run list --repo %REPO% --workflow android-release.yml -L 1 --json databaseId -q ".[0].databaseId"') do set RUN=%%i
