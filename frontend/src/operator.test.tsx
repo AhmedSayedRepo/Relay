@@ -79,7 +79,7 @@ describe("Sprint 7 operator experience", () => {
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe("light"));
     fireEvent.change(screen.getByLabelText("Change color theme"), { target: { value: "system" } });
     await waitFor(() => expect(localStorage.getItem("relay.theme")).toBe("system"));
-    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.remember", "relay.theme"]);
+    expect([...Array(localStorage.length)].map((_, index) => localStorage.key(index)).sort()).toEqual(["relay.locale", "relay.theme"]);
   });
 
   it("shows dashboard loading and currency-separated operational hierarchy", async () => {
