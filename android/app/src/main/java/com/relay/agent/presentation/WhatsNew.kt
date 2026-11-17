@@ -25,6 +25,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.6.7" to ReleaseNote(
+            en = listOf(
+                "New \"Which folder should I choose?\" button: " +
+                    "the WhatsApp and Bluetooth folder paths."
+            ),
+            ar = listOf(
+                "جديد: زرار «أختار أنهي مجلد؟» تحت المجلدات " +
+                    "يوضح مسار مجلد الواتساب والبلوتوث."
+            )
+        ),
         "0.6.5" to ReleaseNote(
             en = listOf(
                 "Watch more than one folder: add Bluetooth or any other folder next to WhatsApp.",

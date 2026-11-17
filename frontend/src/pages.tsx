@@ -317,6 +317,20 @@ function TrainingConsent({ deviceId, token }: { deviceId: string; token: string 
 function SmsPhoneForAll({ token, devices, done }: { token: string; devices: { id: string; name: string }[]; done: () => void }) {
   const { messages: m } = useI18n(); const [chosen, setChosen] = useState(""); const [busy, setBusy] = useState(false); const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const smsPhone = devices.find((device) => device.id === chosen);
+  // Show the phone already in use: the one most receipt phones are linked to.
+  const ids = devices.map((device) => device.id).join(",");
+  useEffect(() => {
+    let current = true;
+    void Promise.all(devices.map((device) => api<{ sms_device_ids?: string[] }>("/devices/" + encodeURIComponent(device.id) + "/sms-sources", token).then((linked) => linked.sms_device_ids ?? [], () => [] as string[])))
+      .then((lists) => {
+        const counts = new Map<string, number>();
+        for (const id of lists.flat()) counts.set(id, (counts.get(id) ?? 0) + 1);
+        const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (current && best) setChosen((value) => value || best);
+      });
+    return () => { current = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, token]);
   async function apply() {
     if (!smsPhone) return; setBusy(true); setNotice(null); let updated = 0; let failed = false;
     for (const device of devices.filter((item) => item.id !== smsPhone.id)) {
