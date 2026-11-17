@@ -14,6 +14,16 @@ const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users
 const tabs = ["dashboard", "review", "transactions"] as const;
 const adminOnly = new Set<string>(["bankSms", "devices", "users", "emailSettings"]);
 
+const LANDING = "https://relay-landing-woad.vercel.app/";
+
+/** Link to the public page with the phone apps (opens outside the portal). */
+export function AppsLink() {
+  const { locale, messages: m } = useI18n();
+  return <a className="apps-link" href={locale === "en" ? LANDING + "en/" : LANDING} target="_blank" rel="noopener noreferrer">
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5" /><path d="M12 8v6" /><path d="m9.5 11.5 2.5 2.5 2.5-2.5" /></svg>
+    <span>{m.common.getApps}</span></a>;
+}
+
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, messages: m } = useI18n(); const { theme, setTheme } = useTheme();
   return <div className={"preferences" + (compact ? " compact" : "")}>
@@ -48,7 +58,7 @@ export function Layout({ signOut }: { signOut: () => void }) {
   const { messages: m } = useI18n(); const [open, setOpen] = useState(false); const role = useRole(); const { pathname } = useLocation(); const narrow = useNarrow();
   const visible = (key: string) => (!adminOnly.has(key) || isAdmin(role)) && (key !== "review" || canReview(role));
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
-    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav>{narrow && <div className="rail-preferences"><PreferenceControls compact /></div>}<RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
+    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav>{narrow && <div className="rail-preferences"><PreferenceControls compact /></div>}<AppsLink /><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
     <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
     <main id="main-content"><div className="page-enter" key={pathname}><Outlet /></div></main><WhatsNew />

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { ApiError, send } from "./api";
 import { Icon, RelayMark } from "./components/Brand";
-import { PreferenceControls, RailArt } from "./components/Layout";
+import { AppsLink, PreferenceControls, RailArt } from "./components/Layout";
 import { useI18n } from "./i18n";
 
 type View = "sign-in" | "email" | "reset";
@@ -92,6 +92,7 @@ function SignIn({ onLogin, onForgot, notice, email }: { onLogin: (token: string)
     </form>
     <button className="text-button forgot" type="button" onClick={onForgot}>{m.recovery.forgot}</button>
     <p className="pilot-note">{m.auth.pilotNote}</p>
+    <AppsLink />
   </AuthFrame>;
 }
 

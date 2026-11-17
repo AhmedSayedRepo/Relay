@@ -507,3 +507,9 @@ td { font-variant-numeric: tabular-nums; }
 .reveal-button:hover, .reveal-button[aria-pressed="true"] { color: var(--brand-2); background: transparent; }
 .remember-row { font-weight: 600; }
 .fingerprint-button { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; margin-block-end: 1rem; background: var(--brand-2); }
+/* Link to the public page with the phone apps (rail and sign-in). */
+.apps-link { display: flex; align-items: center; gap: .55rem; width: fit-content; margin-block: 1rem .5rem; padding: .55rem .85rem; border-radius: 12px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); font-size: .86rem; font-weight: 720; transition: background-color .25s var(--ease-out), border-color .25s var(--ease-out), transform .25s var(--ease-out); }
+.side-rail .apps-link { color: #f4f6f3; }
+.apps-link:hover { transform: translateY(-1px); border-color: currentColor; background: color-mix(in srgb, currentColor 10%, transparent); }
+.login-card .apps-link, .auth-frame .apps-link { margin-inline: auto; }
+@media (prefers-reduced-motion: reduce) { .apps-link:hover { transform: none; } }

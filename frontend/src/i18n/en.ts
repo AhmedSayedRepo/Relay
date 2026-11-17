@@ -5,7 +5,7 @@ export const en = {
     signOut: "Sign out", yes: "Yes", no: "No", all: "All", none: "None", unknown: "Unknown",
     previous: "Previous", next: "Next", page: "Page", records: "records", of: "of", open: "Open",
     dateBasis: "Date range uses the UTC time Relay received and created each transaction candidate.",
-    secureEvidence: "Evidence, organized with provenance", mainPages: "Main pages", more: "More", menu: "Open navigation", skip: "Skip to main content",
+    secureEvidence: "Evidence, organized with provenance", mainPages: "Main pages", getApps: "Get the phone apps", more: "More", menu: "Open navigation", skip: "Skip to main content",
   },
   preferences: {
     language: "Language", theme: "Theme", system: "System", light: "Light", dark: "Dark",
