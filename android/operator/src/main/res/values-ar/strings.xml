@@ -10,4 +10,10 @@
     <string name="update_body">نزّل النسخة الجديدة وثبّتها فوق دي. تسجيل دخولك هيفضل زي ما هو.</string>
     <string name="update_now">تحديث</string>
     <string name="update_later">بعدين</string>
+    <string name="not_now">مش دلوقتي</string>
+    <string name="fingerprint_offer_title">تدخل بالبصمة المرة الجاية؟</string>
+    <string name="fingerprint_offer_body">الإيميل وكلمة المرور هيتحفظوا على الموبايل ده ومقفولين ببصمتك. لو ضفت بصمة جديدة للموبايل هيتمسحوا.</string>
+    <string name="fingerprint_offer_yes">استخدم البصمة</string>
+    <string name="fingerprint_save_title">أكّد عشان نحفظ تسجيل الدخول</string>
+    <string name="fingerprint_unlock_title">الدخول إلى Relay</string>
 </resources>

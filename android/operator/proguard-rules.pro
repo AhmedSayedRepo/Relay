@@ -2,3 +2,6 @@
 -keepclassmembers class com.relay.operator.FileBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
+-keepclassmembers class com.relay.operator.FingerprintLogin {
+    @android.webkit.JavascriptInterface <methods>;
+}

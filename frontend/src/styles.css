@@ -499,3 +499,11 @@ td { font-variant-numeric: tabular-nums; }
   .metric:hover, .record-card:hover, .help-card:hover { transform: none; box-shadow: var(--shadow); }
   .metric:hover::after, .record-card:hover::after, .help-card:hover::after, .panel:hover::after { opacity: 0; }
 }
+
+/* Sign-in: show-password eye, remember me, fingerprint (Relay Operator app). */
+.password-field { position: relative; display: block; }
+.password-field input { width: 100%; padding-inline-end: 3rem; }
+.reveal-button { position: absolute; inset-block: 0; inset-inline-end: .25rem; display: grid; place-items: center; width: 2.75rem; min-height: 0; margin: auto 0; padding: 0; border: 0; background: transparent; color: var(--ink-soft); }
+.reveal-button:hover, .reveal-button[aria-pressed="true"] { color: var(--brand-2); background: transparent; }
+.remember-row { font-weight: 600; }
+.fingerprint-button { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; margin-block-end: 1rem; background: var(--brand-2); }

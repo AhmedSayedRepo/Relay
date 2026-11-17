@@ -11,6 +11,9 @@ from relay.application.errors import AuthenticationFailed
 from relay.application.ports import AccessToken
 from relay.infrastructure.config import Settings
 
+# "Remember me": a sliding 30-day session (renewed on every visit).
+REMEMBER_LIFETIME = timedelta(days=30)
+
 
 class Argon2Passwords:
     def __init__(self) -> None:
@@ -61,7 +64,9 @@ class JwtTokens:
         )
         return AccessToken(token, int(self.lifetime.total_seconds()))
 
-    def issue_session(self, user_id: UUID, fingerprint: str) -> str:
+    def issue_session(
+        self, user_id: UUID, fingerprint: str, remember: bool = False
+    ) -> str:
         """Long-lived portal session for the httpOnly cookie. ``fingerprint``
         changes with the password, so a new password ends old sessions."""
         now = datetime.now(UTC)
@@ -70,18 +75,19 @@ class JwtTokens:
                 "sub": str(user_id),
                 "iat": now,
                 "nbf": now,
-                "exp": now + self.session_lifetime,
+                "exp": now + (REMEMBER_LIFETIME if remember else self.session_lifetime),
                 "iss": self.issuer,
                 "aud": self.audience,
                 "jti": str(uuid4()),
                 "token_type": "session",
                 "pwd": fingerprint,
+                "rem": remember,
             },
             self.secret,
             algorithm=self.algorithm,
         )
 
-    def session_subject(self, token: str) -> tuple[UUID, str]:
+    def session_subject(self, token: str) -> tuple[UUID, str, bool]:
         try:
             claims = jwt.decode(
                 token,
@@ -93,7 +99,7 @@ class JwtTokens:
             )
             if claims["token_type"] != "session":
                 raise ValueError("Wrong token type")
-            return UUID(claims["sub"]), str(claims["pwd"])
+            return UUID(claims["sub"]), str(claims["pwd"]), claims.get("rem") is True
         except (jwt.InvalidTokenError, ValueError, TypeError, AttributeError):
             raise AuthenticationFailed("Session expired.") from None
 

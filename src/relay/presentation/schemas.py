@@ -15,6 +15,8 @@ class InputModel(BaseModel):
 class LoginRequest(InputModel):
     email: EmailStr = Field(max_length=254)
     password: SecretStr = Field(min_length=1, max_length=1024)
+    # Keep this device signed in for REMEMBER_DAYS instead of the browser session.
+    remember: bool = False
 
 
 class TokenResponse(BaseModel):

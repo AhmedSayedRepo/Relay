@@ -10,4 +10,10 @@
     <string name="update_body">Download the new version and install it over this one. Your sign-in stays.</string>
     <string name="update_now">Update</string>
     <string name="update_later">Later</string>
+    <string name="not_now">Not now</string>
+    <string name="fingerprint_offer_title">Sign in with your fingerprint next time?</string>
+    <string name="fingerprint_offer_body">Your email and password are saved on this phone, locked with your fingerprint. Adding a new fingerprint to the phone clears them.</string>
+    <string name="fingerprint_offer_yes">Use fingerprint</string>
+    <string name="fingerprint_save_title">Confirm to save your sign-in</string>
+    <string name="fingerprint_unlock_title">Sign in to Relay</string>
 </resources>
