@@ -229,6 +229,7 @@ async def text_pass(
                     "found",
                     "sender",
                     "parties",
+                    "values",
                     "text",
                 )
             } | {"at": now.isoformat()}
@@ -517,6 +518,44 @@ async def _confirm(
         )
 
 
+def _text_amount(machine: Any) -> str | None:
+    """The one amount the text reader saw (None when it saw none or several)."""
+    from relay.infrastructure.text_recheck import VERSION, amounts
+
+    read = machine.get(VERSION) if isinstance(machine, dict) else None
+    if not isinstance(read, dict):
+        return None
+    values = read.get("values")
+    if isinstance(values, dict) and isinstance(values.get("amount"), str):
+        return str(values["amount"])
+    found = amounts(str(read.get("text") or ""))
+    return next(iter(found)) if len(found) == 1 else None
+
+
+async def _suggest_amount(
+    database: Database, candidate_id: UUID, amount: str
+) -> dict[str, Any] | None:
+    """Offer the text reader's amount (and EGP) as the suggestion."""
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.id == candidate_id)
+            .with_for_update()
+        )
+        if row is None or not isinstance(row.resolution_result, dict):
+            return None
+        resolution = copy.deepcopy(row.resolution_result)
+        applied, _ = apply_suggestions(
+            resolution, {"amount": amount, "currency": "EGP"}, TEXT_READER, "text"
+        )
+        if not applied:
+            return None
+        row.resolution_result = resolution
+        row.updated_at = datetime.now(UTC)
+        await session.commit()
+        return resolution
+
+
 def _local_day(moment: datetime, settings: Settings) -> str:
     zone = ZoneInfo(settings.receipt_timezone)
     return aware(moment).astimezone(zone).date().isoformat()
@@ -650,6 +689,15 @@ async def auto_confirm(
                 continue
             if tagged is not None:
                 await _untag(database, candidate_id, "recipient_mismatch")
+        text_amount = _text_amount(machine)
+        read_amount = model_values(resolution, ("amount",))
+        if text_amount and (read_amount or {}).get("amount") != text_amount:
+            # The trained model sometimes drops a digit ("1,140" -> 114). The text
+            # reader only offers an amount both of its readings agree on, so its
+            # amount leads; the SMS check below then decides.
+            fixed = await _suggest_amount(database, candidate_id, text_amount)
+            if fixed is not None:
+                resolution = fixed
         core = model_values(resolution, ("amount", "currency"))
         if core is None:
             counts["waiting"] += 1
