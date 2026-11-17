@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) {
             web.loadUrl(portal.toString())
         }
+        if (savedInstanceState == null) UpdateCheck.run(this)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
