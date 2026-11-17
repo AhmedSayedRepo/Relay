@@ -138,7 +138,8 @@ function ReceiptFlags({ item }: { item: Transaction }) {
   const text = item.status_reason ? reasons[item.status_reason] ?? item.status_reason : null;
   if (!text) return null;
   const tone = item.review_status === "REJECTED" ? "danger" : "warning";
-  return <span className={"reason-tag " + tone}>{text}</span>;
+  return <span className="reason-line"><span className={"reason-tag " + tone}>{text}</span>
+    {item.similar_to && <Link className="similar-link" to={"/transactions/" + item.similar_to}>{m.transactions.compareSimilar}</Link>}</span>;
 }
 
 export function Transactions({ token }: { token: string }) {

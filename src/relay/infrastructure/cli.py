@@ -593,11 +593,13 @@ async def auto_confirm(
         for candidate_id, _, resolution, machine, _, folder_at in rows
     ]
 
-    def repeated(candidate_id: UUID, day: str, mine: dict[str, Any]) -> str | None:
+    def repeated(
+        candidate_id: UUID, day: str, mine: dict[str, Any]
+    ) -> tuple[str, UUID] | None:
         """Another receipt that day with this amount that could be the same
         transfer: "reference" when both show the same reference, "sender"
         when the sender is the same (or unreadable) and the references do not
-        prove two transfers; None otherwise."""
+        prove two transfers; None otherwise. Returned with the other receipt."""
         for other_id, other_day, other in known:
             if other_id == candidate_id or other_day != day:
                 continue
@@ -607,7 +609,7 @@ async def auto_confirm(
                 mine["reference"] is not None
                 and mine["reference"] == other["reference"]
             ):
-                return "reference"
+                return "reference", other_id
             same_sender = (
                 mine["sender"] is None
                 or other["sender"] is None
@@ -619,7 +621,7 @@ async def auto_confirm(
                 and mine["reference"] != other["reference"]
             )
             if same_sender and not different_refs:
-                return "sender"
+                return "sender", other_id
         return None
 
     used: set[UUID] = set()
@@ -654,17 +656,16 @@ async def auto_confirm(
             continue
         day = _local_day(folder_at, settings)
         repeat = repeated(candidate_id, day, facts(resolution, machine))
+        previous = resolution.get("possible_repeat")
         if repeat is not None:
-            previous = resolution.get("possible_repeat")
-            if not isinstance(previous, dict) or previous.get("kind") != repeat:
-                await _tag(
-                    database,
-                    candidate_id,
-                    "possible_repeat",
-                    {"day": day, "kind": repeat},
-                )
+            kind, other_id = repeat
+            tag = {"day": day, "kind": kind, "with": str(other_id)}
+            if previous != tag:
+                await _tag(database, candidate_id, "possible_repeat", tag)
             counts["waiting"] += 1
             continue
+        if previous is not None:
+            await _untag(database, candidate_id, "possible_repeat")
         async with database.session() as session:
             sms = await build_sms_verification_service(
                 SqlUnitOfWork(session), settings

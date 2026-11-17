@@ -165,6 +165,10 @@ async def test_repeat_without_references_waits(client, auth_headers, app):
     # Same amount, no reference and no readable sender: could be one transfer.
     counts = await _read_and_confirm(app, {"amount": "410.00", "currency": "EGP"})
     assert counts["sms_day"] == 0 and counts["waiting"] == 2
+    listed = await client.get("/api/v1/transactions", headers=auth_headers)
+    pair = {i["id"]: i["similar_to"] for i in listed.json()["items"]}
+    # Each points at the other, so they can be opened side by side.
+    assert pair[first["id"]] == second["id"] and pair[second["id"]] == first["id"]
 
 
 async def test_recipient_must_be_set_owner(client, auth_headers, app):
