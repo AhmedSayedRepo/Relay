@@ -377,11 +377,6 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
   .preferences select { max-width: 7.5rem; }.page-heading { flex-direction: column; gap: .7rem; }.page-heading .quiet-button { align-self: flex-start; }
   .metric-grid { grid-template-columns: 1fr 1fr; }.record-card, .login-top { flex-direction: column; }.duplicate-row > div:last-child { text-align: start; }
   .review-form, .device-card, .field-row, .code-grid { grid-template-columns: 1fr; }
-  .responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
-  .responsive-table tr { padding: .55rem .8rem; border-block-end: 1px solid var(--line); }
-  .responsive-table td { display: grid; grid-template-columns: minmax(7.5rem, 42%) 1fr; gap: .65rem; padding: .48rem 0; border: 0; text-align: end; }
-  .responsive-table td::before { content: attr(data-label); color: var(--ink-soft); font-size: .72rem; font-weight: 760; text-align: start; }
   main { padding: 1rem; }.pager { flex-wrap: wrap; }.pager > span { width: 100%; margin: 0; }
 }
 @media (max-width: 430px) { .metric-grid { grid-template-columns: 1fr; }.preferences:not(.compact) { width: 100%; justify-content: flex-end; }.top-actions { width: 100%; }}
@@ -485,18 +480,20 @@ td { font-variant-numeric: tabular-nums; }
 .in-app .topbar { padding-top: .5rem; }
 @media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } .tab-bar a:active, .tab-bar button:active { transform: none; } }
 
-/* Phone cards for table rows: the value column may shrink, long handles
-   wrap, nothing pushes the label column off screen. */
+/* Phones: tables keep their columns and scroll sideways (swipe), nothing
+   wraps; the first column stays pinned so each row keeps its context. */
 @media (max-width: 680px) {
-  .responsive-table td { grid-template-columns: minmax(6.5rem, 36%) minmax(0, 1fr); row-gap: .3rem; }
-  .responsive-table td > * { grid-column: 2; justify-self: end; min-width: 0; max-width: 100%; }
-  .responsive-table td::before { grid-row: 1 / span 3; }
-  .responsive-table tr { border-radius: 0; }
-  .parties { min-width: 0; justify-items: end; }
-  .party { justify-content: flex-end; }
-  .party-value { overflow-wrap: anywhere; word-break: break-word; text-align: end; }
-  .reason-line { justify-content: flex-end; }
-  .cell-sub { text-align: end; }
+  .table-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .responsive-table { min-width: 62rem; }
+  .responsive-table th, .responsive-table td { white-space: nowrap; }
+  .responsive-table .party-value, .responsive-table .reason-tag { white-space: nowrap; }
+  .responsive-table .parties { min-width: 0; }
+  .responsive-table th:first-child, .responsive-table td:first-child {
+    position: sticky; inset-inline-start: 0; z-index: 1; background: var(--surface);
+    box-shadow: inset -1px 0 0 var(--line);
+  }
+  [dir="rtl"] .responsive-table th:first-child, [dir="rtl"] .responsive-table td:first-child { box-shadow: inset 1px 0 0 var(--line); }
+  .responsive-table thead th:first-child { background: var(--surface-soft); }
 }
 @media (hover: none) {
   .metric:hover, .record-card:hover, .help-card:hover { transform: none; box-shadow: var(--shadow); }
