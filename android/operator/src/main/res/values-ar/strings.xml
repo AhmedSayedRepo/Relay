@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Relay Operator</string>
+    <string name="offline_title">مش قادر يوصل لـ Relay</string>
+    <string name="offline_body">اتأكد من الإنترنت وجرّب تاني.</string>
+    <string name="retry">جرّب تاني</string>
+    <string name="saved_download">اتحفظ في التنزيلات: %1$s</string>
+    <string name="save_failed">مقدرناش نحفظ الملف.</string>
+</resources>

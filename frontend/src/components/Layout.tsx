@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useI18n, type Locale } from "../i18n";
 import { canReview, isAdmin, useRole } from "../role";
 import { useTheme, type Theme } from "../preferences";
@@ -11,6 +11,7 @@ import { WhatsNew } from "./WhatsNew";
 // the Dashboard exports Excel) but are kept out of the menu.
 const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users", "emailSettings"] as const;
 const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users", "/email-settings"];
+const tabs = ["dashboard", "review", "transactions"] as const;
 const adminOnly = new Set<string>(["bankSms", "devices", "users", "emailSettings"]);
 
 export function PreferenceControls({ compact = false }: { compact?: boolean }) {
@@ -31,14 +32,28 @@ export function RailArt({ className = "rail-art" }: { className?: string }) {
   </svg>;
 }
 
+/** True on phone-width screens, where the bottom tab bar replaces the menu button. */
+function useNarrow(query = "(max-width: 850px)") {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const media = window.matchMedia(query); const change = () => setNarrow(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [query]);
+  return narrow;
+}
+
 export function Layout({ signOut }: { signOut: () => void }) {
-  const { messages: m } = useI18n(); const [open, setOpen] = useState(false); const role = useRole();
+  const { messages: m } = useI18n(); const [open, setOpen] = useState(false); const role = useRole(); const { pathname } = useLocation(); const narrow = useNarrow();
   const visible = (key: string) => (!adminOnly.has(key) || isAdmin(role)) && (key !== "review" || canReview(role));
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
-    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
+    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav>{narrow && <div className="rail-preferences"><PreferenceControls compact /></div>}<RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
     <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
-    <main id="main-content"><Outlet /></main><WhatsNew />
+    <main id="main-content"><div className="page-enter" key={pathname}><Outlet /></div></main><WhatsNew />
+    {/* Phones: the main places sit under the thumb; "More" opens the full menu. */}
+    {narrow && <nav className="tab-bar" aria-label={m.common.mainPages}>{tabs.filter(visible).map((key) => <NavLink end={key === "dashboard"} key={key} to={paths[routes.indexOf(key)]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}<button type="button" className={open ? "active" : ""} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /><span>{m.common.more}</span></button></nav>}
   </div>;
 }
 
