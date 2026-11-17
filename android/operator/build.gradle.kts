@@ -78,4 +78,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.11.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     testImplementation("junit:junit:4.13.2")
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.biometric:biometric:1.1.0")
 }

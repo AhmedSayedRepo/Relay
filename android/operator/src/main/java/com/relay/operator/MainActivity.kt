@@ -20,7 +20,6 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.graphics.toColorInt
@@ -28,10 +27,11 @@ import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.fragment.app.FragmentActivity
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 /** The operator portal as an app: one WebView kept to the Relay server. */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var web: WebView
     private lateinit var refresh: SwipeRefreshLayout
     private lateinit var offline: View
@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             settings.userAgentString += " RelayOperator/" + BuildConfig.VERSION_NAME
             addJavascriptInterface(FileBridge(this@MainActivity), "RelayAndroid")
+            addJavascriptInterface(FingerprintLogin(this@MainActivity, this), "RelayAuth")
             webViewClient = PortalClient()
         }
         CookieManager.getInstance().setAcceptCookie(true)

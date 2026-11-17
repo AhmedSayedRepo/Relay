@@ -22,7 +22,7 @@ from relay.infrastructure.config import Settings
 from relay.infrastructure.email_settings import mail_config
 from relay.infrastructure.mailer import SmtpMailer, send_quietly
 from relay.infrastructure.repositories import SqlUnitOfWork
-from relay.infrastructure.security import Argon2Passwords, JwtTokens
+from relay.infrastructure.security import REMEMBER_LIFETIME, Argon2Passwords, JwtTokens
 from relay.presentation.dependencies import (
     AuthenticatedUser,
     auth_service,
@@ -105,14 +105,19 @@ def _fingerprint(password_hash: str) -> str:
 
 
 def _set_session(
-    request: Request, response: Response, user_id: UUID, password_hash: str
+    request: Request,
+    response: Response,
+    user_id: UUID,
+    password_hash: str,
+    remember: bool = False,
 ) -> None:
     settings = cast(Settings, request.app.state.settings)
     tokens = cast(JwtTokens, request.app.state.tokens)
     response.set_cookie(
         SESSION_COOKIE,
-        tokens.issue_session(user_id, _fingerprint(password_hash)),
-        max_age=settings.session_idle_hours * 3600,
+        tokens.issue_session(user_id, _fingerprint(password_hash), remember),
+        # Without "remember me" the cookie ends with the browser session.
+        max_age=int(REMEMBER_LIFETIME.total_seconds()) if remember else None,
         httponly=True,
         secure=settings.app_env == "production",
         samesite="strict",
@@ -152,7 +157,7 @@ async def login(
     throttle.succeeded(email, client)
     user = await service.uow.users.get_by_email(str(body.email).strip().lower())
     if user is not None:
-        _set_session(request, response, user.id, user.password_hash)
+        _set_session(request, response, user.id, user.password_hash, body.remember)
     return _token_response(token)
 
 
@@ -169,9 +174,10 @@ async def resume_session(
     user: User | None = None
     user_id: UUID | None = None
     fingerprint = ""
+    remember = False
     if value and len(value) <= 4096:
         try:
-            user_id, fingerprint = tokens.session_subject(value)
+            user_id, fingerprint, remember = tokens.session_subject(value)
         except AuthenticationFailed:
             user_id = None
         if user_id is not None:
@@ -182,7 +188,7 @@ async def resume_session(
                 user = None
     if user is None:
         raise AuthenticationFailed("Session expired.")
-    _set_session(request, response, user.id, user.password_hash)
+    _set_session(request, response, user.id, user.password_hash, remember)
     return _token_response(await service.refresh(user))
 
 
