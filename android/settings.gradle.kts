@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "RelayAgent"
 include(":app")
+include(":operator")

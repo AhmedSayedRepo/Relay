@@ -64,7 +64,7 @@ jobs:
           export RELAY_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           printf '%s' "$RELAY_KEYSTORE_BASE64" | base64 --decode > "$RELAY_KEYSTORE_FILE"
           chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleFullRelease :app:assembleReceiptsRelease \
+          ./gradlew --no-daemon :app:assembleFullRelease :app:assembleReceiptsRelease :operator:assembleRelease \
             -PrelayBaseUrl="$RELAY_BASE_URL" \
             -PrelayVersionName="$version" \
             -PrelayVersionCode="$((1000 + GITHUB_RUN_NUMBER))" 2>&1 | tee release.log
@@ -83,6 +83,12 @@ jobs:
             (cd "$RUNNER_TEMP/out" && sha256sum "$name" > "$name.sha256")
             cat "$RUNNER_TEMP/out/$name.sha256"
           done
+          # Relay Operator: the portal as a phone app (its own app id).
+          apk="operator/build/outputs/apk/release/operator-release.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | head -3
+          cp "$apk" "$RUNNER_TEMP/out/relay-operator-$version.apk"
+          cp "$apk" "$RUNNER_TEMP/out/relay-operator.apk"
+          (cd "$RUNNER_TEMP/out" && sha256sum "relay-operator-$version.apk" > "relay-operator-$version.apk.sha256")
       - name: Report build errors
         if: failure()
         working-directory: android
@@ -101,7 +107,7 @@ jobs:
           tag="agent-v$APP_VERSION"
           sha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-bank-sms-$APP_VERSION.apk.sha256")
           rsha=$(cut -d' ' -f1 "$RUNNER_TEMP/out/relay-receipts-$APP_VERSION.apk.sha256")
-          notes="Relay $APP_VERSION for Android 8.0 or newer. relay-receipts-$APP_VERSION.apk (Relay Receipts): receipts only, no SMS access (SHA-256 $rsha). relay-bank-sms-$APP_VERSION.apk (Relay Bank SMS): for the phone that receives bank SMS (SHA-256 $sha)."
+          notes="Relay $APP_VERSION for Android 8.0 or newer. relay-receipts-$APP_VERSION.apk (Relay Receipts): receipts only, no SMS access (SHA-256 $rsha). relay-bank-sms-$APP_VERSION.apk (Relay Bank SMS): for the phone that receives bank SMS (SHA-256 $sha). relay-operator-$APP_VERSION.apk (Relay Operator): the operator portal as a phone app."
           # This commit only exists in this repo; a separate release repo tags its own default branch.
           target=()
           [ "$RELEASE_REPO" = "$GITHUB_REPOSITORY" ] && target=(--target "$GITHUB_SHA")
@@ -113,5 +119,6 @@ jobs:
           fi
           echo "::notice title=apk::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-bank-sms-$APP_VERSION.apk"
           echo "::notice title=apk-receipts::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-receipts-$APP_VERSION.apk"
+          echo "::notice title=apk-operator::https://github.com/$RELEASE_REPO/releases/download/$tag/relay-operator-$APP_VERSION.apk"
           echo "::notice title=sha256::$sha"
           echo "::notice title=sha256-receipts::$rsha"

@@ -451,3 +451,34 @@ td { font-variant-numeric: tabular-nums; }
 .reason-line .reason-tag { margin-top: .35rem; }
 .similar-link { margin-top: .35rem; padding: .1rem .55rem; border-radius: 6px; font-size: .76rem; color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 10%, transparent); transition: background-color .25s var(--ease-out), color .25s var(--ease-out); }
 .similar-link:hover { color: #fff; background: var(--brand-2); }
+
+/* Phone layout: bottom tab bar, page entrance, preferences in the drawer. */
+.tab-bar, .rail-preferences { display: none; }
+.page-enter { animation: page-enter .4s var(--ease-out) both; }
+@keyframes page-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (max-width: 850px) {
+  .menu-button { display: none; }
+  .tab-bar {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; position: fixed; inset-inline: 0; bottom: 0; z-index: 30;
+    padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .tab-bar a, .tab-bar button {
+    display: grid; justify-items: center; gap: .15rem; min-height: 3.25rem; padding: .4rem .2rem; border: 0; border-radius: 14px;
+    background: transparent; color: var(--ink-soft); font-size: .72rem; font-weight: 760; line-height: 1.1;
+    transition: color .3s var(--ease-out), background-color .3s var(--ease-out), transform .2s var(--ease-out);
+  }
+  .tab-bar svg { width: 1.35rem; height: 1.35rem; transition: transform .35s var(--ease-out); }
+  .tab-bar a.active, .tab-bar button.active { color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 12%, transparent); }
+  .tab-bar a.active svg { transform: translateY(-1px) scale(1.08); }
+  .tab-bar a:active, .tab-bar button:active { transform: scale(.94); }
+  .tab-bar a:hover, .tab-bar button:hover { color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 8%, transparent); }
+  main { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  .side-rail { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  .rail-preferences { display: block; margin-block: 1rem; }
+  .rail-preferences .preferences { display: grid; gap: .5rem; }
+  .rail-preferences select { width: 100%; max-width: none; }
+}
+@media (max-width: 680px) { .top-actions .preferences { display: none; } }
+.in-app .topbar { padding-top: .5rem; }
+@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } .tab-bar a:active, .tab-bar button:active { transform: none; } }

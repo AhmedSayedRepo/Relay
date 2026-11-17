@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Relay Operator</string>
+    <string name="offline_title">Can\'t reach Relay</string>
+    <string name="offline_body">Check the internet connection, then try again.</string>
+    <string name="retry">Try again</string>
+    <string name="saved_download">Saved to Downloads: %1$s</string>
+    <string name="save_failed">Could not save the file.</string>
+</resources>

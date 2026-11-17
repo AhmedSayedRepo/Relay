@@ -48,6 +48,14 @@ export async function downloadExport(path: string, token: string): Promise<void>
   const blob = await response.blob();
   const content = response.headers.get("Content-Disposition") || "";
   const filename = content.match(/filename="([^"]+)"/)?.[1] || "relay-export.xlsx";
+  // Inside the Relay Operator app the WebView cannot download: hand it over.
+  const bridge = (window as { RelayAndroid?: { saveFile(name: string, mime: string, data: string): boolean } }).RelayAndroid;
+  if (bridge) {
+    const bytes = new Uint8Array(await blob.arrayBuffer()); let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    if (!bridge.saveFile(filename, blob.type || "application/octet-stream", btoa(binary))) throw new ApiError(500, "Export could not be saved.");
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
