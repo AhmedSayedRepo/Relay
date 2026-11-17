@@ -443,8 +443,10 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .panel:hover { border-color: color-mix(in srgb, var(--signal) 35%, var(--line)); }
 /* Table rows: a coloured wash instead of underlined links. */
 tbody tr { transition: background-color .3s var(--ease-out); }
-tbody tr:hover { background: color-mix(in srgb, var(--signal) 7%, var(--surface)); }
-tbody tr:hover a { color: var(--accent); }
+@media (hover: hover) {
+  tbody tr:hover { background: color-mix(in srgb, var(--signal) 7%, var(--surface)); }
+  tbody tr:hover a { color: var(--accent); }
+}
 td { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .metric:hover, .record-card:hover, .help-card:hover, .metric:active, .record-card:active { transform: none; } }
 .reason-line { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; }
@@ -482,3 +484,21 @@ td { font-variant-numeric: tabular-nums; }
 @media (max-width: 680px) { .top-actions .preferences { display: none; } }
 .in-app .topbar { padding-top: .5rem; }
 @media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } .tab-bar a:active, .tab-bar button:active { transform: none; } }
+
+/* Phone cards for table rows: the value column may shrink, long handles
+   wrap, nothing pushes the label column off screen. */
+@media (max-width: 680px) {
+  .responsive-table td { grid-template-columns: minmax(6.5rem, 36%) minmax(0, 1fr); row-gap: .3rem; }
+  .responsive-table td > * { grid-column: 2; justify-self: end; min-width: 0; max-width: 100%; }
+  .responsive-table td::before { grid-row: 1 / span 3; }
+  .responsive-table tr { border-radius: 0; }
+  .parties { min-width: 0; justify-items: end; }
+  .party { justify-content: flex-end; }
+  .party-value { overflow-wrap: anywhere; word-break: break-word; text-align: end; }
+  .reason-line { justify-content: flex-end; }
+  .cell-sub { text-align: end; }
+}
+@media (hover: none) {
+  .metric:hover, .record-card:hover, .help-card:hover { transform: none; box-shadow: var(--shadow); }
+  .metric:hover::after, .record-card:hover::after, .help-card:hover::after, .panel:hover::after { opacity: 0; }
+}
