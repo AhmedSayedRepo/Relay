@@ -518,6 +518,19 @@ async def _confirm(
         )
 
 
+def _verified_fields(values: dict[str, str], machine: Any) -> list[str]:
+    from relay.infrastructure.text_recheck import VERSION
+
+    read = machine.get(VERSION) if isinstance(machine, dict) else None
+    agreed = read.get("values") if isinstance(read, dict) else None
+    agreed = agreed if isinstance(agreed, dict) else {}
+    return ["amount", "currency"] + [
+        name
+        for name in ("reference_number", "date", "time")
+        if name in values and agreed.get(name) == values[name]
+    ]
+
+
 def _text_amount(machine: Any) -> str | None:
     """The one amount the text reader saw (None when it saw none or several)."""
     from relay.infrastructure.text_recheck import VERSION, amounts
@@ -742,7 +755,13 @@ async def auto_confirm(
                 database,
                 candidate_id,
                 "auto_confirmed",
-                {"rule": "sms_day", "sms_event_id": str(sms.event_id)},
+                {
+                    "rule": "sms_day",
+                    "sms_event_id": str(sms.event_id),
+                    # Fields fit to train on: the amount the bank SMS proves,
+                    # plus readings both text passes agreed on independently.
+                    "trained_fields": _verified_fields(values, machine),
+                },
             )
             # Optional-once-verified fields first: they stop being reviewable
             # once the SMS marker leaves only amount and currency blocking.
