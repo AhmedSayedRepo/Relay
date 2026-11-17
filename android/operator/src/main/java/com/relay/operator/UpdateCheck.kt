@@ -5,9 +5,9 @@ import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.core.net.toUri
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 
 private const val LATEST =
     "https://api.github.com/repos/AhmedSayedRepo/relay-releases/releases/latest"
