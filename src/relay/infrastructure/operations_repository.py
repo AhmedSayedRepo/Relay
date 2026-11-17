@@ -82,6 +82,16 @@ def _safe_configuration(value: dict[str, Any]) -> dict[str, JsonValue]:
     }
 
 
+def _similar_to(value: ReceiptCandidateRow) -> str | None:
+    """The receipt this one may repeat, to open side by side."""
+    if value.duplicate_of_candidate_id is not None:
+        return str(value.duplicate_of_candidate_id)
+    resolution = value.resolution_result
+    repeat = resolution.get("possible_repeat") if isinstance(resolution, dict) else None
+    other = repeat.get("with") if isinstance(repeat, dict) else None
+    return str(other) if other else None
+
+
 def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
     """Why a receipt waits for review or was rejected, as a short code the
     portal translates. None for accepted receipts."""
@@ -343,6 +353,7 @@ class SqlOperationsRepository:
             "recipient_name": reviewed_value(resolution, "recipient"),
             **_read_parties(value.machine_result),
             "status_reason": _status_reason(value, row.sms_verification),
+            "similar_to": _similar_to(value),
             "recipient_identifier": reviewed_value(resolution, "recipient_identifier"),
             "transfer_status": reviewed_value(resolution, "transfer_status"),
             "authoritative_status": (

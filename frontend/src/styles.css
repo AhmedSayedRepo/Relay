@@ -447,3 +447,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--signal) 7%, var(--surface)
 tbody tr:hover a { color: var(--accent); }
 td { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .metric:hover, .record-card:hover, .help-card:hover, .metric:active, .record-card:active { transform: none; } }
+.reason-line { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; }
+.reason-line .reason-tag { margin-top: .35rem; }
+.similar-link { margin-top: .35rem; padding: .1rem .55rem; border-radius: 6px; font-size: .76rem; color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 10%, transparent); transition: background-color .25s var(--ease-out), color .25s var(--ease-out); }
+.similar-link:hover { color: #fff; background: var(--brand-2); }
