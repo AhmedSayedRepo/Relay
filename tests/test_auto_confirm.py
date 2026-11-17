@@ -96,7 +96,14 @@ async def test_same_day_bank_sms_confirms_on_amount(client, auth_headers, app):
     assert resolution["blocking_fields"] == []
     assert resolution["fields"]["amount"]["value"] == "1250.50"
     assert detail["review_status"] != "NEEDS_REVIEW"
-    assert labels_from_resolution(resolution) is None
+    # Trains on the amount the SMS proves; the reference came from the model
+    # alone, so it stays out of training.
+    labels = labels_from_resolution(resolution)
+    assert labels is not None
+    assert labels["amount"]["target_value"] == "1250.50"
+    assert labels["reference"]["value_loss_mask"] == 0
+    other_rule = resolution | {"auto_confirmed": {"rule": "readers"}}
+    assert labels_from_resolution(other_rule) is None
     status = await client.get(
         f"/api/v1/receipts/{candidate['id']}/sms-verification", headers=auth_headers
     )

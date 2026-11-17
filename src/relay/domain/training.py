@@ -1,4 +1,5 @@
-"""Training labels derived only from explicit operator review.
+"""Training labels derived from explicit operator review, or from a bank SMS
+for the amount it proves.
 
 Machine suggestions never become training targets. A field is a target only when
 an operator confirmed or corrected it; a field the operator marked unavailable is
@@ -64,6 +65,16 @@ def split_for_group(group_id: str) -> Split:
     return Split.HOLDOUT if bucket == 0 else Split.TRAIN
 
 
+def _excluded() -> dict[str, JsonValue]:
+    """Left out of both losses: not verified apart from the model."""
+    return {
+        "evidence_state": EvidenceState.UNREADABLE.value,
+        "target_value": None,
+        "value_loss_mask": 0,
+        "presence_loss_mask": 0,
+    }
+
+
 def _field_label(item: JsonValue) -> dict[str, JsonValue]:
     state = EvidenceState.UNREVIEWED
     value: str | None = None
@@ -91,8 +102,20 @@ def labels_from_resolution(
         return None
     if metadata.get("state") not in ELIGIBLE_STATES:
         return None
-    if "auto_confirmed" in metadata:  # never train on the model's own output
-        return None
+    # Never train on the model's own output. A receipt confirmed by a bank SMS
+    # teaches only what was verified apart from the model: the amount the SMS
+    # proves and the fields both text readings agreed on.
+    trainable: set[str] | None = None
+    auto = metadata.get("auto_confirmed")
+    if auto is not None:
+        if not isinstance(auto, dict) or auto.get("rule") != "sms_day":
+            return None
+        listed = auto.get("trained_fields")
+        trainable = (
+            {str(name) for name in listed} if isinstance(listed, list) else set()
+        )
+        if not {"amount", "currency"} <= trainable:
+            return None
     if metadata.get("classification_resolved") is False:
         return None
     if metadata.get("supported_layout") is False:
@@ -100,7 +123,14 @@ def labels_from_resolution(
     fields = metadata.get("fields")
     if not isinstance(fields, dict):
         return None
-    by_review = {name: _field_label(fields.get(name)) for name in REVIEW_TO_MODEL}
+    by_review = {
+        name: (
+            _field_label(fields.get(name))
+            if trainable is None or name in trainable
+            else _excluded()
+        )
+        for name in REVIEW_TO_MODEL
+    }
     critical = [by_review[name]["evidence_state"] for name in CRITICAL_FIELDS]
     if any(state == EvidenceState.UNREVIEWED.value for state in critical):
         return None
