@@ -77,4 +77,5 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-ktx:1.11.0")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    testImplementation("junit:junit:4.13.2")
 }

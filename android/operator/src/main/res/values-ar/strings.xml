@@ -6,4 +6,8 @@
     <string name="retry">جرّب تاني</string>
     <string name="saved_download">اتحفظ في التنزيلات: %1$s</string>
     <string name="save_failed">مقدرناش نحفظ الملف.</string>
+    <string name="update_title">متاح Relay Operator %1$s</string>
+    <string name="update_body">نزّل النسخة الجديدة وثبّتها فوق دي. تسجيل دخولك هيفضل زي ما هو.</string>
+    <string name="update_now">تحديث</string>
+    <string name="update_later">بعدين</string>
 </resources>
