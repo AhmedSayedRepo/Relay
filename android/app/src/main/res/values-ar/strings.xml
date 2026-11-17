@@ -98,4 +98,6 @@
     <string name="remove">إزالة</string>
     <string name="whats_new_title">الجديد في الإصدار %1$s</string>
     <string name="whats_new_ok">تمام</string>
+    <string name="folder_help_title">أختار أنهي مجلد؟</string>
+    <string name="folder_help_body">واتساب: Android ← media ← com.whatsapp ← WhatsApp ← Media ← WhatsApp Images.\nبلوتوث: Download ← Bluetooth (وفي بعض الموبايلات مجلد Bluetooth لوحده برّه).\nلو الموبايل قال «مينفعش تستخدم المجلد ده»، اختار المجلد اللي جوّاه.</string>
 </resources>

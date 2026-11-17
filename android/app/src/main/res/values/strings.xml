@@ -103,4 +103,6 @@
     <string name="remove">Remove</string>
     <string name="whats_new_title">What\'s new in v%1$s</string>
     <string name="whats_new_ok">Got it</string>
+    <string name="folder_help_title">Which folder should I choose?</string>
+    <string name="folder_help_body">WhatsApp: Android → media → com.whatsapp → WhatsApp → Media → WhatsApp Images.\nBluetooth: Download → Bluetooth (on some phones a top-level Bluetooth folder).\nIf the phone shows \"Can\'t use this folder\", choose the folder inside it.</string>
 </resources>

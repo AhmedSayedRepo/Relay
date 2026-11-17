@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
@@ -572,6 +573,7 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                         Button(onClick = actions.chooseFolder) {
                             Text(stringResource(R.string.choose_folder))
                         }
+                        FolderHelp()
                     } else if (status.approvedImageSourceId != null && status.localImageConsent) {
                         // Text buttons pad their label; pull them back onto the content edge.
                         TextButton(
@@ -593,6 +595,25 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
     }
 }
 
+/** Which folder to pick for WhatsApp and Bluetooth, behind an info button. */
+@Composable
+private fun FolderHelp() {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Column {
+        TextButton(onClick = { open = !open }, modifier = Modifier.offset(x = (-12).dp)) {
+            Icon(Icons.Filled.Info, contentDescription = null)
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.folder_help_title))
+        }
+        if (open) {
+            Text(
+                stringResource(R.string.folder_help_body),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
 /** The watched folders; extra ones (e.g. Bluetooth) can be added or removed here. */
 @Composable
 private fun ImageFolders(folders: List<ImageFolder>, actions: AgentActions) {
@@ -601,6 +622,7 @@ private fun ImageFolders(folders: List<ImageFolder>, actions: AgentActions) {
             stringResource(R.string.watched_folders),
             style = MaterialTheme.typography.titleSmall
         )
+        FolderHelp()
         folders.forEachIndexed { index, folder ->
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 48.dp),
