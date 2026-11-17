@@ -94,7 +94,7 @@ def enlarge(data: bytes) -> Image.Image:
     return image.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=2))
 
 
-def _amounts(text: str) -> set[str]:
+def amounts(text: str) -> set[str]:
     found = set()
     for match in _AMOUNT.finditer(text):
         whole = (match.group(1) or match.group(3)).replace(",", "")
@@ -127,9 +127,9 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
         stamps = _stamps(text)
         if len(stamps) == 1 and _stamps(other) == stamps:
             values["date"], values["time"] = next(iter(stamps))
-        amounts = _amounts(text)
-        if len(amounts) == 1 and _amounts(other) == amounts:
-            values["amount"], values["currency"] = next(iter(amounts)), "EGP"
+        seen = amounts(text)
+        if len(seen) == 1 and amounts(other) == seen:
+            values["amount"], values["currency"] = next(iter(seen)), "EGP"
     # A receipt shows a reference or an amount, plus wording that says what
     # it is. A payment request looks like a receipt but moves no money.
     request = bool(_REQUEST.search(text))

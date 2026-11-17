@@ -361,3 +361,24 @@ async def test_quiet_receipts_phone_still_listed_on_dashboard(
         if item["device_id"] == candidate["device_id"]
     ]
     assert phone["count"] == 0 and phone["confirmed_amount"] == "0.00"
+
+
+async def test_text_amount_corrects_a_dropped_digit(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "dropped-digit")
+    bundle = await _link_sms(client, auth_headers, [candidate], "dropped-phone")
+    body = "notice: You have received EGP 1,140.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    # The model reads "1,140" as 114; the text reader saw 1,140.
+    await model_suggest(
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"amount": "114.00", "currency": "EGP"}),
+        10,
+    )
+    await _text(app, "تم التحويل بنجاح\n1,140 EGP")
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert counts["sms_day"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["resolution_result"]["fields"]["amount"]["value"] == "1140.00"
