@@ -136,10 +136,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private inner class PortalClient : WebViewClient() {
-        override fun shouldOverrideUrlLoading(
-            view: WebView,
-            request: WebResourceRequest
-        ): Boolean {
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url
             if (url.scheme == portal.scheme && url.host == portal.host) return false
             // Anything else (help links, mail) opens outside the app.
