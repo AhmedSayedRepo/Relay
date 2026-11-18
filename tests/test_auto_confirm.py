@@ -423,3 +423,30 @@ def test_only_clearly_non_receipt_photos_are_hidden() -> None:
     screen = "تحويل ناجح " * 10 + "0100340 5232 YOUSSEF"
     assert _receipt_like({"receipt": False, "found": {}, "text": screen})
     assert not _receipt_like({"receipt": False, "found": {}, "text": "ok 12"})
+
+
+def test_untouched_review_photo_with_nothing_readable_is_hidden() -> None:
+    from relay.infrastructure.cli import _clear_non_receipt
+
+    blank = {"found": {}, "text": "BURGER TIME", "receipt": False}
+
+    def row(
+        read: dict[str, object], amount: str | None = None, source: str = "model"
+    ) -> ReceiptCandidateRow:
+        field = {"value": amount, "candidates": [{"source": source}]}
+        return ReceiptCandidateRow(
+            machine_result={VERSION: read},
+            resolution_result={"fields": {"amount": field}},
+            reviewed_result=None,
+        )
+
+    # A burger poster: no receipt words, no amount from either reader.
+    assert _clear_non_receipt(row(blank))
+    # A handwritten note where only the model guessed 1,200: still hidden.
+    assert _clear_non_receipt(row(blank, "1200.00"))
+    # The layout reader found an amount: a person should look.
+    assert not _clear_non_receipt(row(blank, "1200.00", "prefill"))
+    # Receipt words in the text: keep it.
+    assert not _clear_non_receipt(row(blank | {"found": {"brand": True}}))
+    # Not read yet: keep it.
+    assert not _clear_non_receipt(ReceiptCandidateRow(machine_result={}))
