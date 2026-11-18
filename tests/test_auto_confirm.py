@@ -389,3 +389,22 @@ async def test_text_amount_corrects_a_dropped_digit(client, auth_headers, app):
     assert counts["sms_day"] == 1
     detail = await _detail(client, auth_headers, candidate)
     assert detail["resolution_result"]["fields"]["amount"]["value"] == "1140.00"
+
+
+def test_amount_from_fee_and_total() -> None:
+    from relay.infrastructure.text_recheck import (
+        amounts,
+        transfer_from_fee,
+        transfer_from_total,
+    )
+
+    # Photos of a phone often cut off the big amount; fee + total remain.
+    assert transfer_from_fee(amounts("1.08 EGP\n1,081.08 EGP")) == "1080.00"
+    assert transfer_from_fee(amounts("1.82 EGP\n1,816.82 EGP")) == "1815.00"
+    # "0:62" is how OCR read the fee's decimal point.
+    assert transfer_from_fee(amounts("0:62 EGP\n620.62 EGP")) == "620.00"
+    # Numbers that do not follow the 0.1% fee rule are not a pair.
+    assert transfer_from_fee(amounts("5 EGP\n100 EGP")) is None
+    # Fee lost: a labelled total alone still gives the amount.
+    assert transfer_from_total("المبلغ الإجمالي 620.62 EGP") == "620.00"
+    assert transfer_from_total("price 1500.50 EGP") is None
