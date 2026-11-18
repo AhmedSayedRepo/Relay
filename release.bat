@@ -34,7 +34,8 @@ if "%BANK%"=="true" (echo Relay Bank SMS is included.) else (echo Relay Bank SMS
 set /p OK=Release version %VER% now? (Y/N) 
 if /i not "%OK%"=="Y" (echo Cancelled. & exit /b 0)
 
-gh workflow run android-release.yml --repo %REPO% -f version=%VER% -f bank_sms=%BANK% || exit /b 1
+rem Plain REST call: some networks cannot reach GitHub's GraphQL endpoint.
+gh api -X POST repos/%REPO%/actions/workflows/android-release.yml/dispatches -f ref=main -f "inputs[version]=%VER%" -f "inputs[bank_sms]=%BANK%" || exit /b 1
 echo Started. Waiting for GitHub to pick it up...
 timeout /t 8 /nobreak >nul
 for /f "delims=" %%i in ('gh run list --repo %REPO% --workflow android-release.yml -L 1 --json databaseId -q ".[0].databaseId"') do set RUN=%%i
