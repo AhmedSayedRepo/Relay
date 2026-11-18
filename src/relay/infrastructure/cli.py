@@ -533,15 +533,24 @@ def _verified_fields(values: dict[str, str], machine: Any) -> list[str]:
 
 def _text_amount(machine: Any) -> str | None:
     """The one amount the text reader saw (None when it saw none or several)."""
-    from relay.infrastructure.text_recheck import VERSION, amounts
+    from relay.infrastructure.text_recheck import (
+        VERSION,
+        amounts,
+        transfer_from_fee,
+        transfer_from_total,
+    )
 
     read = machine.get(VERSION) if isinstance(machine, dict) else None
     if not isinstance(read, dict):
         return None
+    printed = str(read.get("text") or "")
+    found = amounts(printed)
+    derived = transfer_from_fee(found) or transfer_from_total(printed)
+    if derived is not None:
+        return derived
     values = read.get("values")
     if isinstance(values, dict) and isinstance(values.get("amount"), str):
         return str(values["amount"])
-    found = amounts(str(read.get("text") or ""))
     return next(iter(found)) if len(found) == 1 else None
 
 

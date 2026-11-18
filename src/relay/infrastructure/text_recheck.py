@@ -10,6 +10,7 @@ import io
 import re
 import tempfile
 import time
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -94,7 +95,52 @@ def enlarge(data: bytes) -> Image.Image:
     return image.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=2))
 
 
+def transfer_from_fee(found: set[str]) -> str | None:
+    """The transfer amount when the receipt shows InstaPay's fee and total:
+    fee = 0.1% of the amount, at least 0.50 and at most 20.00 EGP, and
+    total = amount + fee. The pair checks itself, so a stray number cannot
+    pass. Returns the largest such amount, or None."""
+    values = sorted(Decimal(item) for item in found)
+    best: Decimal | None = None
+    for total in values:
+        for fee in values:
+            if fee <= 0 or fee >= total:
+                continue
+            amount = total - fee
+            if amount != amount.to_integral_value():
+                continue
+            expected = min(max(amount / 1000, Decimal("0.50")), Decimal("20.00"))
+            if abs(expected.quantize(Decimal("0.01")) - fee) <= Decimal("0.01"):
+                best = amount if best is None or amount > best else best
+    return f"{best:.2f}" if best is not None else None
+
+
+_TOTAL = re.compile(r"[اإ]جمال[يى]|total", re.I)
+
+
+def transfer_from_total(text: str) -> str | None:
+    """When OCR loses the fee: a labelled total with cents is the amount plus
+    its 0.1% fee, so the whole-pound amount that fits the fee rule is the
+    transfer. Only with a "total" label and a single amount with cents."""
+    if not _TOTAL.search(text):
+        return None
+    with_cents = [Decimal(item) for item in amounts(text) if not item.endswith(".00")]
+    if len(with_cents) != 1:
+        return None
+    total = with_cents[0]
+    for amount in range(int(total), max(int(total) - 21, 0), -1):
+        found = transfer_from_fee({f"{total:.2f}", f"{total - amount:.2f}"})
+        if found is not None:
+            return found
+    return None
+
+
+_COLON_CENTS = re.compile(r"(?<![\d:])(\d{1,3}):(\d{2})(?=\s*(?:EGP|جنيه))", re.I)
+
+
 def amounts(text: str) -> set[str]:
+    # OCR sometimes reads the decimal point of a small amount as ":" ("0:62 EGP").
+    text = _COLON_CENTS.sub(r"\1.\2", text)
     found = set()
     for match in _AMOUNT.finditer(text):
         whole = (match.group(1) or match.group(3)).replace(",", "")
@@ -130,6 +176,15 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
         seen = amounts(text)
         if len(seen) == 1 and amounts(other) == seen:
             values["amount"], values["currency"] = next(iter(seen)), "EGP"
+    # Photos of a phone often cut off the big amount, but the fee and the
+    # total add up exactly: total - fee is the transfer.
+    derived = transfer_from_fee(amounts(text) | (amounts(other) if other else set()))
+    if derived is None:
+        derived = transfer_from_total(text) or (
+            transfer_from_total(other) if other else None
+        )
+    if derived is not None:
+        values["amount"], values["currency"] = derived, "EGP"
     # A receipt shows a reference or an amount, plus wording that says what
     # it is. A payment request looks like a receipt but moves no money.
     request = bool(_REQUEST.search(text))
