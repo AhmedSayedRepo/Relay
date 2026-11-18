@@ -430,17 +430,22 @@ def test_untouched_review_photo_with_nothing_readable_is_hidden() -> None:
 
     blank = {"found": {}, "text": "BURGER TIME", "receipt": False}
 
-    def row(read: dict[str, object], amount: str | None = None) -> ReceiptCandidateRow:
+    def row(
+        read: dict[str, object], amount: str | None = None, source: str = "model"
+    ) -> ReceiptCandidateRow:
+        field = {"value": amount, "candidates": [{"source": source}]}
         return ReceiptCandidateRow(
             machine_result={VERSION: read},
-            resolution_result={"fields": {"amount": {"value": amount}}},
+            resolution_result={"fields": {"amount": field}},
             reviewed_result=None,
         )
 
     # A burger poster: no receipt words, no amount from either reader.
     assert _clear_non_receipt(row(blank))
-    # The model saw an amount: a person should look.
-    assert not _clear_non_receipt(row(blank, "1200.00"))
+    # A handwritten note where only the model guessed 1,200: still hidden.
+    assert _clear_non_receipt(row(blank, "1200.00"))
+    # The layout reader found an amount: a person should look.
+    assert not _clear_non_receipt(row(blank, "1200.00", "prefill"))
     # Receipt words in the text: keep it.
     assert not _clear_non_receipt(row(blank | {"found": {"brand": True}}))
     # Not read yet: keep it.

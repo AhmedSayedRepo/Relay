@@ -158,8 +158,9 @@ def _receipt_like(result: dict[str, Any]) -> bool:
 
 
 def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
-    """A Review item nobody has touched where neither reader saw a receipt:
-    no receipt words or text, and no suggested amount or reference."""
+    """A Review item nobody has touched where the text reader saw no receipt
+    and nothing but the model's guess offers an amount or reference (the
+    model guesses an amount even for a food photo)."""
     from relay.infrastructure import text_recheck
 
     read = (row.machine_result or {}).get(text_recheck.VERSION)
@@ -170,9 +171,20 @@ def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
     fields = (row.resolution_result or {}).get("fields")
     fields = fields if isinstance(fields, dict) else {}
     return not any(
-        isinstance(fields.get(name), dict) and fields[name].get("value")
-        for name in ("amount", "reference")
+        _read_by_more_than_model(fields.get(name)) for name in ("amount", "reference")
     )
+
+
+def _read_by_more_than_model(field: Any) -> bool:
+    if not isinstance(field, dict) or not field.get("value"):
+        return False
+    candidates = field.get("candidates")
+    sources = {
+        candidate.get("source")
+        for candidate in (candidates if isinstance(candidates, list) else ())
+        if isinstance(candidate, dict)
+    }
+    return sources != {"model"}
 
 
 async def hide_non_receipts(database: Database) -> int:
