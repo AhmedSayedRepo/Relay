@@ -419,10 +419,12 @@ def test_only_clearly_non_receipt_photos_are_hidden() -> None:
     assert _receipt_like({"receipt": False, "found": {"brand": True}})
     # A photo of food: nothing receipt-like at all.
     assert not _receipt_like({"receipt": False, "found": {"date": True}})
-    # A blurred screen still full of text is for a person to judge.
-    screen = "تحويل ناجح " * 10 + "0100340 5232 YOUSSEF"
-    assert _receipt_like({"receipt": False, "found": {}, "text": screen})
-    assert not _receipt_like({"receipt": False, "found": {}, "text": "ok 12"})
+    # A blurred screen that still shows an amount or a time: a person judges.
+    for screen in ("ex % 1,610 .00 EGP", "noise 12 : 05 PM"):
+        assert _receipt_like({"receipt": False, "found": {}, "text": screen})
+    # Paper or a poster read as hundreds of random letters: hidden.
+    noise = "ex %\n— -_\nبه 061\nim 8) GN Nebel ie\n1 7 0 عليه 1 a " * 20
+    assert not _receipt_like({"receipt": False, "found": {}, "text": noise})
 
 
 def test_untouched_review_photo_with_nothing_readable_is_hidden() -> None:

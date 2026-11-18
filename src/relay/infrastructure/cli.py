@@ -5,6 +5,7 @@ import getpass
 import json
 import os
 import random
+import re
 import sys
 import time
 from datetime import UTC, datetime
@@ -138,23 +139,25 @@ def _machine_only(row: ReceiptCandidateRow) -> bool:
 TEXT_READER = "text_reader_v2"
 
 
-READABLE_CHARS = 60
+# Every receipt prints an amount with cents or a clock time; the text reader
+# turns food photos and paper into hundreds of random letters, but almost
+# never into these.
+_RECEIPT_NUMBER = re.compile(r"[0-9]+[.,][0-9]{2}|[0-9]{1,2}:[0-9]{2}")
 
 
 def _receipt_like(result: dict[str, Any]) -> bool:
     """Anything that might be a receipt goes to Review; only a photo with
-    no InstaPay name, reference, amount or success words is hidden. (A
-    photo of a phone screen can read too poorly for the full receipt test.)"""
+    no InstaPay name, reference, amount or success words and no printed
+    amount or time is hidden. (A photo of a phone screen can read too
+    poorly for the full receipt test.)"""
     if result.get("receipt"):
         return True
     found = result.get("found")
     found = found if isinstance(found, dict) else {}
     if any(found.get(key) for key in ("brand", "reference", "amount", "success")):
         return True
-    # A screen full of words and numbers (a blurred receipt, a bank app) is
-    # for a person to judge; a photo of food or a place reads almost nothing.
-    text = str(result.get("text") or "")
-    return sum(char.isalnum() for char in text) >= READABLE_CHARS
+    text = re.sub(r"\s", "", str(result.get("text") or ""))
+    return _RECEIPT_NUMBER.search(text) is not None
 
 
 def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
