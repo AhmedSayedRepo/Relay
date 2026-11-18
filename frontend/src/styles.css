@@ -484,10 +484,12 @@ td { font-variant-numeric: tabular-nums; }
    wraps and nothing is pinned. */
 @media (max-width: 680px) {
   .table-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
-  .responsive-table { min-width: 62rem; }
-  .responsive-table th, .responsive-table td { white-space: nowrap; }
-  .responsive-table .party-value, .responsive-table .reason-tag { white-space: nowrap; }
-  .responsive-table .parties { min-width: 0; }
+  /* Every table (Transactions, Bank SMS, devices, users...): as wide as its
+     content needs, at least the screen; swipe to see the rest. */
+  .table-wrap > table { width: max-content; min-width: 100%; }
+  .table-wrap th, .table-wrap td, .table-wrap .badge, .table-wrap .party-value,
+  .table-wrap .reason-tag { white-space: nowrap; }
+  .table-wrap .parties { min-width: 0; }
 }
 @media (hover: none) {
   .metric:hover, .record-card:hover, .help-card:hover { transform: none; box-shadow: var(--shadow); }
