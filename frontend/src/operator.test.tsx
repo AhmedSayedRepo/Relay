@@ -86,9 +86,9 @@ describe("Sprint 7 operator experience", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => json(dashboard));
     renderRelay(<MemoryRouter><Dashboard token="token" /></MemoryRouter>);
     expect(screen.getByRole("status")).toHaveTextContent("Loading operational data");
-    expect(await screen.findByText("Final money by currency")).toBeInTheDocument();
-    expect(screen.getByText(/2,501/)).toBeInTheDocument();
-    expect(screen.getByText("Currencies remain separate so totals keep their meaning.")).toBeInTheDocument();
+    expect(await screen.findByText("Received by bank SMS")).toBeInTheDocument();
+    expect(screen.getByText("Not confirmed yet")).toBeInTheDocument();
+    expect(screen.getAllByText(/2,501/).length).toBeGreaterThan(0);
   });
 
   it("renders intentional authorization, service, and empty states", async () => {

@@ -54,6 +54,8 @@ export type DashboardData = {
   receipt_image_activity: number;
   sms_activity: number;
   hidden_image_count: number;
+  bank_sms_received_count: number;
+  bank_sms_received_totals: { currency: string; amount: string; transaction_count: number }[];
   totals_by_currency: { currency: string; amount: string; transaction_count: number }[];
   processing_by_status: { status: string; count: number }[];
   activity_by_source: { source: string; count: number }[];

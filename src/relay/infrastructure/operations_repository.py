@@ -429,6 +429,38 @@ class SqlOperationsRepository:
             for currency, amount, count in rows
         ]
 
+    async def _bank_sms_received(self, window: DateWindow) -> dict[str, JsonValue]:
+        """Money the bank says arrived: incoming bank SMS in the range (when
+        they reached the phone), summed per currency."""
+        from relay.domain.sms_verification import SmsDirection, parse_bank_sms
+
+        payloads = await self.db.scalars(
+            select(RawEventRow.payload).where(
+                RawEventRow.collector == "sms",
+                RawEventRow.occurred_at >= window.start,
+                RawEventRow.occurred_at < window.end_exclusive,
+            )
+        )
+        totals: dict[str, tuple[int, Decimal]] = {}
+        for payload in payloads:
+            body = payload.get("body") if isinstance(payload, dict) else None
+            parsed = parse_bank_sms(body) if isinstance(body, str) else None
+            if parsed is None or parsed.direction != SmsDirection.IN:
+                continue
+            count, amount = totals.get(parsed.currency, (0, Decimal(0)))
+            totals[parsed.currency] = (count + 1, amount + parsed.amount)
+        return {
+            "bank_sms_received_count": sum(count for count, _ in totals.values()),
+            "bank_sms_received_totals": [
+                {
+                    "currency": currency,
+                    "amount": f"{amount:.2f}",
+                    "transaction_count": count,
+                }
+                for currency, (count, amount) in sorted(totals.items())
+            ],
+        }
+
     async def dashboard(self, window: DateWindow) -> dict[str, JsonValue]:
         receipt_range = self._receipt_range(window)
         final_count = await self.db.scalar(
@@ -639,6 +671,7 @@ class SqlOperationsRepository:
             "pending_processing_count": jobs.get("PENDING", 0),
             "receipt_image_activity": events.get("images", 0),
             "sms_activity": events.get("sms", 0),
+            **await self._bank_sms_received(window),
             "hidden_image_count": hidden_images,
             "totals_by_currency": [
                 {
