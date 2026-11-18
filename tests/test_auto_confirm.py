@@ -408,3 +408,14 @@ def test_amount_from_fee_and_total() -> None:
     # Fee lost: a labelled total alone still gives the amount.
     assert transfer_from_total("المبلغ الإجمالي 620.62 EGP") == "620.00"
     assert transfer_from_total("price 1500.50 EGP") is None
+
+
+def test_only_clearly_non_receipt_photos_are_hidden() -> None:
+    from relay.infrastructure.cli import _receipt_like
+
+    # A poor photo of a phone screen: not a full receipt, but it shows a
+    # reference, so it goes to Review instead of being hidden.
+    assert _receipt_like({"receipt": False, "found": {"reference": True}})
+    assert _receipt_like({"receipt": False, "found": {"brand": True}})
+    # A photo of food: nothing receipt-like at all.
+    assert not _receipt_like({"receipt": False, "found": {"date": True}})
