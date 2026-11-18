@@ -138,6 +138,43 @@ def _machine_only(row: ReceiptCandidateRow) -> bool:
 TEXT_READER = "text_reader_v2"
 
 
+def _receipt_like(result: dict[str, Any]) -> bool:
+    """Anything that might be a receipt goes to Review; only a photo with
+    no InstaPay name, reference, amount or success words is hidden. (A
+    photo of a phone screen can read too poorly for the full receipt test.)"""
+    if result.get("receipt"):
+        return True
+    found = result.get("found")
+    found = found if isinstance(found, dict) else {}
+    return any(found.get(key) for key in ("brand", "reference", "amount", "success"))
+
+
+async def unhide_receipt_like(database: Database) -> int:
+    """Bring back photos hidden by the stricter rule that came before."""
+    from relay.infrastructure import text_recheck
+
+    restored = 0
+    async with database.session() as session:
+        rows = await session.scalars(
+            select(ReceiptCandidateRow).where(
+                ReceiptCandidateRow.hidden_reason == "not_a_receipt"
+            )
+        )
+        now = datetime.now(UTC)
+        for row in rows:
+            read = (row.machine_result or {}).get(text_recheck.VERSION)
+            if not isinstance(read, dict) or not _receipt_like(read):
+                continue
+            row.hidden_reason = None
+            if row.review_status == ReviewStatus.REJECTED.value and _machine_only(row):
+                row.resolution_result = _reopen(row, text_recheck.VERSION, now)
+            restored += 1
+        await session.commit()
+    if restored:
+        print(f"Brought back {restored} hidden photos that may be receipts.")
+    return restored
+
+
 def _suggest_missing(resolution: dict[str, Any], values: dict[str, str]) -> int:
     """Offer text readings only for fields nothing has suggested yet."""
     fields = resolution.get("fields")
@@ -245,14 +282,14 @@ async def text_pass(
                 row.resolution_result = resolution
                 row.review_status = ReviewStatus.REJECTED.value
                 counts["requests"] += 1
-            elif rejected and result["receipt"] and not result.get("failed"):
+            elif rejected and _receipt_like(result) and not result.get("failed"):
                 resolution = _reopen(row, text_recheck.VERSION, now)
                 _suggest_missing(resolution, result["values"])
                 row.resolution_result = resolution
                 counts["reopened"] += 1
             elif (
                 rejected
-                and not result["receipt"]
+                and not _receipt_like(result)
                 and row.receipt_type == ReceiptType.UNKNOWN_RECEIPT.value
             ):
                 row.hidden_reason = "not_a_receipt"
@@ -1123,6 +1160,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                         stale_job_minutes=settings.processing_stale_minutes,
                         evidence_extractor=InstaPayReceiptAdapter(provider),
                     ).process_pending(limit=settings.processing_batch_limit)
+                await unhide_receipt_like(database)
                 await text_pass(
                     database, storage, provider, tuple(settings.ocr_languages), 4
                 )
