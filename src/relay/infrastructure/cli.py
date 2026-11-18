@@ -157,6 +157,44 @@ def _receipt_like(result: dict[str, Any]) -> bool:
     return sum(char.isalnum() for char in text) >= READABLE_CHARS
 
 
+def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
+    """A Review item nobody has touched where neither reader saw a receipt:
+    no receipt words or text, and no suggested amount or reference."""
+    from relay.infrastructure import text_recheck
+
+    read = (row.machine_result or {}).get(text_recheck.VERSION)
+    if not isinstance(read, dict) or read.get("payment_request"):
+        return False
+    if _receipt_like(read) or not _machine_only(row):
+        return False
+    fields = (row.resolution_result or {}).get("fields")
+    fields = fields if isinstance(fields, dict) else {}
+    return not any(
+        isinstance(fields.get(name), dict) and fields[name].get("value")
+        for name in ("amount", "reference")
+    )
+
+
+async def hide_non_receipts(database: Database) -> int:
+    """Take food photos, posters and notes out of Review."""
+    hidden = 0
+    async with database.session() as session:
+        rows = await session.scalars(
+            select(ReceiptCandidateRow).where(
+                ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value,
+                ReceiptCandidateRow.hidden_reason.is_(None),
+            )
+        )
+        for row in rows:
+            if _clear_non_receipt(row):
+                row.hidden_reason = "not_a_receipt"
+                hidden += 1
+        await session.commit()
+    if hidden:
+        print(f"Hid {hidden} photos in Review that are not receipts.")
+    return hidden
+
+
 async def unhide_receipt_like(database: Database) -> int:
     """Bring back photos hidden by the stricter rule that came before."""
     from relay.infrastructure import text_recheck
@@ -1172,6 +1210,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 await text_pass(
                     database, storage, provider, tuple(settings.ocr_languages), 4
                 )
+                await hide_non_receipts(database)
                 async with database.session() as session:
                     await build_sms_verification_service(
                         SqlUnitOfWork(session), settings
