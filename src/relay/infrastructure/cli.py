@@ -138,6 +138,9 @@ def _machine_only(row: ReceiptCandidateRow) -> bool:
 TEXT_READER = "text_reader_v2"
 
 
+READABLE_CHARS = 60
+
+
 def _receipt_like(result: dict[str, Any]) -> bool:
     """Anything that might be a receipt goes to Review; only a photo with
     no InstaPay name, reference, amount or success words is hidden. (A
@@ -146,7 +149,12 @@ def _receipt_like(result: dict[str, Any]) -> bool:
         return True
     found = result.get("found")
     found = found if isinstance(found, dict) else {}
-    return any(found.get(key) for key in ("brand", "reference", "amount", "success"))
+    if any(found.get(key) for key in ("brand", "reference", "amount", "success")):
+        return True
+    # A screen full of words and numbers (a blurred receipt, a bank app) is
+    # for a person to judge; a photo of food or a place reads almost nothing.
+    text = str(result.get("text") or "")
+    return sum(char.isalnum() for char in text) >= READABLE_CHARS
 
 
 async def unhide_receipt_like(database: Database) -> int:
