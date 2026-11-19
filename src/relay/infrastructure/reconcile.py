@@ -56,9 +56,8 @@ async def reconcile(settings: Settings, day: date) -> list[str]:
     try:
         async with database.session() as session:
             owner = await recipient(session)
-            names = dict(
-                (await session.execute(select(DeviceRow.id, DeviceRow.name))).all()
-            )
+            devices = await session.execute(select(DeviceRow.id, DeviceRow.name))
+            names: dict[UUID, str] = {row[0]: row[1] for row in devices.all()}
             photos = (
                 await session.execute(
                     select(RawEventRow, ReceiptCandidateRow)

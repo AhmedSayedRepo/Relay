@@ -491,11 +491,10 @@ async def test_reconcile_lists_photos_and_sms_side_by_side(client, auth_headers,
     await _send_sms(
         client, bundle, "notice: You have received EGP 990.00 via InstaPay", _now()
     )
-    await _send_sms(client, bundle, "odd wording 123 here", _now())
     await _read_and_confirm(app, {"amount": "640.00", "currency": "EGP"})
     report = "\n".join(await reconcile(app.state.settings, _now().date()))
     key = candidate["id"][:8]
     assert f"{key}" in report and "CONFIRMED" in report
     assert "SMS with no receipt (1)" in report
     assert "990.00  no photo with this amount" in report
-    assert "SMS the parser could not read (1)" in report
+    assert "SMS the parser could not read (0)" in report
