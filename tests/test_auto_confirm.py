@@ -509,3 +509,72 @@ def test_a_lone_fee_is_not_taken_as_the_transfer() -> None:
     assert _text_amount(fee_only) is None
     assert _text_amount({VERSION: {"text": "4.25 EGP", "values": {}}}) is None
     assert _text_amount({VERSION: {"text": "805.00 EGP", "values": {}}}) == "805.00"
+
+
+async def _owner(client, auth_headers):
+    saved = await client.put(
+        "/api/v1/settings/recipient",
+        headers=auth_headers,
+        json={"name": "YOUSSEF", "phone": "01003405232"},
+    )
+    assert saved.status_code == 200, saved.text
+
+
+async def _model_then_text(app, text, *values):
+    await model_suggest(
+        app.state.database, app.state.object_storage, FakeReader(*values), 10
+    )
+    await _text(app, text)
+    return await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+
+
+async def test_unreadable_recipient_is_confirmed_by_the_bank_sms(
+    client, auth_headers, app
+):
+    await _owner(client, auth_headers)
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-unclear")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-unclear-phone")
+    body = "notice: You have received EGP 1,070.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    # A photo of a screen: no name and no phone readable.
+    counts = await _model_then_text(
+        app, "تم التحويل بنجاح", {"amount": "1070.00", "currency": "EGP"}
+    )
+    assert counts["sms_day"] == 1
+    resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    assert resolution["auto_confirmed"]["recipient"] == "unclear"
+    assert "recipient_mismatch" not in resolution
+
+
+async def test_unreadable_recipient_waits_when_the_amount_is_not_alone(
+    client, auth_headers, app
+):
+    await _owner(client, auth_headers)
+    first, _ = await run_receipt(client, auth_headers, app, "day-unc-a")
+    second, _ = await run_receipt(client, auth_headers, app, "day-unc-b")
+    bundle = await _link_sms(client, auth_headers, [first, second], "day-unc-phone")
+    body = "notice: You have received EGP 720.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    # Two receipts of 720 today with different references, one SMS: with no
+    # readable recipient either could be the one the SMS proves.
+    counts = await _model_then_text(
+        app,
+        "تم التحويل بنجاح",
+        {"amount": "720.00", "currency": "EGP", "reference_number": "111111111111"},
+        {"amount": "720.00", "currency": "EGP", "reference_number": "333333333333"},
+    )
+    assert counts["sms_day"] == 0
+
+
+async def test_someone_elses_phone_still_waits(client, auth_headers, app):
+    await _owner(client, auth_headers)
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-other")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-other-phone")
+    body = "notice: You have received EGP 845.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    counts = await _model_then_text(
+        app, "إلى Mohamed A 01021204916", {"amount": "845.00", "currency": "EGP"}
+    )
+    assert counts["sms_day"] == 0

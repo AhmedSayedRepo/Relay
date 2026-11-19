@@ -297,6 +297,11 @@ def _phones(text: str) -> set[str]:
     return set(_PHONE.findall(text.translate(_DIGITS)))
 
 
+def shows_a_phone(text: str) -> bool:
+    """Any mobile number printed at all (someone's, readable)."""
+    return bool(_phones(text))
+
+
 def recipient_check(text: str, name: str, phone: str | None, instapay: bool) -> str:
     """Was the receipt sent to the owner? "match", "different" or "unclear".
 
