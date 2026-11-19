@@ -1266,6 +1266,7 @@ def main() -> int:
             "list-admins",
             "daily-report",
             "reader-loop",
+            "eval-reader",
         ],
     )
     parser.add_argument("--email")
@@ -1277,6 +1278,14 @@ def main() -> int:
     parser.add_argument("--file", type=Path)
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+    if args.command == "eval-reader":
+        from relay.infrastructure.reader_eval import evaluate_reader
+
+        try:
+            return evaluate_reader(load_settings(), args.file, args.force)
+        except Exception as error:
+            print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
+            return 1
     if args.command in {"daily-report", "reader-loop"}:
         try:
             if args.command == "reader-loop":
