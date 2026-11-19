@@ -59,15 +59,54 @@ function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: 
 
 type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt"; device?: string; amount?: string; currency?: string; since?: string | null };
 
-// Warnings that need someone now (a silent cashier phone, a bank SMS with no receipt).
-// Always "now", whatever range the dashboard shows; refreshed with the page.
+const cairoClock = (iso: string | null | undefined, locale: Locale) => iso ? new Date(iso).toLocaleTimeString(locale === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }) : "";
+
+/** "5 min ago" / "منذ ٥ دقائق", or "" when never. */
+function ago(iso: string | null | undefined, locale: Locale): string {
+  if (!iso) return "";
+  const minutes = Math.round((Date.parse(iso) - Date.now()) / 60_000);
+  const words = new Intl.RelativeTimeFormat(locale === "ar" ? "ar-EG" : "en", { numeric: "auto" });
+  if (Math.abs(minutes) < 60) return words.format(minutes, "minute");
+  if (Math.abs(minutes) < 60 * 24) return words.format(Math.round(minutes / 60), "hour");
+  return words.format(Math.round(minutes / 1440), "day");
+}
+
+/** Green within the hour, amber after, grey when never. */
+const freshness = (iso: string | null | undefined) => !iso ? "never" : Date.now() - Date.parse(iso) < 3_600_000 ? "fresh" : "stale";
+
+// Today's warnings (a silent cashier phone, a bank SMS with no receipt), beside
+// the review workload. Always "today", whatever range the dashboard shows.
 function Alerts({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const d = m.dashboard;
   const alerts = useApi<{ alerts: Alert[] }>("/alerts", token, true).data?.alerts ?? [];
-  const at = (since?: string | null) => since ? new Date(since).toLocaleTimeString(locale === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }) : "";
-  return <article className={"panel alerts-panel" + (alerts.length ? " has-alerts" : "")} aria-live="polite"><div className="section-heading"><div><h2>{d.alertsTitle}</h2><p className="subhead">{alerts.length ? formatMessage(d.alertsCount, { count: alerts.length }) : d.alertsNone}</p></div></div>{alerts.length > 0 && <ul className="alerts-list">{alerts.map((item) => <li key={item.key}>{item.kind === "silent_phone"
-    ? (item.since ? formatMessage(d.alertSilent, { device: item.device ?? "", time: at(item.since) }) : formatMessage(d.alertSilentNever, { device: item.device ?? "" }))
-    : formatMessage(d.alertSms, { amount: Number(item.amount ?? 0).toLocaleString(locale === "ar" ? "ar-EG" : "en-US", { minimumFractionDigits: 2 }) + " " + (item.currency ?? ""), time: at(item.since) })}</li>)}</ul>}</article>;
+  const money = (item: Alert) => Number(item.amount ?? 0).toLocaleString(locale === "ar" ? "ar-EG" : "en-US", { minimumFractionDigits: 2 }) + " " + (item.currency ?? "");
+  return <article className={"panel alerts-panel" + (alerts.length ? " has-alerts" : "")} aria-live="polite">
+    <div className="panel-head"><h2>{d.alertsTitle}</h2>{alerts.length > 0 ? <span className="count-pill danger"><Bidi>{alerts.length}</Bidi></span> : null}</div>
+    {alerts.length === 0 ? <div className="all-clear"><Icon name="review" size={28} /><p>{d.alertsNone}</p></div> : <>
+      <p className="subhead">{d.alertsResets}</p>
+      <ul className="alerts-list">{alerts.map((item) => item.kind === "silent_phone"
+        ? <li key={item.key} className="alert-item phone"><span className="alert-icon"><Icon name="devices" size={18} /></span><div><strong>{item.device}</strong><span>{item.since ? formatMessage(d.alertSilentMeta, { time: cairoClock(item.since, locale) }) : d.alertSilentNeverMeta}</span><small>{d.alertSilentTip}</small></div></li>
+        : <li key={item.key} className="alert-item sms"><span className="alert-icon"><Icon name="bankSms" size={18} /></span><div><strong><Bidi>{money(item)}</Bidi></strong><span>{formatMessage(d.alertSmsMeta, { time: cairoClock(item.since, locale) })}</span><small>{d.alertSmsTip}</small></div></li>)}</ul></>}
+  </article>;
+}
+
+const QUEUE_TONES = { ready: "success", missing: "warning", duplicate: "duplicate", in_progress: "accent", done: "neutral" } as const;
+
+/** The review workload: one bar for the mix, then a clickable row per kind. */
+function Workload({ queue, waiting, sms, role }: { queue: (readonly [keyof typeof QUEUE_TONES, number])[]; waiting: number; sms: Record<string, number>; role: ReturnType<typeof useRole> }) {
+  const { messages: m } = useI18n(); const d = m.dashboard; const total = queue.reduce((sum, [, value]) => sum + value, 0);
+  const row = (key: keyof typeof QUEUE_TONES, value: number) => {
+    const body = <><span className={"dot " + QUEUE_TONES[key]} aria-hidden="true" /><span className="label">{m.review.categories[key]}</span><Bidi className="value">{value}</Bidi></>;
+    return <li key={key} className={value ? "" : "zero"}>{canReview(role) ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
+  };
+  return <article className="panel workload-panel">
+    <div className="panel-head"><h2>{d.workloadTitle}</h2><span className="count-pill"><Bidi>{waiting}</Bidi></span></div>
+    <p className="subhead">{formatMessage(d.workloadIntro, { count: waiting })}</p>
+    <div className="mix-bar" aria-hidden="true">{total > 0 ? queue.filter(([, value]) => value > 0).map(([key, value]) => <span key={key} className={QUEUE_TONES[key]} style={{ flexGrow: value }} />) : <span className="neutral" style={{ flexGrow: 1 }} />}</div>
+    <ul className="queue-rows">{queue.map(([key, value]) => row(key, value))}</ul>
+    <h3>{d.smsTitle}</h3>
+    <div className="sms-tiles">{(["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"] as const).map((key) => <div key={key} className={"sms-tile " + key.toLowerCase()}><Bidi className="value">{Number(sms[key]) || 0}</Bidi><span>{(d.sms as Record<string, string>)[key]}</span></div>)}</div>
+  </article>;
 }
 
 export function Dashboard({ token }: { token: string }) {
@@ -100,10 +139,8 @@ export function Dashboard({ token }: { token: string }) {
         <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
       <div className="two-column">
-      <article className="panel"><div className="section-heading"><div><h2>{d.workloadTitle}</h2><p className="subhead">{formatMessage(d.workloadIntro, { count: waiting })}</p></div></div>
-        <dl className="fact-list">{queue.map(([key, value]) => <div key={key}><dt>{canReview(role) ? <Link to={"/review?category=" + key}>{m.review.categories[key]}</Link> : m.review.categories[key]}</dt><dd><Bidi>{value}</Bidi></dd></div>)}</dl>
-        <h3>{d.smsTitle}</h3><dl className="fact-list">{["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"].map((key) => <div key={key}><dt>{(d.sms as Record<string, string>)[key]}</dt><dd><Bidi>{n(sms[key])}</Bidi></dd></div>)}</dl></article><Alerts token={token} /></div>
-      <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.smsMatchedCol}</th><th>{d.total}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.smsMatchedCol}><Bidi>{n(item.sms_verified_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
+      <Workload queue={queue} waiting={waiting} sms={sms} role={role} /><Alerts token={token} /></div>
+      <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.smsMatchedCol}</th><th>{d.total}</th><th>{d.lastPhoto}</th><th>{d.lastSeen}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.smsMatchedCol}><Bidi>{n(item.sms_verified_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td><td data-label={d.lastPhoto}><span className={"seen " + freshness(item.last_photo_at)}>{ago(item.last_photo_at, locale) || d.never}</span></td><td data-label={d.lastSeen}><span className={"seen " + freshness(item.last_seen_at)}>{ago(item.last_seen_at, locale) || d.never}</span></td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
       <article className="panel pulse-panel"><div className="section-heading"><div><h2>{d.activity}</h2><p className="subhead">{d.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div><dt>{d.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div>{data.hidden_image_count > 0 && <div><dt>{d.hiddenImages}</dt><dd><Bidi>{data.hidden_image_count}</Bidi></dd></div>}<div><dt>{d.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div><dt>{d.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div><dt>{d.failedProcessing}</dt><dd><Bidi>{data.processing_failure_count}</Bidi></dd></div></dl></article>
     </>}
   </section>;
@@ -204,7 +241,7 @@ export function ReviewQueue({ token }: { token: string }) {
   const total = counts ? Object.entries(counts).reduce((sum, [key, value]) => key === "done" ? sum : sum + (Number(value) || 0), 0) : undefined;
   return <section><PageHeading title={m.pages.review[0]} description={m.pages.review[1]} help={contextHelp.review} /><p className="queue-guidance">{m.review.oldestHint}</p>
     <div className="category-tabs" role="tablist" aria-label={m.review.categories.label}>{tabs.map(([key, label]) => { const count = key ? counts?.[key] : total; return <button key={key || "all"} type="button" role="tab" aria-selected={category === key} className={category === key ? "active" : ""} onClick={() => { setCategory(key); setOffset(0); }}>{label}{count !== undefined && <span className="count">{count}</span>}</button>; })}</div>
-    {category && <p className="hint">{(m.review.categories.hints as Record<string, string>)[category]}{category === "duplicate" && <> <Link to="/duplicates">{m.review.openDuplicates}</Link></>}</p>}<div className="filter-bar"><label className="grow">{m.filters.search}<input value={search} maxLength={64} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} /></label><DayRange range={range} changed={() => setOffset(0)} /><label>{m.filters.order}<select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="desc">{m.filters.newest}</option><option value="asc">{m.filters.oldest}</option></select></label></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noReview} />{data && data.total > 0 && <div className="card-list">{data.items.map((item) => <article className="record-card review-row" key={item.id}><div><h2><Link to={"/transactions/" + item.id}><Bidi>{item.reference_original || suggested(item, "reference_number") || m.review.needsReview}</Bidi></Link></h2><p className="subhead">{m.transactions.arrived} <Timestamp value={item.folder_at ?? item.created_at} locale={locale} /> · {item.device_name}</p><p><Amount amount={item.amount ?? suggested(item, "amount")} currency={item.currency ?? suggested(item, "currency") ?? "EGP"} locale={locale} />{!item.amount && suggested(item, "amount") && <span className="muted"> · {m.transactions.suggestedValue}</span>} <ReceiptFlags item={item} /></p></div><ExceptionSummary receipt={item} /></article>)}</div>}{data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}</section>;
+    {category && <p className="hint">{(m.review.categories.hints as Record<string, string>)[category]}{category === "duplicate" && <> <Link to="/duplicates">{m.review.openDuplicates}</Link></>}</p>}<div className="filter-bar"><label className="grow">{m.filters.search}<input value={search} maxLength={64} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} /></label><DayRange range={range} changed={() => setOffset(0)} /><label>{m.filters.order}<select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="desc">{m.filters.newest}</option><option value="asc">{m.filters.oldest}</option></select></label></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noReview} />{data && data.total > 0 && <div className="card-list">{data.items.map((item) => <article className="record-card review-row clickable" key={item.id}><div><h2><Link className="card-link" to={"/transactions/" + item.id}><Bidi>{item.reference_original || suggested(item, "reference_number") || m.review.needsReview}</Bidi></Link></h2><p className="subhead">{m.transactions.arrived} <Timestamp value={item.folder_at ?? item.created_at} locale={locale} /> · {item.device_name}</p><p><Amount amount={item.amount ?? suggested(item, "amount")} currency={item.currency ?? suggested(item, "currency") ?? "EGP"} locale={locale} />{!item.amount && suggested(item, "amount") && <span className="muted"> · {m.transactions.suggestedValue}</span>} <ReceiptFlags item={item} /></p></div><ExceptionSummary receipt={item} /></article>)}</div>}{data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}</section>;
 }
 
 export function ProcessingQueue({ token }: { token: string }) {

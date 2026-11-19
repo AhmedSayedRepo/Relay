@@ -570,10 +570,22 @@ class SqlOperationsRepository:
             .group_by(RawEventRow.collector)
         )
         final = and_(*self._final())
+        # When each phone last sent a photo (any range), to spot a quiet phone.
+        last_photo = (
+            select(func.max(RawEventRow.received_at))
+            .where(
+                RawEventRow.device_id == DeviceRow.id,
+                RawEventRow.collector == "images",
+            )
+            .correlate(DeviceRow)
+            .scalar_subquery()
+        )
         device_counts = await self.db.execute(
             select(
                 DeviceRow.id,
                 DeviceRow.name,
+                DeviceRow.last_seen_at,
+                last_photo,
                 func.count(ReceiptCandidateRow.id),
                 func.sum(case((final, 1), else_=0)),
                 func.sum(case((final, ReceiptCandidateRow.amount), else_=0)),
@@ -604,7 +616,7 @@ class SqlOperationsRepository:
                     ),
                 )
             )
-            .group_by(DeviceRow.id, DeviceRow.name)
+            .group_by(DeviceRow.id, DeviceRow.name, DeviceRow.last_seen_at)
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
             .limit(20)
         )
@@ -699,10 +711,19 @@ class SqlOperationsRepository:
                         Decimal(str(amount or 0)).quantize(Decimal("0.01"))
                     ),
                     "sms_verified_count": int(sms_verified or 0),
+                    "last_seen_at": _iso(seen),
+                    "last_photo_at": _iso(photo),
                 }
-                for device_id, name, count, confirmed, amount, sms_verified in (
-                    device_counts
-                )
+                for (
+                    device_id,
+                    name,
+                    seen,
+                    photo,
+                    count,
+                    confirmed,
+                    amount,
+                    sms_verified,
+                ) in device_counts
             ],
             "auto_confirmed_count": int(auto_count or 0),
             "manual_confirmed_count": max(
