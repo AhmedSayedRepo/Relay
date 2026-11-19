@@ -31,8 +31,11 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
-VERSION = "vl_ocr_v1"
-PROMPT = "OCR:"  # PaddleOCR-VL's plain text recognition task
+# Which model read it (PaddleOCR-VL: vl_ocr_v1, GLM-OCR: vl_glm_v1) and the
+# model's plain text task ("OCR:" for PaddleOCR-VL, "Text Recognition:" for
+# GLM-OCR). Set in compose.yaml from .env.
+VERSION = os.environ.get("RELAY_VL_VERSION", "vl_ocr_v1")
+PROMPT = os.environ.get("RELAY_VL_PROMPT", "OCR:")
 # Image tokens grow with the square of the size and the CPU time with them:
 # 1280 px took over 5 minutes on two cores. RELAY_VL_LONGEST_SIDE overrides.
 LONGEST_SIDE = int(os.environ.get("RELAY_VL_LONGEST_SIDE", "896"))

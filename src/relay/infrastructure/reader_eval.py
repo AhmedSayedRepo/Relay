@@ -178,12 +178,13 @@ def summary(grades: dict[str, dict[str, str]]) -> list[str]:
 
 
 Grades = dict[str, dict[str, str]]
+MODEL_PREFIX = "vl_"
+MODEL_NAMES = {"vl_ocr_v1": "PaddleOCR-VL", "vl_glm_v1": "GLM-OCR"}
 
 
-async def confirmed_grades(settings: Settings) -> tuple[Grades, Grades]:
+async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades]]:
     """Grade the text reader, and the model reader where it has read, on
     every confirmed receipt, keyed by receipt id."""
-    from relay.infrastructure import vl_reader
     from relay.infrastructure.email_settings import recipient
     from relay.infrastructure.text_recheck import VERSION
 
@@ -205,7 +206,7 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, Grades]:
     finally:
         await database.close()
     grades: Grades = {}
-    model: Grades = {}
+    models: dict[str, Grades] = {}
     for candidate_id, resolution, machine in rows:
         answers = expected(resolution)
         if answers is None or not isinstance(machine, dict):
@@ -213,12 +214,17 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, Grades]:
         read = machine.get(VERSION)
         if isinstance(read, dict) and read.get("text"):
             grades[str(candidate_id)] = grade(str(read["text"]), answers, owner)
-        seen = machine.get(vl_reader.VERSION)
-        if isinstance(seen, dict) and seen.get("text"):
-            model[str(candidate_id)] = grade(
-                str(seen["text"]), answers, owner, single=True
-            )
-    return grades, model
+        # Every model reader that has read it (vl_ocr_v1, vl_glm_v1, ...).
+        for key, seen in machine.items():
+            if (
+                key.startswith(MODEL_PREFIX)
+                and isinstance(seen, dict)
+                and seen.get("text")
+            ):
+                models.setdefault(key, {})[str(candidate_id)] = grade(
+                    str(seen["text"]), answers, owner, single=True
+                )
+    return grades, models
 
 
 def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int:
@@ -228,12 +234,13 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
     not set). An improved or equal score replaces the saved one."""
     import asyncio
 
-    grades, model = asyncio.run(confirmed_grades(settings))
+    grades, models = asyncio.run(confirmed_grades(settings))
     for line in summary(grades):
         print(line)
-    if model:
+    for version, model in sorted(models.items()):
         both = {key: grades[key] for key in model if key in grades}
-        print("\nSame receipts, current reader vs model reader (PaddleOCR-VL):")
+        name = MODEL_NAMES.get(version, version)
+        print(f"\nSame {len(both)} receipts, current reader vs {name}:")
         for line in summary(both)[1:]:
             print("  current" + line)
         for line in summary({key: model[key] for key in both})[1:]:

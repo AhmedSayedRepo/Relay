@@ -178,8 +178,10 @@ services:
     profiles: ["reader"]
     image: ghcr.io/ggml-org/llama.cpp:server
     command:
+      # Which model: PaddleOCR-VL by default; GLM-OCR with
+      # OCR_MODEL=ggml-org/GLM-OCR-GGUF (see docs/model-reader.md).
       - "-hf"
-      - "PaddlePaddle/PaddleOCR-VL-1.5-GGUF"
+      - "${OCR_MODEL:-PaddlePaddle/PaddleOCR-VL-1.5-GGUF}"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -193,6 +195,9 @@ services:
       - "1"
       - "--threads"
       - "${OCR_THREADS:-2}"
+      # GLM-OCR needs it off; no effect on speed on a CPU.
+      - "--flash-attn"
+      - "off"
     environment:
       LLAMA_CACHE: /models
     volumes:
@@ -224,6 +229,9 @@ services:
       ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
       OBJECT_STORAGE_ROOT: /var/lib/relay/objects
       RELAY_VL_URL: http://ocr:8080
+      # Each model's readings are kept apart so they can be compared.
+      RELAY_VL_VERSION: ${RELAY_VL_VERSION:-vl_ocr_v1}
+      RELAY_VL_PROMPT: ${RELAY_VL_PROMPT:-OCR:}
       RECEIPT_TIMEZONE: ${RECEIPT_TIMEZONE:-Africa/Cairo}
     depends_on:
       db:
