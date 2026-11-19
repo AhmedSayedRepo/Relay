@@ -21,8 +21,8 @@ fi
 ./deploy/dc.sh up -d
 # Rebuild and (re)start the long-running reader once it is enabled (model present).
 if [ -f model/reader-config.json ]; then
-  ./deploy/dc.sh --profile reader build reader vl
-  ./deploy/dc.sh --profile reader up -d reader ocr vl
+  ./deploy/dc.sh --profile reader build reader vl ppocr
+  ./deploy/dc.sh --profile reader up -d reader ocr vl ppocr
 fi
 ./deploy/schedule.sh
 ./deploy/dc.sh ps

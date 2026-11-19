@@ -178,8 +178,12 @@ def summary(grades: dict[str, dict[str, str]]) -> list[str]:
 
 
 Grades = dict[str, dict[str, str]]
-MODEL_PREFIX = "vl_"
-MODEL_NAMES = {"vl_ocr_v1": "PaddleOCR-VL", "vl_glm_v1": "GLM-OCR"}
+MODEL_PREFIXES = ("vl_", "ppocr_")
+MODEL_NAMES = {
+    "vl_ocr_v1": "PaddleOCR-VL",
+    "vl_glm_v1": "GLM-OCR",
+    "ppocr_v1": "PaddleOCR (classic)",
+}
 
 
 async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades]]:
@@ -217,7 +221,7 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades
         # Every model reader that has read it (vl_ocr_v1, vl_glm_v1, ...).
         for key, seen in machine.items():
             if (
-                key.startswith(MODEL_PREFIX)
+                key.startswith(MODEL_PREFIXES)
                 and isinstance(seen, dict)
                 and seen.get("text")
             ):
