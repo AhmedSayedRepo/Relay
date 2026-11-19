@@ -689,6 +689,13 @@ async def _suggest_amount(
         return resolution
 
 
+def _same_amount(first: Any, second: Any) -> bool:
+    try:
+        return float(first) == float(second)
+    except (TypeError, ValueError):
+        return False
+
+
 def _local_day(moment: datetime, settings: Settings) -> str:
     zone = ZoneInfo(settings.receipt_timezone)
     return aware(moment).astimezone(zone).date().isoformat()
@@ -700,7 +707,10 @@ async def auto_confirm(
     """Confirm a receipt when an incoming bank SMS backs it up:
 
     1. The receipt was sent to the owner (name, and phone on InstaPay
-       receipts), when the admin has set who that is.
+       receipts), when the admin has set who that is. When the recipient
+       cannot be read (a photo of a screen) but nothing shows someone else,
+       the SMS below still confirms it, provided no other receipt that day
+       shows the same amount.
     2. A free incoming bank SMS with the same amount arrived on the same day
        (Cairo time) as the receipt image. Time of day does not matter; each
        SMS confirms one receipt only.
@@ -712,7 +722,11 @@ async def auto_confirm(
     from relay.application.errors import Conflict
     from relay.infrastructure.email_settings import recipient
     from relay.infrastructure.models import UserRow
-    from relay.infrastructure.text_recheck import VERSION, recipient_check
+    from relay.infrastructure.text_recheck import (
+        VERSION,
+        recipient_check,
+        shows_a_phone,
+    )
 
     counts = {"sms_day": 0, "waiting": 0, "failed": 0}
     async with database.session() as session:
@@ -796,6 +810,16 @@ async def auto_confirm(
                 return "sender", other_id
         return None
 
+    def alone(candidate_id: UUID, day: str, amount: Any) -> bool:
+        """No other receipt that day, waiting or confirmed, shows this amount."""
+        return not any(
+            other_id != candidate_id
+            and other_day == day
+            and other["amount"] is not None
+            and _same_amount(other["amount"], amount)
+            for other_id, other_day, other in known
+        )
+
     used: set[UUID] = set()
     for candidate_id, device_id, resolution, machine, status, folder_at in rows:
         if status != ReviewStatus.NEEDS_REVIEW.value:
@@ -806,6 +830,7 @@ async def auto_confirm(
         if not isinstance(text, dict) or text.get("payment_request"):
             counts["waiting"] += 1  # wait for the text reading (or a request)
             continue
+        unclear = False
         if owner is not None:
             name, phone = owner
             found = text.get("found")
@@ -818,9 +843,15 @@ async def auto_confirm(
                     await _tag(
                         database, candidate_id, "recipient_mismatch", {"kind": verdict}
                     )
-                counts["waiting"] += 1
-                continue
-            if tagged is not None:
+                if verdict != "unclear" or shows_a_phone(printed):
+                    # Someone else's, or a readable phone that is not the
+                    # owner's: a person decides.
+                    counts["waiting"] += 1
+                    continue
+                # Unreadable, not someone else: the bank SMS can still prove
+                # the money arrived (checked below, more strictly).
+                unclear = True
+            elif tagged is not None:
                 await _untag(database, candidate_id, "recipient_mismatch")
         text_amount = _text_amount(machine)
         read_amount = model_values(resolution, ("amount",))
@@ -847,6 +878,9 @@ async def auto_confirm(
             continue
         if previous is not None:
             await _untag(database, candidate_id, "possible_repeat")
+        if unclear and not alone(candidate_id, day, core["amount"]):
+            counts["waiting"] += 1  # two receipts could claim the one SMS
+            continue
         async with database.session() as session:
             sms = await build_sms_verification_service(
                 SqlUnitOfWork(session), settings
@@ -881,8 +915,11 @@ async def auto_confirm(
                     # Fields fit to train on: the amount the bank SMS proves,
                     # plus readings both text passes agreed on independently.
                     "trained_fields": _verified_fields(values, machine),
-                },
+                }
+                | ({"recipient": "unclear"} if unclear else {}),
             )
+            if unclear:
+                await _untag(database, candidate_id, "recipient_mismatch")
             # Optional-once-verified fields first: they stop being reviewable
             # once the SMS marker leaves only amount and currency blocking.
             for name in ["reference_number", "date", "time", "currency", "amount"]:
