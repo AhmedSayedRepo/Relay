@@ -498,3 +498,14 @@ async def test_reconcile_lists_photos_and_sms_side_by_side(client, auth_headers,
     assert "SMS with no receipt (1)" in report
     assert "990.00  no photo with this amount" in report
     assert "SMS the parser could not read (0)" in report
+
+
+def test_a_lone_fee_is_not_taken_as_the_transfer() -> None:
+    from relay.infrastructure.cli import _text_amount
+
+    # A photo where only the fee line was readable: "0.72 EGP" is the fee of
+    # a 720 transfer, so the text reader offers no amount at all.
+    fee_only = {VERSION: {"text": "رسوم 0.72 EGP", "values": {}}}
+    assert _text_amount(fee_only) is None
+    assert _text_amount({VERSION: {"text": "4.25 EGP", "values": {}}}) is None
+    assert _text_amount({VERSION: {"text": "805.00 EGP", "values": {}}}) == "805.00"
