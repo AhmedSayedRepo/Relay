@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "./api";
 
-export function useApi<T>(path: string, token: string) {
+/** How often "live" lists refresh themselves while the tab is visible. */
+export const LIVE_REFRESH_MS = 30_000;
+
+/**
+ * Loads `path`. With `live`, it also refreshes quietly every 30 seconds and
+ * when the tab comes back into view: the page keeps showing what it has (no
+ * spinner, no error flash) and only swaps in newer data. Pages with forms
+ * stay non-live so a refresh never resets what someone is typing.
+ */
+export function useApi<T>(path: string, token: string, live = false) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -25,6 +34,21 @@ export function useApi<T>(path: string, token: string) {
   // Fetch state is intentionally reset whenever the authenticated query changes.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => reload(), [reload]);
+  useEffect(() => {
+    if (!live) return;
+    let active = true;
+    const quiet = () => {
+      if (document.visibilityState !== "visible") return;
+      api<T>(path, token).then((value) => active && setData(value)).catch(() => undefined);
+    };
+    const timer = window.setInterval(quiet, LIVE_REFRESH_MS);
+    document.addEventListener("visibilitychange", quiet);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", quiet);
+    };
+  }, [live, path, token]);
   return { data, error, loading, reload };
 }
 
