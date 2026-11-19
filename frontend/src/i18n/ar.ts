@@ -54,7 +54,10 @@ export const ar = {
     transactionDate: "تاريخ المعاملة", amount: "المبلغ", reference: "المرجع", applyHint: "تُحدّث النتائج تلقائياً.",
   },
   dashboard: {
-    alertsTitle: "محتاج انتباه النهارده", alertsCount: "{count} تنبيه، والقايمة بتبدأ فاضية كل يوم الصبح.", alertsNone: "مفيش حاجة محتاجة انتباه النهارده.", alertSilent: "{device}: مفيش اتصال من الساعة {time}. افتح Relay Receipts ودوس مزامنة الآن وخلّي البطارية غير مقيدة.", alertSilentNever: "{device}: عمره ما اتصل بـ Relay. افتح Relay Receipts على الموبايل ده.", alertSms: "رسالة بنك {amount} الساعة {time}: لسه مفيش إيصال مطابق. اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
+    alertsTitle: "محتاج انتباه النهارده", alertsResets: "القايمة بتبدأ فاضية كل يوم الصبح.", alertsNone: "مفيش حاجة محتاجة انتباه النهارده.",
+    alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
+    alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
+    lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
     finalTransactions: "المعاملات النهائية", reviewDemand: "تحتاج إلى مراجعة", duplicateGroups: "مجموعات التكرار",
     failedProcessing: "مشكلات المعالجة", pendingProcessing: "مهام معلّقة", moneyTitle: "الأموال النهائية حسب العملة",
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",

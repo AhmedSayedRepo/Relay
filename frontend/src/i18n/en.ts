@@ -52,7 +52,10 @@ export const en = {
     transactionDate: "Transaction date", amount: "Amount", reference: "Reference", applyHint: "Filters update automatically.",
   },
   dashboard: {
-    alertsTitle: "Needs attention today", alertsCount: "{count} warning(s); starts empty every morning.", alertsNone: "Nothing needs attention today.", alertSilent: "{device}: no contact since {time}. Open Relay Receipts, tap Sync now, and set its battery to Unrestricted.", alertSilentNever: "{device}: has never contacted Relay. Open Relay Receipts on that phone.", alertSms: "Bank SMS {amount} at {time}: no receipt matches it yet. Check the photo reached the cashier phone and Relay.",
+    alertsTitle: "Needs attention today", alertsResets: "Starts empty every morning.", alertsNone: "Nothing needs attention today.",
+    alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
+    alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
+    lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
     finalTransactions: "Final transactions", reviewDemand: "Needs review", duplicateGroups: "Duplicate groups",
     failedProcessing: "Processing issues", pendingProcessing: "Pending jobs", moneyTitle: "Final money by currency",
     moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",

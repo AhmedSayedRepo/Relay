@@ -59,7 +59,7 @@ export type DashboardData = {
   totals_by_currency: { currency: string; amount: string; transaction_count: number }[];
   processing_by_status: { status: string; count: number }[];
   activity_by_source: { source: string; count: number }[];
-  transactions_by_device: { device_id: string; device_name: string; count: number; confirmed_count?: number; confirmed_amount?: string | null; sms_verified_count?: number }[];
+  transactions_by_device: { device_id: string; device_name: string; count: number; confirmed_count?: number; confirmed_amount?: string | null; sms_verified_count?: number; last_seen_at?: string | null; last_photo_at?: string | null }[];
   today_totals?: { currency: string; amount: string | null; transaction_count: number }[];
   week_totals?: { currency: string; amount: string | null; transaction_count: number }[];
   auto_confirmed_count?: number;
