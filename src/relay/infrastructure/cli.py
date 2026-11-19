@@ -1277,6 +1277,7 @@ def main() -> int:
             "reader-loop",
             "eval-reader",
             "reconcile",
+            "vl-loop",
         ],
     )
     parser.add_argument("--email")
@@ -1289,6 +1290,24 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--day", type=date.fromisoformat)
     args = parser.parse_args()
+    if args.command == "vl-loop":
+        from relay.infrastructure.vl_reader import vl_loop
+
+        settings = load_settings()
+
+        async def model_reader() -> None:
+            database = Database(settings)
+            try:
+                await vl_loop(
+                    database,
+                    FilesystemObjectStorage(settings.object_storage_root),
+                    os.environ.get("RELAY_VL_URL", "http://ocr:8080"),
+                )
+            finally:
+                await database.close()
+
+        asyncio.run(model_reader())
+        return 0
     if args.command == "reconcile":
         from relay.infrastructure.reconcile import reconcile
 

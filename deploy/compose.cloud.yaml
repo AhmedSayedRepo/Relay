@@ -12,6 +12,12 @@ services:
   reader:
     restart: unless-stopped
 
+  ocr:
+    restart: unless-stopped
+
+  vl:
+    restart: unless-stopped
+
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
