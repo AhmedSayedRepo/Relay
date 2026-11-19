@@ -8,7 +8,7 @@ import random
 import re
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -1267,6 +1267,7 @@ def main() -> int:
             "daily-report",
             "reader-loop",
             "eval-reader",
+            "reconcile",
         ],
     )
     parser.add_argument("--email")
@@ -1277,7 +1278,20 @@ def main() -> int:
     parser.add_argument("--dir", type=Path)
     parser.add_argument("--file", type=Path)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--day", type=date.fromisoformat)
     args = parser.parse_args()
+    if args.command == "reconcile":
+        from relay.infrastructure.reconcile import reconcile
+
+        settings = load_settings()
+        zone = ZoneInfo(settings.receipt_timezone)
+        day = args.day or (datetime.now(zone) - timedelta(days=1)).date()
+        try:
+            print("\n".join(asyncio.run(reconcile(settings, day))))
+            return 0
+        except Exception as error:
+            print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
+            return 1
     if args.command == "eval-reader":
         from relay.infrastructure.reader_eval import evaluate_reader
 
