@@ -22,7 +22,7 @@ fi
 # Rebuild and (re)start the long-running reader once it is enabled (model present).
 if [ -f model/reader-config.json ]; then
   ./deploy/dc.sh --profile reader build reader
-  ./deploy/dc.sh --profile reader up -d reader
+  ./deploy/dc.sh --profile reader up -d reader ocr vl
 fi
 ./deploy/schedule.sh
 ./deploy/dc.sh ps

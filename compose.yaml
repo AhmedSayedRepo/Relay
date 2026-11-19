@@ -170,10 +170,81 @@ services:
     networks:
       - relay_internal
 
+  # Third receipt reader, under trial: PaddleOCR-VL (0.9B vision-language
+  # model) served by llama.cpp on this machine. The model (~1.5 GB) is
+  # downloaded from Hugging Face once into relay_vl_models; images never
+  # leave the server. Only the "vl" service below talks to it.
+  ocr:
+    profiles: ["reader"]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - "-hf"
+      - "PaddlePaddle/PaddleOCR-VL-1.5-GGUF"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--temp"
+      - "0"
+      - "-c"
+      - "8192"
+    environment:
+      LLAMA_CACHE: /models
+    volumes:
+      - relay_vl_models:/models
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 3g
+    cpus: "2.0"
+    networks:
+      - relay_internal
+      # Internet only to download the model the first time; no ports published.
+      - relay_edge
+
+  # Sends each receipt image to "ocr" once and stores the text it reads.
+  # Not used for confirming yet: eval-reader compares it with the current
+  # reader on confirmed receipts first.
+  vl:
+    profiles: ["reader"]
+    build: .
+    command: ["python", "-m", "relay.infrastructure.cli", "vl-loop"]
+    healthcheck:
+      disable: true
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-Relay Model Reader}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env using hostname db}
+      JWT_SECRET: ${WORKER_JWT_SECRET:?Set an independent WORKER_JWT_SECRET in .env}
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
+      OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+      RELAY_VL_URL: http://ocr:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      ocr:
+        condition: service_started
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - relay_object_data:/var/lib/relay/objects:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 64
+    cpus: "0.5"
+    networks:
+      - relay_internal
+
 volumes:
   relay_postgres_data:
   relay_object_data:
   relay_training_data:
+  relay_vl_models:
 
 networks:
   relay_internal:

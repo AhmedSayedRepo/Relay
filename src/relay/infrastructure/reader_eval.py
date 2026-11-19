@@ -91,13 +91,17 @@ def _same(want: str, got: str) -> bool:
 
 
 def grade(
-    text: str, answers: dict[str, str], owner: tuple[str, str | None] | None
+    text: str,
+    answers: dict[str, str],
+    owner: tuple[str, str | None] | None,
+    single: bool = False,
 ) -> dict[str, str]:
-    """Re-read one receipt's stored text and grade each field."""
+    """Re-read one receipt's stored text and grade each field. ``single``:
+    the text is one reading (the model reader), not the two Tesseract passes."""
     from relay.infrastructure.cli import _receipt_like, _text_amount
     from relay.infrastructure.text_recheck import VERSION, recipient_check, signals
 
-    block, sparse = split_passes(text)
+    block, sparse = (text, None) if single else split_passes(text)
     read = signals(block, sparse)
     values = read.get("values") or {}
     found = read.get("found") or {}
@@ -173,8 +177,13 @@ def summary(grades: dict[str, dict[str, str]]) -> list[str]:
     return lines
 
 
-async def confirmed_grades(settings: Settings) -> dict[str, dict[str, str]]:
-    """Grade the reader on every confirmed receipt, keyed by receipt id."""
+Grades = dict[str, dict[str, str]]
+
+
+async def confirmed_grades(settings: Settings) -> tuple[Grades, Grades]:
+    """Grade the text reader, and the model reader where it has read, on
+    every confirmed receipt, keyed by receipt id."""
+    from relay.infrastructure import vl_reader
     from relay.infrastructure.email_settings import recipient
     from relay.infrastructure.text_recheck import VERSION
 
@@ -195,14 +204,21 @@ async def confirmed_grades(settings: Settings) -> dict[str, dict[str, str]]:
             ).all()
     finally:
         await database.close()
-    grades: dict[str, dict[str, str]] = {}
+    grades: Grades = {}
+    model: Grades = {}
     for candidate_id, resolution, machine in rows:
         answers = expected(resolution)
-        read = machine.get(VERSION) if isinstance(machine, dict) else None
-        if answers is None or not isinstance(read, dict) or not read.get("text"):
+        if answers is None or not isinstance(machine, dict):
             continue
-        grades[str(candidate_id)] = grade(str(read["text"]), answers, owner)
-    return grades
+        read = machine.get(VERSION)
+        if isinstance(read, dict) and read.get("text"):
+            grades[str(candidate_id)] = grade(str(read["text"]), answers, owner)
+        seen = machine.get(vl_reader.VERSION)
+        if isinstance(seen, dict) and seen.get("text"):
+            model[str(candidate_id)] = grade(
+                str(seen["text"]), answers, owner, single=True
+            )
+    return grades, model
 
 
 def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int:
@@ -212,9 +228,16 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
     not set). An improved or equal score replaces the saved one."""
     import asyncio
 
-    grades = asyncio.run(confirmed_grades(settings))
+    grades, model = asyncio.run(confirmed_grades(settings))
     for line in summary(grades):
         print(line)
+    if model:
+        both = {key: grades[key] for key in model if key in grades}
+        print("\nSame receipts, current reader vs model reader (PaddleOCR-VL):")
+        for line in summary(both)[1:]:
+            print("  current" + line)
+        for line in summary({key: model[key] for key in both})[1:]:
+            print("  model  " + line)
     if score is None:
         return 0
     before: dict[str, dict[str, str]] = {}
