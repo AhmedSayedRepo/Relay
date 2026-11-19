@@ -138,6 +138,30 @@ def transfer_from_total(text: str) -> str | None:
 _COLON_CENTS = re.compile(r"(?<![\d:])(\d{1,3}):(\d{2})(?=\s*(?:EGP|جنيه))", re.I)
 
 
+# The big amount at the top of the receipt sits on the line right above its
+# label. Its orange "EGP" often reads as junk ("550 cap", "مجع 400"), so the
+# label finds it instead.
+_HERO_LABEL = re.compile(r"المبل[غع].{0,25}(?:محول|تحويل)|transfer\s*amount", re.I)
+_HERO_LINE = re.compile(
+    r"^\W*(?:[^\d\s]{1,5}\s+)?(\d{1,3}(?:,\d{3})+|\d{1,7})(\.\d{2})?"
+    r"\s*[^\d\s]{0,5}\W*$"
+)
+
+
+def hero_amount(text: str) -> str | None:
+    """The amount printed big above "المبلغ المحول" / "Transfer Amount"."""
+    lines = [line.strip() for line in text.translate(_DIGITS).splitlines()]
+    seen = set()
+    for index, line in enumerate(lines):
+        if not _HERO_LABEL.search(line):
+            continue
+        match = _HERO_LINE.match(lines[index - 1]) if index else None
+        whole = match.group(1).replace(",", "") if match else "0"
+        if match and len(whole) > 1:
+            seen.add(f"{float(whole + (match.group(2) or '')):.2f}")
+    return next(iter(seen)) if len(seen) == 1 else None
+
+
 def amounts(text: str) -> set[str]:
     # OCR sometimes reads the decimal point of a small amount as ":" ("0:62 EGP").
     text = _COLON_CENTS.sub(r"\1.\2", text)
@@ -185,6 +209,10 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
         )
     if derived is not None:
         values["amount"], values["currency"] = derived, "EGP"
+    hero = hero_amount(text + "\n" + (other or ""))
+    if hero is not None:
+        values["amount"], values["currency"] = hero, "EGP"
+        found["amount"] = True
     # A receipt shows a reference or an amount, plus wording that says what
     # it is. A payment request looks like a receipt but moves no money.
     request = bool(_REQUEST.search(text))

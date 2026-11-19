@@ -631,6 +631,7 @@ def _text_amount(machine: Any) -> str | None:
     from relay.infrastructure.text_recheck import (
         VERSION,
         amounts,
+        hero_amount,
         transfer_from_fee,
         transfer_from_total,
     )
@@ -639,6 +640,9 @@ def _text_amount(machine: Any) -> str | None:
     if not isinstance(read, dict):
         return None
     printed = str(read.get("text") or "")
+    hero = hero_amount(printed)
+    if hero is not None:
+        return hero
     found = amounts(printed)
     derived = transfer_from_fee(found) or transfer_from_total(printed)
     if derived is not None:

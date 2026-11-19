@@ -450,3 +450,19 @@ def test_untouched_review_photo_with_nothing_readable_is_hidden() -> None:
     assert not _clear_non_receipt(row(blank | {"found": {"brand": True}}))
     # Not read yet: keep it.
     assert not _clear_non_receipt(ReceiptCandidateRow(machine_result={}))
+
+
+def test_big_amount_is_read_from_the_line_above_its_label() -> None:
+    from relay.infrastructure.text_recheck import hero_amount
+
+    # The orange "EGP" reads as junk on either side of the number.
+    assert hero_amount("550 cap\nالمبلع الإجعالي المحول") == "550.00"
+    assert hero_amount("60\nمجع 4,200\nالمبلغ الإجمالي المحول") == "4200.00"
+    assert hero_amount("مجع 1,700\nTransfer Amount") == "1700.00"
+    # The check-mark icon two lines up is not the amount; one digit is noise.
+    assert hero_amount("60\nS\nالمبلغ المحول") is None
+    assert hero_amount(
+        ")ل< 5\nالمبلغ الإجمالي المحول\n550 cap\nالمبلغ الإجمالي المحول"
+    ) == ("550.00")
+    # Two different amounts above two labels: no guess.
+    assert hero_amount("400\nالمبلغ المحول\n500\nالمبلغ المحول") is None
