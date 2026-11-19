@@ -714,7 +714,7 @@ private fun CollectorBlock(
         )
         // A passing network or busy-server error means nothing once the queue
         // is empty; the rest are shown in words, not as codes.
-        error?.takeUnless { waiting == 0 && it in RETRIED_PROBLEMS }?.let {
+        error?.takeUnless { waiting == 0L && it in RETRIED_PROBLEMS }?.let {
             Text(
                 stringResource(R.string.upload_problem, problemText(it)),
                 style = MaterialTheme.typography.bodySmall,
