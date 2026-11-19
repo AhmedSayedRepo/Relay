@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from relay.application.agent import AgentService
 from relay.application.binaries import BinaryService
 from relay.application.devices import CreateDevice, DeviceService, UpdateDevice
-from relay.application.errors import AuthenticationFailed, Conflict
+from relay.application.errors import AuthenticationFailed, Conflict, RateLimited
 from relay.application.events import EventService
 from relay.application.processing import ProcessingService
 from relay.application.receipts import InstaPayReceiptParser
@@ -321,7 +321,8 @@ async def test_postgres_binary_quota_and_concurrent_finalize_are_serialized(
     initialized = await asyncio.gather(
         initialize(first_data), initialize(second_data), return_exceptions=True
     )
-    assert sum(isinstance(result, Conflict) for result in initialized) == 1
+    # Over the storage quota: busy, try later (the phone keeps the photo).
+    assert sum(isinstance(result, RateLimited) for result in initialized) == 1
     winner = next(
         result for result in initialized if not isinstance(result, BaseException)
     )
