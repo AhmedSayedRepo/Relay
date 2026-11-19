@@ -68,9 +68,11 @@ def test_model_text_is_graded_as_one_reading() -> None:
 def test_model_reads_everything_only_at_night() -> None:
     from datetime import UTC, datetime
 
-    # Cairo is UTC+2: 23:30 UTC is 01:30 there (night), 07:00 UTC is 09:00.
-    assert vl_reader.night(datetime(2026, 11, 18, 23, 30, tzinfo=UTC))
-    assert not vl_reader.night(datetime(2026, 11, 19, 7, 0, tzinfo=UTC))
+    # Cairo is UTC+2: night is 23:00-08:00 there.
+    assert vl_reader.night(datetime(2026, 11, 18, 21, 30, tzinfo=UTC))  # 23:30
+    assert vl_reader.night(datetime(2026, 11, 18, 23, 30, tzinfo=UTC))  # 01:30
+    assert not vl_reader.night(datetime(2026, 11, 19, 7, 0, tzinfo=UTC))  # 09:00
+    assert not vl_reader.night(datetime(2026, 11, 19, 20, 0, tzinfo=UTC))  # 22:00
 
 
 async def test_daytime_reads_only_receipts_waiting_in_review(

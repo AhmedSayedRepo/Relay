@@ -90,12 +90,14 @@ def read_vl(image: bytes, url: str, timeout: float = TIMEOUT_SECONDS) -> str:
 
 
 def night(now: datetime | None = None) -> bool:
-    """Midnight to 8 AM where the receipts are (RECEIPT_TIMEZONE): the server's
-    two cores are idle then, so the model may read everything."""
+    """11 PM to 8 AM where the receipts are (RECEIPT_TIMEZONE): no receipts
+    come in then, so the model may use the server's two cores for everything."""
     zone = ZoneInfo(os.environ.get("RECEIPT_TIMEZONE", "Africa/Cairo"))
-    return (now or datetime.now(UTC)).astimezone(zone).hour < NIGHT_ENDS
+    hour = (now or datetime.now(UTC)).astimezone(zone).hour
+    return hour >= NIGHT_STARTS or hour < NIGHT_ENDS
 
 
+NIGHT_STARTS = 23
 NIGHT_ENDS = 8
 
 
@@ -177,7 +179,7 @@ async def vl_loop(
 ) -> None:
     """Keep reading, two receipts at a time; rest a minute when caught up
     or while the model server is not reachable. By day only receipts
-    waiting in Review; from midnight to 8 AM all of them."""
+    waiting in Review; from 11 PM to 8 AM all of them."""
     while True:
         try:
             # Daytime: only what waits in Review, so the main reader keeps
