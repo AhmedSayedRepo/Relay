@@ -1,0 +1,16 @@
+# Relay backend plus classic PaddleOCR (PP-OCR) through RapidOCR and
+# onnxruntime, CPU only. The detection model and the Chinese/English and
+# Arabic recognition models are downloaded here, at build time, so the
+# running container needs no internet and can stay read-only.
+ARG BASE_IMAGE=relay-backend
+FROM ${BASE_IMAGE}
+
+USER root
+# OpenCV (used by RapidOCR) needs these system libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install "rapidocr>=3.3,<4" "onnxruntime>=1.18,<2" \
+    && python -c "from relay.infrastructure.ppocr_reader import engines; engines()"
+
+USER relay
+ENV HOME=/tmp

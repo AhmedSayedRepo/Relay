@@ -254,6 +254,44 @@ services:
     networks:
       - relay_internal
 
+  # Classic PaddleOCR (PP-OCR) reader, under trial: fast on a CPU, so it
+  # reads every receipt within seconds, all day. Models are inside the image.
+  ppocr:
+    profiles: ["reader"]
+    build:
+      context: .
+      dockerfile: Dockerfile.ppocr
+    command: ["python", "-m", "relay.infrastructure.cli", "ppocr-loop"]
+    healthcheck:
+      disable: true
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-Relay PP-OCR}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env using hostname db}
+      JWT_SECRET: ${WORKER_JWT_SECRET:?Set an independent WORKER_JWT_SECRET in .env}
+      ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
+      OBJECT_STORAGE_ROOT: /var/lib/relay/objects
+      OMP_NUM_THREADS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - relay_object_data:/var/lib/relay/objects:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1500m
+    pids_limit: 64
+    cpus: "1.0"
+    networks:
+      - relay_internal
+
 volumes:
   relay_postgres_data:
   relay_object_data:

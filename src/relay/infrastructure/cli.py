@@ -1339,6 +1339,7 @@ def main() -> int:
             "eval-reader",
             "reconcile",
             "vl-loop",
+            "ppocr-loop",
             "check-alerts",
         ],
     )
@@ -1362,6 +1363,22 @@ def main() -> int:
         except Exception as error:
             print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
             return 1
+    if args.command == "ppocr-loop":
+        from relay.infrastructure.ppocr_reader import ppocr_loop
+
+        settings = load_settings()
+
+        async def text_lines() -> None:
+            database = Database(settings)
+            try:
+                await ppocr_loop(
+                    database, FilesystemObjectStorage(settings.object_storage_root)
+                )
+            finally:
+                await database.close()
+
+        asyncio.run(text_lines())
+        return 0
     if args.command == "vl-loop":
         from relay.infrastructure.vl_reader import vl_loop
 
