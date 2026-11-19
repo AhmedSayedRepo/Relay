@@ -21,6 +21,7 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
@@ -88,13 +89,30 @@ def read_vl(image: bytes, url: str, timeout: float = TIMEOUT_SECONDS) -> str:
     return str(answer["choices"][0]["message"]["content"] or "")
 
 
+def night(now: datetime | None = None) -> bool:
+    """11 PM to 8 AM where the receipts are (RECEIPT_TIMEZONE): no receipts
+    come in then, so the model may use the server's two cores for everything."""
+    zone = ZoneInfo(os.environ.get("RECEIPT_TIMEZONE", "Africa/Cairo"))
+    hour = (now or datetime.now(UTC)).astimezone(zone).hour
+    return hour >= NIGHT_STARTS or hour < NIGHT_ENDS
+
+
+NIGHT_STARTS = 23
+NIGHT_ENDS = 8
+
+
 async def vl_pass(
-    database: Database, storage: FilesystemObjectStorage, url: str, limit: int
+    database: Database,
+    storage: FilesystemObjectStorage,
+    url: str,
+    limit: int,
+    review_only: bool = False,
 ) -> int:
     """Read up to ``limit`` receipts not read by the model yet, newest first.
 
-    Confirmed receipts are read too: they are what the comparison is
-    scored on. The slow model call runs outside any database lock."""
+    Confirmed receipts are read too (they are what the comparison is scored
+    on), except with ``review_only``: then only receipts waiting in Review.
+    The slow model call runs outside any database lock."""
     async with database.session() as session:
         rows = (
             await session.execute(
@@ -104,7 +122,13 @@ async def vl_pass(
                 )
                 .where(
                     ReceiptCandidateRow.hidden_reason.is_(None),
-                    ReceiptCandidateRow.review_status != ReviewStatus.REJECTED.value,
+                    (
+                        ReceiptCandidateRow.review_status
+                        == ReviewStatus.NEEDS_REVIEW.value
+                        if review_only
+                        else ReceiptCandidateRow.review_status
+                        != ReviewStatus.REJECTED.value
+                    ),
                     ReceiptCandidateRow.machine_result[VERSION].as_string().is_(None),
                 )
                 .order_by(ReceiptCandidateRow.created_at.desc())
@@ -154,10 +178,13 @@ async def vl_loop(
     database: Database, storage: FilesystemObjectStorage, url: str
 ) -> None:
     """Keep reading, two receipts at a time; rest a minute when caught up
-    or while the model server is not reachable."""
+    or while the model server is not reachable. Only from 11 PM to 8 AM."""
     while True:
         try:
-            done = await vl_pass(database, storage, url, 2)
+            # One receipt takes 6-9 minutes on the server's two cores, and the
+            # model does not confirm anything yet: read only at night, so the
+            # main reader keeps the cores all day.
+            done = await vl_pass(database, storage, url, 2) if night() else 0
         except Exception as error:  # keep the loop alive
             print(f"Model pass failed ({type(error).__name__}).", flush=True)
             done = 0
