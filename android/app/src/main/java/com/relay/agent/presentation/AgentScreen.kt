@@ -712,9 +712,11 @@ private fun CollectorBlock(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        error?.let {
+        // A passing network or busy-server error means nothing once the queue
+        // is empty; the rest are shown in words, not as codes.
+        error?.takeUnless { waiting == 0 && it in RETRIED_PROBLEMS }?.let {
             Text(
-                stringResource(R.string.upload_problem, it),
+                stringResource(R.string.upload_problem, problemText(it)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 maxLines = 3,
@@ -913,4 +915,16 @@ private fun Detail(@StringRes label: Int, value: String) {
         )
         Text(value, style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+private val RETRIED_PROBLEMS = setOf("retryable_transport", "rate_limited")
+
+@Composable
+private fun problemText(code: String): String = when (code) {
+    "retryable_transport" -> stringResource(R.string.problem_network)
+    "rate_limited" -> stringResource(R.string.problem_busy)
+    "enrollment_required" -> stringResource(R.string.problem_enrollment)
+    "installation_changed" -> stringResource(R.string.problem_reinstalled)
+    "terminal_delivery" -> stringResource(R.string.problem_refused)
+    else -> code
 }
