@@ -459,6 +459,7 @@ def test_big_amount_is_read_from_the_line_above_its_label() -> None:
     assert hero_amount("550 cap\nالمبلع الإجعالي المحول") == "550.00"
     assert hero_amount("60\nمجع 4,200\nالمبلغ الإجمالي المحول") == "4200.00"
     assert hero_amount("مجع 1,700\nTransfer Amount") == "1700.00"
+    assert hero_amount("1,900 EGP\nمبلغ التحويل") == "1900.00"
     # The check-mark icon two lines up is not the amount; one digit is noise.
     assert hero_amount("60\nS\nالمبلغ المحول") is None
     assert hero_amount(

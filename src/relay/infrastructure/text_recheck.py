@@ -141,7 +141,7 @@ _COLON_CENTS = re.compile(r"(?<![\d:])(\d{1,3}):(\d{2})(?=\s*(?:EGP|جنيه))",
 # The big amount at the top of the receipt sits on the line right above its
 # label. Its orange "EGP" often reads as junk ("550 cap", "مجع 400"), so the
 # label finds it instead.
-_HERO_LABEL = re.compile(r"المبل[غع].{0,25}(?:محول|تحويل)|transfer\s*amount", re.I)
+_HERO_LABEL = re.compile(r"مبل[غع].{0,25}(?:محول|تحويل)|transfer\s*amount", re.I)
 _HERO_LINE = re.compile(
     r"^\W*(?:[^\d\s]{1,5}\s+)?(\d{1,3}(?:,\d{3})+|\d{1,7})(\.\d{2})?"
     r"\s*[^\d\s]{0,5}\W*$"
