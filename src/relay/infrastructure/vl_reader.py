@@ -178,13 +178,13 @@ async def vl_loop(
     database: Database, storage: FilesystemObjectStorage, url: str
 ) -> None:
     """Keep reading, two receipts at a time; rest a minute when caught up
-    or while the model server is not reachable. By day only receipts
-    waiting in Review; from 11 PM to 8 AM all of them."""
+    or while the model server is not reachable. Only from 11 PM to 8 AM."""
     while True:
         try:
-            # Daytime: only what waits in Review, so the main reader keeps
-            # the cores; at night, everything (the comparison set too).
-            done = await vl_pass(database, storage, url, 2, review_only=not night())
+            # One receipt takes 6-9 minutes on the server's two cores, and the
+            # model does not confirm anything yet: read only at night, so the
+            # main reader keeps the cores all day.
+            done = await vl_pass(database, storage, url, 2) if night() else 0
         except Exception as error:  # keep the loop alive
             print(f"Model pass failed ({type(error).__name__}).", flush=True)
             done = 0
