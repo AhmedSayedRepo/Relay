@@ -35,7 +35,7 @@ MAX_IMAGE_BYTES = 16 * 1024 * 1024
 @lru_cache(maxsize=1)
 def engines() -> tuple[Any, Any]:
     """(Latin/digits engine, Arabic engine), loaded once per process."""
-    from rapidocr import LangRec, RapidOCR
+    from rapidocr import LangRec, RapidOCR  # type: ignore[import-not-found]
 
     return RapidOCR(), RapidOCR(params={"Rec.lang_type": LangRec.ARABIC})
 
