@@ -1,4 +1,5 @@
 import io
+from uuid import UUID
 
 from PIL import Image
 from sqlalchemy import select
@@ -35,7 +36,9 @@ async def test_each_receipt_is_read_once_and_stored(
     assert await vl_reader.vl_pass(database, storage, "http://ocr:8080", 5) == 0
     async with database.session() as session:
         row = await session.scalar(
-            select(ReceiptCandidateRow).where(ReceiptCandidateRow.id == candidate["id"])
+            select(ReceiptCandidateRow).where(
+                ReceiptCandidateRow.id == UUID(candidate["id"])
+            )
         )
     assert row is not None
     assert row.machine_result[vl_reader.VERSION]["text"].startswith("تم التحويل")
