@@ -15,6 +15,7 @@ import base64
 import copy
 import io
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -31,7 +32,10 @@ from relay.infrastructure.processing_models import ReceiptCandidateRow
 
 VERSION = "vl_ocr_v1"
 PROMPT = "OCR:"  # PaddleOCR-VL's plain text recognition task
-LONGEST_SIDE = 1280  # fewer image tokens: much faster on a CPU, still legible
+# Image tokens grow with the square of the size and the CPU time with them:
+# 1280 px took over 5 minutes on two cores. RELAY_VL_LONGEST_SIDE overrides.
+LONGEST_SIDE = int(os.environ.get("RELAY_VL_LONGEST_SIDE", "896"))
+TIMEOUT_SECONDS = float(os.environ.get("RELAY_VL_TIMEOUT_SECONDS", "900"))
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
@@ -67,7 +71,7 @@ def request_body(image: bytes) -> dict[str, Any]:
     }
 
 
-def read_vl(image: bytes, url: str, timeout: float = 300.0) -> str:
+def read_vl(image: bytes, url: str, timeout: float = TIMEOUT_SECONDS) -> str:
     """Plain text of one prepared image, read by the model server at ``url``.
 
     Raises OSError (connection refused, timeout) while the server is not up,

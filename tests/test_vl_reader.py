@@ -26,7 +26,7 @@ async def test_each_receipt_is_read_once_and_stored(
     candidate, _ = await run_receipt(client, auth_headers, app, "vl-once")
     calls: list[str] = []
 
-    def fake(image: bytes, url: str, timeout: float = 300.0) -> str:
+    def fake(image: bytes, url: str, timeout: float = 900.0) -> str:
         calls.append(url)
         return "تم التحويل بنجاح\n550 EGP\nالمبلغ المحول"
 
@@ -46,7 +46,7 @@ async def test_each_receipt_is_read_once_and_stored(
 async def test_server_down_stores_nothing(client, auth_headers, app, monkeypatch):
     await run_receipt(client, auth_headers, app, "vl-down")
 
-    def down(image: bytes, url: str, timeout: float = 300.0) -> str:
+    def down(image: bytes, url: str, timeout: float = 900.0) -> str:
         raise ConnectionRefusedError
 
     monkeypatch.setattr(vl_reader, "read_vl", down)
