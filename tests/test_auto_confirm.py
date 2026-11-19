@@ -578,3 +578,25 @@ async def test_someone_elses_phone_still_waits(client, auth_headers, app):
         app, "إلى Mohamed A 01021204916", {"amount": "845.00", "currency": "EGP"}
     )
     assert counts["sms_day"] == 0
+
+
+async def test_lost_separator_is_confirmed_by_the_exact_sms(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-point")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-point-phone")
+    body = "notice: You have received EGP 425.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    # Both readers saw "425" as 4.25.
+    counts = await _read_and_confirm(app, {"amount": "4.25", "currency": "EGP"})
+    assert counts["sms_day"] == 1
+    resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    assert resolution["fields"]["amount"]["value"] == "425.00"
+    assert resolution["auto_confirmed"]["amount_read_as"] == "4.25"
+
+
+async def test_whole_small_amount_is_not_scaled(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-small")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-small-phone")
+    body = "notice: You have received EGP 500.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    counts = await _read_and_confirm(app, {"amount": "5.00", "currency": "EGP"})
+    assert counts["sms_day"] == 0

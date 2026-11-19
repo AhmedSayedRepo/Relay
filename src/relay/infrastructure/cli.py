@@ -9,6 +9,7 @@ import re
 import sys
 import time
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -689,6 +690,19 @@ async def _suggest_amount(
         return resolution
 
 
+def _lost_point(amount: Any) -> str | None:
+    """4.25 -> "425.00": an amount under 20 EGP with cents is a separator the
+    readers turned into a decimal point, not a transfer. Whole small amounts
+    ("5.00") are left alone: they may be real."""
+    try:
+        value = Decimal(str(amount))
+    except (InvalidOperation, ValueError):
+        return None
+    if not 0 < value < Decimal(str(FEE_CEILING)) or value == value.to_integral_value():
+        return None
+    return f"{value * 100:.2f}"
+
+
 def _same_amount(first: Any, second: Any) -> bool:
     try:
         return float(first) == float(second)
@@ -866,6 +880,12 @@ async def auto_confirm(
         if core is None:
             counts["waiting"] += 1
             continue
+        # "425" read as 4.25: try the amount without the lost separator. Only
+        # the SMS check below can make it stick.
+        read_as = core["amount"]
+        scaled = _lost_point(read_as)
+        if scaled is not None:
+            core = core | {"amount": scaled}
         day = _local_day(folder_at, settings)
         repeat = repeated(candidate_id, day, facts(resolution, machine))
         previous = resolution.get("possible_repeat")
@@ -878,7 +898,7 @@ async def auto_confirm(
             continue
         if previous is not None:
             await _untag(database, candidate_id, "possible_repeat")
-        if unclear and not alone(candidate_id, day, core["amount"]):
+        if (unclear or scaled) and not alone(candidate_id, day, core["amount"]):
             counts["waiting"] += 1  # two receipts could claim the one SMS
             continue
         async with database.session() as session:
@@ -895,6 +915,9 @@ async def auto_confirm(
         if sms is None:
             counts["waiting"] += 1
             continue
+        if scaled is not None:
+            # The SMS proves the corrected amount: offer it before confirming.
+            await _suggest_amount(database, candidate_id, scaled)
         values = dict(core)
         # The SMS makes the rest optional: keep what was read plausibly.
         for name in ("reference_number", "date", "time"):
@@ -916,7 +939,8 @@ async def auto_confirm(
                     # plus readings both text passes agreed on independently.
                     "trained_fields": _verified_fields(values, machine),
                 }
-                | ({"recipient": "unclear"} if unclear else {}),
+                | ({"recipient": "unclear"} if unclear else {})
+                | ({"amount_read_as": read_as} if scaled else {}),
             )
             if unclear:
                 await _untag(database, candidate_id, "recipient_mismatch")
