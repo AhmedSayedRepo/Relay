@@ -609,7 +609,8 @@ async def test_alerts_for_a_silent_phone_and_an_sms_without_receipt(
 
     candidate, _ = await run_receipt(client, auth_headers, app, "alert-phone")
     bundle = await _link_sms(client, auth_headers, [candidate], "alert-sms-phone")
-    sent_at = _now()
+    # Yesterday at 10 AM, so "two hours later" is still the same day.
+    sent_at = (_now() - timedelta(days=1)).replace(hour=10, minute=0, second=0)
     await _send_sms(
         client, bundle, "notice: You have received EGP 2,140.00 via InstaPay", sent_at
     )
@@ -620,6 +621,12 @@ async def test_alerts_for_a_silent_phone_and_an_sms_without_receipt(
         assert any(
             a["kind"] == "sms_without_receipt" and a["amount"] == "2140.00"
             for a in later
+        )
+        # The next morning the list starts empty again.
+        morning = (sent_at + timedelta(days=1)).replace(hour=8)
+        assert not any(
+            a["kind"] == "sms_without_receipt"
+            for a in await current_alerts(session, settings, morning)
         )
         # Tomorrow at 1 PM Cairo: the receipt phone has been silent for hours.
         noon = (sent_at + timedelta(days=1)).replace(hour=13, minute=0)
