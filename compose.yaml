@@ -224,6 +224,7 @@ services:
       ALLOWED_HOSTS: '${ALLOWED_HOSTS:-["localhost","127.0.0.1","testserver"]}'
       OBJECT_STORAGE_ROOT: /var/lib/relay/objects
       RELAY_VL_URL: http://ocr:8080
+      RECEIPT_TIMEZONE: ${RECEIPT_TIMEZONE:-Africa/Cairo}
     depends_on:
       db:
         condition: service_healthy

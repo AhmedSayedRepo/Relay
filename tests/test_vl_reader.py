@@ -63,3 +63,30 @@ def test_model_text_is_graded_as_one_reading() -> None:
     text = "تم التحويل بنجاح\n1,115 EGP\nمبلغ التحويل\nإلى YOUSSEF 01003405232"
     grades = grade(text, {"amount": "1115.00"}, ("YOUSSEF", "01003405232"), single=True)
     assert grades["amount"] == "ok" and grades["recipient"] == "ok"
+
+
+def test_model_reads_everything_only_at_night() -> None:
+    from datetime import UTC, datetime
+
+    # Cairo is UTC+2: 23:30 UTC is 01:30 there (night), 07:00 UTC is 09:00.
+    assert vl_reader.night(datetime(2026, 11, 18, 23, 30, tzinfo=UTC))
+    assert not vl_reader.night(datetime(2026, 11, 19, 7, 0, tzinfo=UTC))
+
+
+async def test_daytime_reads_only_receipts_waiting_in_review(
+    client, auth_headers, app, monkeypatch
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "vl-day")
+    database, storage = app.state.database, app.state.object_storage
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow).where(
+                ReceiptCandidateRow.id == UUID(candidate["id"])
+            )
+        )
+        assert row is not None
+        row.review_status = "AUTO_ACCEPTED"
+        await session.commit()
+    monkeypatch.setattr(vl_reader, "read_vl", lambda image, url, timeout=0: "x")
+    assert await vl_reader.vl_pass(database, storage, "u", 5, review_only=True) == 0
+    assert await vl_reader.vl_pass(database, storage, "u", 5) == 1
