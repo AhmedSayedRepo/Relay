@@ -10,6 +10,7 @@ import com.relay.agent.domain.SyncOutcome
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
 
 class ImageUploader(
     private val store: AgentStore,
@@ -20,6 +21,8 @@ class ImageUploader(
     private val log: (String) -> Unit = { Log.i(TAG, it) },
     private val clock: () -> Long = System::currentTimeMillis
 ) {
+    private val running = Mutex()
+
     /**
      * Sends the whole queue, oldest first, until it is empty, the network
      * fails or the run's time is up (a background run is capped by Android).
@@ -27,6 +30,17 @@ class ImageUploader(
      */
     suspend fun upload(): SyncOutcome {
         if (store.read().credentials == null) return SyncOutcome.ENROLLMENT_REQUIRED
+        // Two background jobs (new photo, 15-minute cycle) can run at once:
+        // only one sends; the other leaves the queue to it.
+        if (!running.tryLock()) return SyncOutcome.SUCCESS
+        return try {
+            sendQueue()
+        } finally {
+            running.unlock()
+        }
+    }
+
+    private suspend fun sendQueue(): SyncOutcome {
         val started = clock()
         var outcome = SyncOutcome.SUCCESS
         repeat(MAX_PER_RUN) {
