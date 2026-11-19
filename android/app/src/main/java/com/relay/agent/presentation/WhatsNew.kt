@@ -25,6 +25,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.7.1" to ReleaseNote(
+            en = listOf(
+                "Photos are sent one after another, so the server no longer says \"busy\".",
+                "Sending problems are now explained in words."
+            ),
+            ar = listOf(
+                "الصور بتتبعت ورا بعض، فالسيرفر مش هيقول «مشغول» تاني.",
+                "مشاكل الإرسال بقت مكتوبة بكلام مفهوم."
+            )
+        ),
         "0.7.0" to ReleaseNote(
             en = listOf(
                 "All waiting photos are sent in one go, not one every 15 minutes.",

@@ -34,11 +34,36 @@ if "%BANK%"=="true" (echo Relay Bank SMS is included.) else (echo Relay Bank SMS
 set /p OK=Release version %VER% now? (Y/N) 
 if /i not "%OK%"=="Y" (echo Cancelled. & exit /b 0)
 
-rem Plain REST call: some networks cannot reach GitHub's GraphQL endpoint.
-gh api -X POST repos/%REPO%/actions/workflows/android-release.yml/dispatches -f ref=main -f "inputs[version]=%VER%" -f "inputs[bank_sms]=%BANK%" || exit /b 1
+rem Start the build. api.github.com sometimes times out on this network, so:
+rem try the API three times, then start it by pushing a tag with git, which
+rem goes through github.com (the same way "git pull" works).
+set STARTED=
+for /l %%n in (1,1,3) do if not defined STARTED (
+  gh api -X POST repos/%REPO%/actions/workflows/android-release.yml/dispatches -f ref=main -f "inputs[version]=%VER%" -f "inputs[bank_sms]=%BANK%" >nul 2>&1 && set STARTED=api
+  if not defined STARTED (echo GitHub API did not answer, try %%n of 3... & timeout /t 5 /nobreak >nul)
+)
+if not defined STARTED (
+  if "%BANK%"=="true" (
+    echo GitHub API is unreachable and a tag cannot include Relay Bank SMS.
+    echo Start it on the website: https://github.com/%REPO%/actions/workflows/android-release.yml
+    exit /b 1
+  )
+  echo Starting the release with a git tag instead...
+  git fetch -q origin main || (echo Could not reach GitHub at all. Check the internet. & exit /b 1)
+  git tag agent-v%VER% origin/main || exit /b 1
+  git push -q origin agent-v%VER% || (git tag -d agent-v%VER% >nul & echo Could not push the tag. & exit /b 1)
+  set STARTED=tag
+)
 echo Started. Waiting for GitHub to pick it up...
 timeout /t 8 /nobreak >nul
-for /f "delims=" %%i in ('gh run list --repo %REPO% --workflow android-release.yml -L 1 --json databaseId -q ".[0].databaseId"') do set RUN=%%i
+set RUN=
+for /f "delims=" %%i in ('gh run list --repo %REPO% --workflow android-release.yml -L 1 --json databaseId -q ".[0].databaseId" 2^>nul') do set RUN=%%i
+if "!RUN!"=="" (
+  echo The build is running on GitHub; this PC cannot follow it right now.
+  echo Watch it here: https://github.com/%REPO%/actions/workflows/android-release.yml
+  echo When it is green, phones will offer the update inside the apps.
+  exit /b 0
+)
 gh run watch !RUN! --repo %REPO% --exit-status
 if errorlevel 1 (
   echo Release failed. Details: https://github.com/%REPO%/actions/runs/!RUN!
