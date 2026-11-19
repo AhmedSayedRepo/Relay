@@ -469,3 +469,12 @@ def test_big_amount_is_read_from_the_line_above_its_label() -> None:
     ) == ("550.00")
     # Two different amounts above two labels: no guess.
     assert hero_amount("400\nالمبلغ المحول\n500\nالمبلغ المحول") is None
+
+
+def test_bank_app_amount_and_reference_are_read() -> None:
+    from relay.infrastructure.text_recheck import hero_amount
+
+    # Bank apps print the amount right under the success line.
+    assert hero_amount("تم التحويل بنجاح\nمعع 1,500.00\nYOUSSEF") == "1500.00"
+    read = signals("تم التحويل بنجاح\nFT26323HQ8RM", "تم التحويل بنجاح\nFT26323HQ8RM")
+    assert read["values"]["reference_number"] == "FT26323HQ8RM"

@@ -39,7 +39,8 @@ _AMOUNT = re.compile(
     r"|(?:EGP)\s*(\d{1,3}(?:,\d{3})+|\d{1,7})(\.\d{1,2})?(?![\d.,])",
     re.I,
 )
-_REFERENCE = re.compile(r"(?<!\d)(\d{12})(?!\d)")
+# InstaPay prints a 12-digit reference; bank apps print e.g. "FT26323HQ8RM".
+_REFERENCE = re.compile(r"(?<![\dA-Z])(\d{12}|FT[0-9A-Z]{8,14})(?![\dA-Z])")
 _REQUEST = re.compile(r"طلب\s*دفع|payment\s*request|request(?:ed)?\s*money|تحصيل", re.I)
 # OCR often splits an address ("salma 1594 @instapay"); join up to two parts.
 _HANDLE = re.compile(r"([a-z][a-z0-9._-]{1,40}(?:\s\d{1,8})?)\s*@\s*instapay", re.I)
@@ -149,13 +150,18 @@ _HERO_LINE = re.compile(
 
 
 def hero_amount(text: str) -> str | None:
-    """The amount printed big above "المبلغ المحول" / "Transfer Amount"."""
+    """The amount printed big above "المبلغ المحول" / "Transfer Amount", or
+    right below "تم التحويل بنجاح" (bank apps print it there)."""
     lines = [line.strip() for line in text.translate(_DIGITS).splitlines()]
     seen = set()
     for index, line in enumerate(lines):
-        if not _HERO_LABEL.search(line):
+        if _HERO_LABEL.search(line) and index:
+            near = lines[index - 1]
+        elif _SUCCESS.search(line) and index + 1 < len(lines):
+            near = lines[index + 1]
+        else:
             continue
-        match = _HERO_LINE.match(lines[index - 1]) if index else None
+        match = _HERO_LINE.match(near)
         whole = match.group(1).replace(",", "") if match else "0"
         if match and len(whole) > 1:
             seen.add(f"{float(whole + (match.group(2) or '')):.2f}")
