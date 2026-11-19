@@ -27,7 +27,6 @@ from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
 WORK_STARTS, WORK_ENDS = 9, 23  # receipt hours, local time
 QUIET = timedelta(hours=1)  # how long before something counts as missing
-SMS_LOOKBACK = timedelta(hours=8)  # older unmatched SMS are in the daily report
 SENT_KEY = "alerts_sent"
 
 
@@ -67,6 +66,9 @@ async def current_alerts(
                 }
             )
 
+    # Today only (local time): the list starts empty every morning; older
+    # unmatched SMS are in the daily report.
+    midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
     matched = select(SmsVerificationRow.sms_event_id).where(
         SmsVerificationRow.sms_event_id.is_not(None)
     )
@@ -74,7 +76,7 @@ async def current_alerts(
         select(RawEventRow.id, RawEventRow.occurred_at, RawEventRow.payload)
         .where(
             RawEventRow.collector == "sms",
-            RawEventRow.occurred_at >= moment - SMS_LOOKBACK,
+            RawEventRow.occurred_at >= midnight,
             RawEventRow.occurred_at < moment - QUIET,
             RawEventRow.id.not_in(matched),
         )

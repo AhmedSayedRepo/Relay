@@ -510,7 +510,7 @@ td { font-variant-numeric: tabular-nums; }
 .login-card .apps-link, .auth-frame .apps-link { margin-inline: auto; }
 @media (prefers-reduced-motion: reduce) { .apps-link:hover { transform: none; } }
 
-/* Warnings that need someone now (dashboard top). */
-.alert-banner { margin-block-end: 1rem; padding: .9rem 1.1rem; border: 1px solid color-mix(in srgb, var(--danger, #b42318) 35%, transparent); background: color-mix(in srgb, var(--danger, #b42318) 8%, var(--surface, transparent)); }
-.alert-banner strong { color: var(--danger, #b42318); }
-.alert-banner ul { margin: .4rem 0 0; padding-inline-start: 1.2rem; display: grid; gap: .3rem; }
+/* Today's warnings, beside the review workload; the list scrolls. */
+.alerts-panel.has-alerts { border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.alerts-panel.has-alerts h2 { color: var(--danger); }
+.alerts-list { margin: .4rem 0 0; padding-inline-start: 1.2rem; display: grid; gap: .45rem; max-height: 22rem; overflow-y: auto; overscroll-behavior: contain; }
