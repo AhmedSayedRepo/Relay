@@ -26,55 +26,75 @@ class SafTreeImageSource(private val context: Context) : ImageSource {
     }
 
     override suspend fun candidates(source: ApprovedImageSource, limit: Int): List<ImageCandidate> =
-        withContext(Dispatchers.IO) {
-            require(limit in 1..MAX_CANDIDATES)
-            if (!accessGranted(source)) return@withContext emptyList()
-            val tree = source.treeUri.toUri()
-            val children = DocumentsContract.buildChildDocumentsUriUsingTree(
-                tree,
-                DocumentsContract.getTreeDocumentId(tree)
-            )
-            val values = mutableListOf<ImageCandidate>()
-            resolver.query(children, PROJECTION, null, null, null)?.use { cursor ->
-                while (cursor.moveToNext() && values.size < limit) {
-                    val documentId = cursor.getString(0) ?: continue
-                    val name = cursor.getString(1)
-                    val mime = cursor.getString(2) ?: continue
-                    val modified = cursor.getLong(3)
-                    val size = cursor.getLong(4)
-                    if (
-                        modified <= source.approvedAtMillis ||
-                        mime !in ALLOWED_MIMES ||
-                        size !in 1..MAX_IMAGE_BYTES
-                    ) {
-                        continue
-                    }
-                    val document = DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
-                    val dimensions = dimensions(document) ?: continue
-                    val (width, height) = dimensions
-                    if (
-                        width !in 1..MAX_DIMENSION ||
-                        height !in 1..MAX_DIMENSION ||
-                        width.toLong() * height > MAX_PIXELS
-                    ) {
-                        continue
-                    }
-                    values += ImageCandidate(
-                        source.sourceId,
-                        "saf_tree",
-                        document.toString(),
-                        System.currentTimeMillis(),
-                        modified.takeIf { it > 0 },
-                        mime,
-                        name?.takeIf { it.length <= 255 && it.none { char -> char.code < 32 } },
-                        size,
-                        width,
-                        height
-                    )
+        recent(source, 0L, limit)
+
+    /**
+     * Every direct child changed since [sinceMillis] (and after the folder was
+     * approved), newest first. The folder's own order is not by date, so all
+     * rows are read (name, type, time and size only) and sorted before the
+     * newest [limit] are opened for their dimensions.
+     */
+    override suspend fun recent(
+        source: ApprovedImageSource,
+        sinceMillis: Long,
+        limit: Int
+    ): List<ImageCandidate> = withContext(Dispatchers.IO) {
+        require(limit in 1..MAX_CANDIDATES)
+        if (!accessGranted(source)) return@withContext emptyList()
+        val tree = source.treeUri.toUri()
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+            tree,
+            DocumentsContract.getTreeDocumentId(tree)
+        )
+        val after = maxOf(source.approvedAtMillis, sinceMillis)
+        val rows = mutableListOf<Row>()
+        resolver.query(children, PROJECTION, null, null, null)?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val documentId = cursor.getString(0) ?: continue
+                val mime = cursor.getString(2) ?: continue
+                val modified = cursor.getLong(3)
+                val size = cursor.getLong(4)
+                if (modified <= after || mime !in ALLOWED_MIMES || size !in 1..MAX_IMAGE_BYTES) {
+                    continue
                 }
+                rows += Row(documentId, cursor.getString(1), mime, modified, size)
             }
-            values
         }
+        val values = mutableListOf<ImageCandidate>()
+        for (row in rows.sortedByDescending { it.modified }) {
+            if (values.size >= limit) break
+            val document = DocumentsContract.buildDocumentUriUsingTree(tree, row.documentId)
+            val (width, height) = dimensions(document) ?: continue
+            if (
+                width !in 1..MAX_DIMENSION ||
+                height !in 1..MAX_DIMENSION ||
+                width.toLong() * height > MAX_PIXELS
+            ) {
+                continue
+            }
+            values += ImageCandidate(
+                source.sourceId,
+                "saf_tree",
+                document.toString(),
+                System.currentTimeMillis(),
+                row.modified.takeIf { it > 0 },
+                row.mime,
+                row.name?.takeIf { it.length <= 255 && it.none { char -> char.code < 32 } },
+                row.size,
+                width,
+                height
+            )
+        }
+        values
+    }
+
+    private data class Row(
+        val documentId: String,
+        val name: String?,
+        val mime: String,
+        val modified: Long,
+        val size: Long
+    )
 
     override suspend fun read(candidate: ImageCandidate, maximumBytes: Int): ByteArray =
         withContext(Dispatchers.IO) {
@@ -110,7 +130,7 @@ class SafTreeImageSource(private val context: Context) : ImageSource {
     }
 
     companion object {
-        const val MAX_CANDIDATES = 50
+        const val MAX_CANDIDATES = 300
         const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
         const val MAX_DIMENSION = 12_000
         const val MAX_PIXELS = 40_000_000L

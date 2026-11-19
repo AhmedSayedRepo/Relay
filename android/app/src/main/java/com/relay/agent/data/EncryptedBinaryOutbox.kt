@@ -8,6 +8,7 @@ import com.relay.agent.domain.BinaryEnqueueResult
 import com.relay.agent.domain.BinaryOutbox
 import com.relay.agent.domain.BinaryOutboxStats
 import com.relay.agent.domain.QueuedImage
+import com.relay.agent.domain.documentKey
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,7 +27,7 @@ class EncryptedBinaryOutbox(
     context,
     File(context.noBackupFilesDir, databaseName).absolutePath,
     null,
-    2
+    3
 ),
     BinaryOutbox {
     override fun onCreate(db: SQLiteDatabase) {
@@ -47,10 +48,12 @@ class EncryptedBinaryOutbox(
         )
         db.execSQL("INSERT INTO binary_outbox_meta(id, dropped) VALUES(1, 0)")
         createObservationTable(db)
+        createSeenTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createObservationTable(db)
+        if (oldVersion < 3) createSeenTable(db)
     }
 
     override suspend fun enqueue(value: QueuedImage): BinaryEnqueueResult = io {
@@ -169,6 +172,15 @@ class EncryptedBinaryOutbox(
                 )
                 db.delete("binary_outbox", "upload_id = ?", arrayOf(uploadId))
                 trimObservations(db)
+                insertSeen(
+                    db,
+                    documentKey(
+                        value.sourceId,
+                        value.displayName,
+                        value.mediaAt,
+                        value.byteSize.toLong()
+                    )
+                )
             }
             db.setTransactionSuccessful()
         } finally {
@@ -184,6 +196,30 @@ class EncryptedBinaryOutbox(
 
     override suspend fun clearObservations() = ioUnit {
         writableDatabase.delete("binary_observations", null, null)
+    }
+
+    override suspend fun seen(key: String): Boolean = io {
+        readableDatabase
+            .rawQuery("SELECT 1 FROM seen_documents WHERE document_key = ? LIMIT 1", arrayOf(key))
+            .use { it.moveToFirst() }
+    }
+
+    override suspend fun markSeen(key: String) = ioUnit { insertSeen(writableDatabase, key) }
+
+    private fun insertSeen(db: SQLiteDatabase, key: String) {
+        val values =
+            ContentValues().apply {
+                put("document_key", key)
+                put("seen_at", nowMillis())
+            }
+        db.insertWithOnConflict("seen_documents", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    private fun createSeenTable(db: SQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS seen_documents " +
+                "(document_key TEXT PRIMARY KEY, seen_at INTEGER NOT NULL)"
+        )
     }
 
     override suspend fun stats(): BinaryOutboxStats = io {
@@ -221,6 +257,11 @@ class EncryptedBinaryOutbox(
             "binary_observations",
             "completed_at < ?",
             arrayOf((nowMillis() - MAX_OBSERVATION_RETENTION_MILLIS).toString())
+        )
+        db.delete(
+            "seen_documents",
+            "seen_at < ?",
+            arrayOf((nowMillis() - MAX_SEEN_RETENTION_MILLIS).toString())
         )
     }
 
@@ -325,11 +366,13 @@ class EncryptedBinaryOutbox(
     private suspend fun ioUnit(block: () -> Unit) = io(block)
 
     companion object {
-        const val MAX_IMAGES = 20
-        const val MAX_ENCRYPTED_BYTES = 32L * 1024 * 1024
+        // Room for a busy day offline: photos are only dropped past this.
+        const val MAX_IMAGES = 300
+        const val MAX_ENCRYPTED_BYTES = 256L * 1024 * 1024
         const val MAX_SINGLE_ENCRYPTED_BYTES = 8 * 1024 * 1024 + 4096
         const val MAX_RETENTION_MILLIS = 7L * 24 * 60 * 60 * 1000
         const val MAX_OBSERVATIONS = 500
         const val MAX_OBSERVATION_RETENTION_MILLIS = 180L * 24 * 60 * 60 * 1000
+        const val MAX_SEEN_RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
     }
 }

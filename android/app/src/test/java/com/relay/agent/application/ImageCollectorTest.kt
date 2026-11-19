@@ -14,6 +14,7 @@ import com.relay.agent.domain.ImageSource
 import com.relay.agent.domain.ImageSourceConfiguration
 import com.relay.agent.domain.QueuedImage
 import com.relay.agent.domain.StoredState
+import com.relay.agent.domain.documentKey
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -185,7 +186,25 @@ class ImageCollectorTest {
     }
 
     @Test
-    fun successfulUploadWatermarkPreventsLegacyRecollectionWithoutReadingBytes() = runTest {
+    fun photosAlreadySentAreSkippedWithoutReadingThem() = runTest {
+        val source = FakeImageSource(access = true)
+        val outbox = MemoryBinaryOutbox()
+        outbox.seenKeys += documentKey("folder", "match.png", "1970-01-01T00:00:02Z", 4)
+        outbox.seenKeys += documentKey("folder", "filtered.jpg", "1970-01-01T00:00:02Z", 4)
+        val collector = ImageCollector(StaticImageStore(state()), source, outbox, log = {})
+
+        val result = collector.collect()
+
+        assertEquals(0, result.captured)
+        assertEquals(2, result.filtered)
+        assertEquals(0, source.readCount)
+        assertEquals(0, outbox.values.size)
+    }
+
+    @Test
+    fun anOlderUploadNoLongerHidesAPhotoThatWasNeverSent() = runTest {
+        // Before: a later successful upload made every older photo invisible,
+        // so a photo missed once was never sent.
         val source = FakeImageSource(access = true)
         val outbox = MemoryBinaryOutbox()
         val collector =
@@ -196,12 +215,7 @@ class ImageCollectorTest {
                 log = {}
             )
 
-        val result = collector.collect()
-
-        assertEquals(0, result.captured)
-        assertEquals(2, result.filtered)
-        assertEquals(0, source.readCount)
-        assertEquals(0, outbox.values.size)
+        assertEquals(1, collector.collect().captured)
     }
 
     private fun state(
@@ -287,6 +301,13 @@ private class StaticImageStore(private val value: StoredState) : AgentStore {
 
 private class MemoryBinaryOutbox : BinaryOutbox {
     val values = mutableListOf<QueuedImage>()
+    val seenKeys = mutableSetOf<String>()
+
+    override suspend fun seen(key: String) = key in seenKeys
+
+    override suspend fun markSeen(key: String) {
+        seenKeys += key
+    }
     private val handled = mutableSetOf<Triple<String, String, String>>()
 
     override suspend fun enqueue(value: QueuedImage): BinaryEnqueueResult {

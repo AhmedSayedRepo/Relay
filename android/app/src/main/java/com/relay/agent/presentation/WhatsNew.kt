@@ -25,6 +25,18 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.7.0" to ReleaseNote(
+            en = listOf(
+                "All waiting photos are sent in one go, not one every 15 minutes.",
+                "Each sync rechecks the last 3 days: photos missed while offline are still sent.",
+                "The waiting list keeps up to 300 photos instead of dropping the oldest after 20."
+            ),
+            ar = listOf(
+                "كل الصور المنتظرة بتتبعت مرة واحدة، مش صورة كل ربع ساعة.",
+                "كل مزامنة بتراجع آخر 3 أيام، فالصور اللي فاتت وقت انقطاع النت بتتبعت.",
+                "قائمة الانتظار بتشيل لحد 300 صورة بدل ما ترمي الأقدم بعد 20."
+            )
+        ),
         "0.6.7" to ReleaseNote(
             en = listOf(
                 "New \"Which folder should I choose?\" button: " +

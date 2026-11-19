@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     image_object_retention_days: int = Field(default=14, ge=1, le=90)
     image_upload_session_hours: int = Field(default=24, ge=1, le=72)
     image_max_active_uploads: int = Field(default=3, ge=1, le=10)
-    image_uploads_per_hour: int = Field(default=30, ge=1, le=100)
+    image_uploads_per_hour: int = Field(default=120, ge=1, le=1000)
     image_stored_bytes_per_device: int = Field(
-        default=64 * 1024 * 1024, ge=8 * 1024 * 1024, le=1024 * 1024 * 1024
+        default=512 * 1024 * 1024, ge=8 * 1024 * 1024, le=4 * 1024 * 1024 * 1024
     )
     object_storage_root: Path = Path("./relay-object-storage")
     training_dataset_root: Path = Path("./relay-training-dataset")

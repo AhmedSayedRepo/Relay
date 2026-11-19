@@ -9,6 +9,7 @@ from relay.application.errors import (
     Conflict,
     Forbidden,
     NotFound,
+    RateLimited,
 )
 from relay.domain.errors import DomainError
 from relay.infrastructure.logging import request_id_context
@@ -54,6 +55,10 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFound)
     async def not_found(request: Request, exc: NotFound) -> JSONResponse:
         return error_response(404, "not_found", str(exc))
+
+    @app.exception_handler(RateLimited)
+    async def rate_limited(request: Request, exc: RateLimited) -> JSONResponse:
+        return error_response(429, "rate_limited", str(exc))
 
     @app.exception_handler(Conflict)
     async def conflict(request: Request, exc: Conflict) -> JSONResponse:
