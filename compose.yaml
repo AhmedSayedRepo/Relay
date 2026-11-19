@@ -188,6 +188,11 @@ services:
       - "0"
       - "-c"
       - "8192"
+      # One receipt at a time, with every thread on it.
+      - "--parallel"
+      - "1"
+      - "--threads"
+      - "${OCR_THREADS:-3}"
     environment:
       LLAMA_CACHE: /models
     volumes:
@@ -195,7 +200,7 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 3g
-    cpus: "2.0"
+    cpus: "${OCR_CPUS:-3.0}"
     networks:
       - relay_internal
       # Internet only to download the model the first time; no ports published.
