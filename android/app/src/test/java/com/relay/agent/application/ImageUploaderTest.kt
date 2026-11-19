@@ -15,6 +15,9 @@ import com.relay.agent.domain.StoredState
 import com.relay.agent.domain.SyncOutcome
 import com.relay.agent.domain.UploadInitialization
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -113,6 +116,34 @@ class ImageUploaderTest {
         assertEquals(SyncOutcome.RETRYABLE, retrying.upload())
         assertEquals(listOf("d"), later.completed)
         assertEquals(listOf("e"), later.values.map { it.uploadId })
+    }
+
+    @Test
+    fun aSecondRunAtTheSameTimeLeavesTheQueueToTheFirst() = runTest {
+        val store = ImageUploadStore()
+        val queue = QueueOutbox(listOf(image()))
+        val gate = CompletableDeferred<Unit>()
+        val slow =
+            object : RelayApi by ImageUploadApi() {
+                var calls = 0
+
+                override suspend fun initializeImage(
+                    accessToken: String,
+                    image: QueuedImage
+                ): UploadInitialization {
+                    calls += 1
+                    gate.await()
+                    return UploadInitialization("s", "finalized", 5, "o")
+                }
+            }
+        val uploader = ImageUploader(store, slow, queue, now = { "now" }, log = {})
+
+        val first = async(start = CoroutineStart.UNDISPATCHED) { uploader.upload() }
+        assertEquals(SyncOutcome.SUCCESS, uploader.upload())
+        assertEquals(1, slow.calls)
+        gate.complete(Unit)
+        assertEquals(SyncOutcome.SUCCESS, first.await())
+        assertEquals(listOf("upload"), queue.completed)
     }
 
     private fun image() = QueuedImage(
