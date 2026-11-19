@@ -915,6 +915,9 @@ async def auto_confirm(
         if sms is None:
             counts["waiting"] += 1
             continue
+        if scaled is not None:
+            # The SMS proves the corrected amount: offer it before confirming.
+            await _suggest_amount(database, candidate_id, scaled)
         values = dict(core)
         # The SMS makes the rest optional: keep what was read plausibly.
         for name in ("reference_number", "date", "time"):
