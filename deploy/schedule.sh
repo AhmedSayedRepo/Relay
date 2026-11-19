@@ -22,6 +22,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 $work
 30 2 * * * root $dc run --rm backend python -m relay.infrastructure.cli purge-expired-events >/dev/null 2>&1
 15 3 * * * root $repo/deploy/backup.sh >/var/log/relay-backup.log 2>&1
+# Warnings (silent cashier phone, bank SMS with no receipt): emailed once each.
+*/15 * * * * root $dc run --rm backend python -m relay.infrastructure.cli check-alerts >>/var/log/relay-alerts.log 2>&1
 # Daily report: runs hourly, sends only at 23:59 Cairo time (handles summer time).
 59 * * * * root $dc run --rm backend python -m relay.infrastructure.cli daily-report >>/var/log/relay-report.log 2>&1
 CRON

@@ -11,7 +11,12 @@ from relay.domain.agent import JsonValue
 from relay.domain.operations import DateWindow, DuplicateGroupQuery, TransactionQuery
 from relay.domain.review_categories import CATEGORIES, categorize
 from relay.infrastructure.config import Settings
-from relay.presentation.dependencies import AuthenticatedUser, current_user
+from relay.infrastructure.repositories import SqlUnitOfWork
+from relay.presentation.dependencies import (
+    AuthenticatedUser,
+    current_user,
+    unit_of_work,
+)
 from relay.presentation.operations_dependencies import Service
 from relay.presentation.operations_schemas import (
     DuplicateResolutionRequest,
@@ -77,6 +82,19 @@ async def dashboard(
     return await service.dashboard(
         _folder_window(request, date_from, date_to, time_from, time_to)
     )
+
+
+@router.get("/alerts")
+async def alerts(
+    request: Request, uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)]
+) -> dict[str, JsonValue]:
+    """Warnings that need someone now: a silent receipt phone, a bank SMS
+    with no receipt (see relay.infrastructure.alerts)."""
+    from relay.infrastructure.alerts import current_alerts
+
+    settings = cast(Settings, request.app.state.settings)
+    found = await current_alerts(uow.session, settings)
+    return {"alerts": cast(JsonValue, found)}
 
 
 @router.get("/transactions", response_model=OperationPage)

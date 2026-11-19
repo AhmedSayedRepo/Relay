@@ -57,6 +57,20 @@ function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: 
   return to ? <Link className={"metric metric-link " + tone} to={to}>{body}</Link> : <article className={"metric " + tone}>{body}</article>;
 }
 
+type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt"; device?: string; amount?: string; currency?: string; since?: string | null };
+
+// Warnings that need someone now (a silent cashier phone, a bank SMS with no receipt).
+// Always "now", whatever range the dashboard shows; refreshed with the page.
+function Alerts({ token }: { token: string }) {
+  const { locale, messages: m } = useI18n(); const d = m.dashboard;
+  const alerts = useApi<{ alerts: Alert[] }>("/alerts", token).data?.alerts ?? [];
+  if (!alerts.length) return null;
+  const at = (since?: string | null) => since ? new Date(since).toLocaleTimeString(locale === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }) : "";
+  return <div className="panel alert-banner" role="alert"><strong>{d.alertsTitle}</strong><ul>{alerts.map((item) => <li key={item.key}>{item.kind === "silent_phone"
+    ? (item.since ? formatMessage(d.alertSilent, { device: item.device ?? "", time: at(item.since) }) : formatMessage(d.alertSilentNever, { device: item.device ?? "" }))
+    : formatMessage(d.alertSms, { amount: Number(item.amount ?? 0).toLocaleString(locale === "ar" ? "ar-EG" : "en-US", { minimumFractionDigits: 2 }) + " " + (item.currency ?? ""), time: at(item.since) })}</li>)}</ul></div>;
+}
+
 export function Dashboard({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const role = useRole(); const d = m.dashboard;
   // Opens on today, 12:00 AM to 11:59 PM Cairo time; every number follows the chosen range.
@@ -73,7 +87,7 @@ export function Dashboard({ token }: { token: string }) {
   const pick = (from: string, to: string) => { setDateFrom(from); setDateTo(to); setTimeFrom("00:00"); setTimeTo("23:59"); };
   const quick: [string, string, string][] = [[d.today, cairoDate(), cairoDate()], [d.yesterday, cairoDate(1), cairoDate(1)]];
   async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query(range), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
-  return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
+  return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} /><Alerts token={token} />
     <div className="panel dash-filters"><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, from, to]) => <button key={label} type="button" className={"chip" + (dateFrom === from && dateTo === to && timeFrom === "00:00" && timeTo === "23:59" ? " active" : "")} aria-pressed={dateFrom === from && dateTo === to} onClick={() => pick(from, to)}>{label}</button>)}</div>
       <div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /><label>{d.fromTime}<input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} /></label><label>{d.toTime}<input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} /></label><button type="button" className="with-icon" onClick={() => void download()}><Icon name="download" size={18} />{d.exportExcel}</button></div>
       <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
