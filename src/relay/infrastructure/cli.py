@@ -652,8 +652,17 @@ def _text_amount(machine: Any) -> str | None:
         return derived
     values = read.get("values")
     if isinstance(values, dict) and isinstance(values.get("amount"), str):
-        return str(values["amount"])
-    return next(iter(found)) if len(found) == 1 else None
+        alone: str | None = str(values["amount"])
+    else:
+        alone = next(iter(found)) if len(found) == 1 else None
+    # A lone amount under 20 is the fee (at most 20 EGP) or a misread
+    # ("425" as 4.25), never the transfer: leave the amount to the model.
+    if alone is not None and float(alone) < FEE_CEILING:
+        return None
+    return alone
+
+
+FEE_CEILING = 20.0
 
 
 async def _suggest_amount(
