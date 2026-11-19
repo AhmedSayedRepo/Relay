@@ -17,9 +17,30 @@ class ImageUploader(
     private val outbox: BinaryOutbox,
     private val now: () -> String = { Instant.now().toString() },
     private val newRequestId: () -> String = { UUID.randomUUID().toString() },
-    private val log: (String) -> Unit = { Log.i(TAG, it) }
+    private val log: (String) -> Unit = { Log.i(TAG, it) },
+    private val clock: () -> Long = System::currentTimeMillis
 ) {
+    /**
+     * Sends the whole queue, oldest first, until it is empty, the network
+     * fails or the run's time is up (a background run is capped by Android).
+     * A photo the server refuses for good is dropped and the next one goes on.
+     */
     suspend fun upload(): SyncOutcome {
+        if (store.read().credentials == null) return SyncOutcome.ENROLLMENT_REQUIRED
+        val started = clock()
+        var outcome = SyncOutcome.SUCCESS
+        repeat(MAX_PER_RUN) {
+            if (outbox.next() == null || clock() - started > RUN_BUDGET_MILLIS) return outcome
+            when (val one = uploadOne()) {
+                SyncOutcome.SUCCESS -> Unit
+                SyncOutcome.REJECTED -> outcome = SyncOutcome.REJECTED
+                else -> return one
+            }
+        }
+        return outcome
+    }
+
+    private suspend fun uploadOne(): SyncOutcome {
         val state = store.read()
         var credentials = state.credentials ?: return SyncOutcome.ENROLLMENT_REQUIRED
         val image = outbox.next() ?: return SyncOutcome.SUCCESS
@@ -110,6 +131,8 @@ class ImageUploader(
 
     companion object {
         private const val TAG = "RelayImageUpload"
+        const val MAX_PER_RUN = 300
+        const val RUN_BUDGET_MILLIS = 8L * 60 * 1000
         private const val MAX_CHUNK_BYTES = 256 * 1024
     }
 }

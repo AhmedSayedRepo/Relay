@@ -5,6 +5,7 @@ import com.relay.agent.domain.AgentStore
 import com.relay.agent.domain.BinaryOutbox
 import com.relay.agent.domain.ImageSource
 import com.relay.agent.domain.QueuedImage
+import com.relay.agent.domain.documentKey
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -45,26 +46,31 @@ class ImageCollector(
         var captured = 0
         var filtered = 0
         var rejected = 0
-        val successfullyHandledThroughMillis =
-            state.lastSuccessfulImageUpload
-                ?.let { value -> runCatching { Instant.parse(value).toEpochMilli() }.getOrNull() }
+        // Every run looks back over the last days, newest first, so a photo
+        // missed while offline, or behind a busy hour, is still sent; photos
+        // already sent are skipped without reading them.
+        val since = now().toEpochMilli() - LOOKBACK_MILLIS
         val candidates =
             try {
                 // The first folder plus any extra ones (e.g. Bluetooth) still allowed.
                 state.imageSources
                     .filter { it == approved || source.accessGranted(it) }
-                    .flatMap { source.candidates(it, MAX_SCAN_CANDIDATES) }
+                    .flatMap { source.recent(it, since, MAX_SCAN_CANDIDATES) }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 log("images.source_unavailable")
                 return ImageCollectionSummary(rejected = 1)
             }
         for (candidate in candidates) {
-            if (
-                successfullyHandledThroughMillis != null &&
-                candidate.mediaAtMillis != null &&
-                candidate.mediaAtMillis <= successfullyHandledThroughMillis
-            ) {
+            val mediaAt = candidate.mediaAtMillis?.let { Instant.ofEpochMilli(it).toString() }
+            val key =
+                documentKey(
+                    candidate.sourceId,
+                    candidate.displayName,
+                    mediaAt,
+                    candidate.byteSize
+                )
+            if (outbox.seen(key)) {
                 filtered += 1
                 continue
             }
@@ -105,7 +111,9 @@ class ImageCollector(
                     )
                 if (result.accepted) {
                     captured += 1
-                } else if (!result.duplicate) {
+                } else if (result.duplicate) {
+                    outbox.markSeen(key)
+                } else {
                     rejected += 1
                 }
             } catch (error: Exception) {
@@ -125,7 +133,8 @@ class ImageCollector(
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     companion object {
-        const val MAX_SCAN_CANDIDATES = 50
+        const val MAX_SCAN_CANDIDATES = 300
+        const val LOOKBACK_MILLIS = 3L * 24 * 60 * 60 * 1000
         const val MAX_IMAGE_BYTES = 8 * 1024 * 1024
         private const val TAG = "RelayImageCollection"
     }

@@ -16,3 +16,7 @@ class NotFound(ApplicationError):
 
 class Conflict(ApplicationError):
     pass
+
+
+class RateLimited(ApplicationError):
+    """Too much right now; the same request can succeed later (HTTP 429)."""

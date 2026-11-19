@@ -332,9 +332,10 @@ async def test_session_capacity_chunk_bound_and_abandoned_cleanup(
     data = png()
     started = await initialize(client, bundle, request(bundle, data))
     assert started.status_code == 200
+    # Busy, not wrong: the phone keeps the photo and tries again later.
     assert (
         await initialize(client, bundle, request(bundle, data + b"2"))
-    ).status_code == 409
+    ).status_code == 429
     oversized = await client.put(
         f"/api/v1/device/objects/uploads/{started.json()['session_id']}/chunks?offset=0",
         headers={**device_headers(bundle), "Content-Type": "application/octet-stream"},

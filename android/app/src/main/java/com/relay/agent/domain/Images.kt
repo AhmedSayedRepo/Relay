@@ -75,12 +75,28 @@ interface BinaryOutbox {
     suspend fun clearObservations() = Unit
 
     suspend fun stats(): BinaryOutboxStats
+
+    /** A photo already sent (or a copy of one sent): skip it without reading it. */
+    suspend fun seen(key: String): Boolean = false
+
+    suspend fun markSeen(key: String) = Unit
 }
+
+/** Identifies one photo file without reading it: folder, name, time and size. */
+fun documentKey(sourceId: String, displayName: String?, mediaAt: String?, byteSize: Long): String =
+    "$sourceId|${displayName.orEmpty()}|${mediaAt.orEmpty()}|$byteSize"
 
 interface ImageSource {
     fun accessGranted(source: ApprovedImageSource): Boolean
 
     suspend fun candidates(source: ApprovedImageSource, limit: Int): List<ImageCandidate>
+
+    /** Photos changed since [sinceMillis], newest first, at most [limit]. */
+    suspend fun recent(
+        source: ApprovedImageSource,
+        sinceMillis: Long,
+        limit: Int
+    ): List<ImageCandidate> = candidates(source, limit)
 
     suspend fun read(candidate: ImageCandidate, maximumBytes: Int): ByteArray
 }

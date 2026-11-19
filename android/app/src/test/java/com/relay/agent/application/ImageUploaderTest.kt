@@ -73,6 +73,48 @@ class ImageUploaderTest {
         assertEquals(1, outbox.completed)
     }
 
+    @Test
+    fun oneRunSendsTheWholeQueueAndStopsWhenTheNetworkFails() = runTest {
+        val store = ImageUploadStore()
+        val queue = QueueOutbox(listOf("a", "b", "c").map { image().copy(uploadId = it) })
+        val api =
+            ImageUploadApi().apply {
+                repeat(3) {
+                    initializeResponses += UploadInitialization("s$it", "finalized", 5, "o")
+                }
+            }
+        val uploader = ImageUploader(store, api, queue, now = { "now" }, log = {})
+
+        assertEquals(SyncOutcome.SUCCESS, uploader.upload())
+        assertEquals(listOf("a", "b", "c"), queue.completed)
+        assertTrue(queue.values.isEmpty())
+
+        val later = QueueOutbox(listOf("d", "e").map { image().copy(uploadId = it) })
+        val flaky =
+            ImageUploadApi().apply {
+                initializeResponses += UploadInitialization("s", "finalized", 5, "o")
+            }
+        // The first is sent, then the network drops: the second waits for the
+        // next run (nothing lost).
+        val offlineAfterOne =
+            object : RelayApi by flaky {
+                var calls = 0
+
+                override suspend fun initializeImage(
+                    accessToken: String,
+                    image: QueuedImage
+                ): UploadInitialization {
+                    calls += 1
+                    if (calls > 1) throw IOException("offline")
+                    return flaky.initializeImage(accessToken, image)
+                }
+            }
+        val retrying = ImageUploader(store, offlineAfterOne, later, now = { "now" }, log = {})
+        assertEquals(SyncOutcome.RETRYABLE, retrying.upload())
+        assertEquals(listOf("d"), later.completed)
+        assertEquals(listOf("e"), later.values.map { it.uploadId })
+    }
+
     private fun image() = QueuedImage(
         "upload",
         "event",
@@ -209,4 +251,28 @@ private class ImageUploadApi : RelayApi {
         accessToken: String,
         events: List<GenericEvent>
     ): List<IngestionResult> = error("not used")
+}
+
+private class QueueOutbox(initial: List<QueuedImage>) : BinaryOutbox {
+    val values = initial.toMutableList()
+    val completed = mutableListOf<String>()
+
+    override suspend fun enqueue(value: QueuedImage) = BinaryEnqueueResult(false, true, 0)
+
+    override suspend fun next() = values.firstOrNull()
+
+    override suspend fun progress(uploadId: String, sessionId: String, uploadedBytes: Int) = Unit
+
+    override suspend fun remove(uploadId: String) {
+        values.removeAll { it.uploadId == uploadId }
+    }
+
+    override suspend fun complete(uploadId: String) {
+        completed += uploadId
+        remove(uploadId)
+    }
+
+    override suspend fun discardAll() = values.clear()
+
+    override suspend fun stats() = BinaryOutboxStats(values.size, 0, 0)
 }
