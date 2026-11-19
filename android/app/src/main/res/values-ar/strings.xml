@@ -36,6 +36,11 @@
     <string name="last_sent">آخر إرسال %1$s</string>
     <string name="never_sent">لم يُرسل شيء بعد</string>
     <string name="upload_problem">مشكلة في الإرسال: %1$s</string>
+    <string name="problem_network">النت ضعيف أو السيرفر مردّش. هيحاول تاني لوحده.</string>
+    <string name="problem_busy">السيرفر مشغول دلوقتي. هيحاول تاني لوحده.</string>
+    <string name="problem_enrollment">لازم الموبايل ده يتربط تاني. كلّم المسؤول.</string>
+    <string name="problem_reinstalled">التطبيق اتسطب من جديد، فاللي كان مستني اتمسح.</string>
+    <string name="problem_refused">السيرفر رفض حاجة واحدة، فاتشالت.</string>
     <string name="waiting_summary">%1$s بانتظار الإرسال · %2$s محذوفة</string>
     <string name="queued_size">مشفّر على هذا الهاتف: %1$s</string>
     <string name="discard_sms">حذف الرسائل المنتظرة</string>

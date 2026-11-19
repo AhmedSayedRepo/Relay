@@ -38,6 +38,11 @@
     <string name="last_sent">Last sent %1$s</string>
     <string name="never_sent">Nothing sent yet</string>
     <string name="upload_problem">Upload problem: %1$s</string>
+    <string name="problem_network">No connection, or the server did not answer. It will try again by itself.</string>
+    <string name="problem_busy">The server is busy right now. It will try again by itself.</string>
+    <string name="problem_enrollment">This phone must be linked again. Ask the administrator.</string>
+    <string name="problem_reinstalled">The app was reinstalled, so the waiting items were cleared.</string>
+    <string name="problem_refused">The server refused one item, so it was skipped.</string>
     <string name="waiting_summary">%1$s waiting · %2$s dropped</string>
     <string name="queued_size">Encrypted on this phone: %1$s</string>
     <string name="discard_sms">Discard waiting SMS</string>
