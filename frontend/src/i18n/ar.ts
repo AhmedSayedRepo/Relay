@@ -54,6 +54,7 @@ export const ar = {
     transactionDate: "تاريخ المعاملة", amount: "المبلغ", reference: "المرجع", applyHint: "تُحدّث النتائج تلقائياً.",
   },
   dashboard: {
+    alertsTitle: "محتاج انتباه دلوقتي", alertSilent: "{device}: مفيش اتصال من الساعة {time}. افتح Relay Receipts ودوس مزامنة الآن وخلّي البطارية غير مقيدة.", alertSilentNever: "{device}: عمره ما اتصل بـ Relay. افتح Relay Receipts على الموبايل ده.", alertSms: "رسالة بنك {amount} الساعة {time}: لسه مفيش إيصال مطابق. اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
     finalTransactions: "المعاملات النهائية", reviewDemand: "تحتاج إلى مراجعة", duplicateGroups: "مجموعات التكرار",
     failedProcessing: "مشكلات المعالجة", pendingProcessing: "مهام معلّقة", moneyTitle: "الأموال النهائية حسب العملة",
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",

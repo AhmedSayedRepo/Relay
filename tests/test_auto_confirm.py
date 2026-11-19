@@ -600,3 +600,36 @@ async def test_whole_small_amount_is_not_scaled(client, auth_headers, app):
     await _send_sms(client, bundle, body, _now())
     counts = await _read_and_confirm(app, {"amount": "5.00", "currency": "EGP"})
     assert counts["sms_day"] == 0
+
+
+async def test_alerts_for_a_silent_phone_and_an_sms_without_receipt(
+    client, auth_headers, app
+):
+    from relay.infrastructure.alerts import current_alerts
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "alert-phone")
+    bundle = await _link_sms(client, auth_headers, [candidate], "alert-sms-phone")
+    sent_at = _now()
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 2,140.00 via InstaPay", sent_at
+    )
+    settings = app.state.settings
+    async with app.state.database.session() as session:
+        # Two hours later: the SMS has no receipt.
+        later = await current_alerts(session, settings, sent_at + timedelta(hours=2))
+        assert any(
+            a["kind"] == "sms_without_receipt" and a["amount"] == "2140.00"
+            for a in later
+        )
+        # Tomorrow at 1 PM Cairo: the receipt phone has been silent for hours.
+        noon = (sent_at + timedelta(days=1)).replace(hour=13, minute=0)
+        silent = await current_alerts(session, settings, noon)
+        assert any(a["kind"] == "silent_phone" for a in silent)
+        # At 3 AM nobody works: no silent-phone warning.
+        night = (sent_at + timedelta(days=1)).replace(hour=3, minute=0)
+        assert not any(
+            a["kind"] == "silent_phone"
+            for a in await current_alerts(session, settings, night)
+        )
+    response = await client.get("/api/v1/alerts", headers=auth_headers)
+    assert response.status_code == 200 and "alerts" in response.json()

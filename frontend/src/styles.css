@@ -509,3 +509,8 @@ td { font-variant-numeric: tabular-nums; }
 .apps-link:hover { transform: translateY(-1px); border-color: currentColor; background: color-mix(in srgb, currentColor 10%, transparent); }
 .login-card .apps-link, .auth-frame .apps-link { margin-inline: auto; }
 @media (prefers-reduced-motion: reduce) { .apps-link:hover { transform: none; } }
+
+/* Warnings that need someone now (dashboard top). */
+.alert-banner { margin-block-end: 1rem; padding: .9rem 1.1rem; border: 1px solid color-mix(in srgb, var(--danger, #b42318) 35%, transparent); background: color-mix(in srgb, var(--danger, #b42318) 8%, var(--surface, transparent)); }
+.alert-banner strong { color: var(--danger, #b42318); }
+.alert-banner ul { margin: .4rem 0 0; padding-inline-start: 1.2rem; display: grid; gap: .3rem; }

@@ -1339,6 +1339,7 @@ def main() -> int:
             "eval-reader",
             "reconcile",
             "vl-loop",
+            "check-alerts",
         ],
     )
     parser.add_argument("--email")
@@ -1351,6 +1352,16 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--day", type=date.fromisoformat)
     args = parser.parse_args()
+    if args.command == "check-alerts":
+        from relay.infrastructure.alerts import check_alerts
+
+        try:
+            sent = asyncio.run(check_alerts(load_settings()))
+            print(f"Emailed {sent} new warning(s).")
+            return 0
+        except Exception as error:
+            print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
+            return 1
     if args.command == "vl-loop":
         from relay.infrastructure.vl_reader import vl_loop
 
