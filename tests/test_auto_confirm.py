@@ -629,11 +629,11 @@ async def test_alerts_for_a_silent_phone_and_an_sms_without_receipt(
             for a in await current_alerts(session, settings, morning)
         )
         # Tomorrow at 1 PM Cairo: the receipt phone has been silent for hours.
-        noon = (sent_at + timedelta(days=1)).replace(hour=13, minute=0)
+        noon = (_now() + timedelta(days=1)).replace(hour=13, minute=0)
         silent = await current_alerts(session, settings, noon)
         assert any(a["kind"] == "silent_phone" for a in silent)
         # At 3 AM nobody works: no silent-phone warning.
-        night = (sent_at + timedelta(days=1)).replace(hour=3, minute=0)
+        night = (_now() + timedelta(days=1)).replace(hour=3, minute=0)
         assert not any(
             a["kind"] == "silent_phone"
             for a in await current_alerts(session, settings, night)
