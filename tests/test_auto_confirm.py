@@ -933,3 +933,17 @@ async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
         assert len(hidden) == 1
         assert kept[0].review_status == "AUTO_ACCEPTED"
         assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
+
+
+async def test_recipient_shown_from_paddleocr_first(client, auth_headers, app):
+    await run_receipt(client, auth_headers, app, "parties-paddle")
+    await _text(app, text="GISSSEE", sender=None)
+    await _ppocr(
+        app,
+        "fagrsayed62@instapay\nإلى انستاباي\nYOUSSEF M***** Y******\n01003405232\n"
+        "POWERED BY",
+    )
+    listed = await client.get("/api/v1/transactions", headers=auth_headers)
+    item = listed.json()["items"][0]
+    assert item["suggested_recipient"] == "YOUSSEF · 01003405232"
+    assert item["suggested_sender"] == "fagrsayed62@instapay"

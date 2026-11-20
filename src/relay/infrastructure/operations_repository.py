@@ -140,24 +140,34 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
 
 
 def _read_parties(machine: Any) -> dict[str, JsonValue]:
-    """Sender and recipient as the plain-text reader saw them (unconfirmed)."""
+    """Sender and recipient as read (unconfirmed): classic PaddleOCR first,
+    each part it could not read taken from Tesseract."""
+    from relay.infrastructure.ppocr_reader import latest
+    from relay.infrastructure.text_recheck import parties, sender
+
     read = machine.get(TEXT_READING) if isinstance(machine, dict) else None
     read = read if isinstance(read, dict) else {}
     listed = read.get("parties")
-    found: dict[str, Any] = listed if isinstance(listed, dict) else {}
+    found: dict[str, Any] = dict(listed) if isinstance(listed, dict) else {}
+    handle = read.get("sender")
+    paddle = latest(machine) if isinstance(machine, dict) else None
+    if paddle is not None:
+        text = str(paddle.get("text") or "")
+        found |= parties(text)
+        handle = sender(text) or handle
     # The InstaPay address names the sender best; a printed name equal to
     # the recipient's was misread from the "to" part.
     name = found.get("sender_name")
     if name and name == found.get("recipient_name"):
         name = None
-    sender = read.get("sender") or name
+    who = handle or name
     recipient = " · ".join(
         str(found[key])
         for key in ("recipient_name", "recipient_phone")
         if found.get(key)
     )
     return {
-        "suggested_sender": str(sender) if sender else None,
+        "suggested_sender": str(who) if who else None,
         "suggested_recipient": recipient or None,
     }
 
