@@ -208,6 +208,24 @@ class EncryptedBinaryOutboxInstrumentedTest {
         }
     }
 
+    @Test
+    fun photoLargerThanCursorWindowIsReadBack() = runTest {
+        val context = ApplicationProvider.getApplicationContext<RelayApplication>()
+        val name = "test-binary-${UUID.randomUUID()}.db"
+        val outbox = EncryptedBinaryOutbox(context, BinaryReversingCipher, databaseName = name)
+        val bytes = ByteArray(5 * 1024 * 1024) { (it % 251).toByte() }
+        try {
+            assertTrue(outbox.enqueue(image(bytes)).accepted)
+            outbox.progress("upload", "session", 1024)
+            val restored = requireNotNull(outbox.next())
+            assertArrayEquals(bytes, restored.bytes)
+            assertEquals(1024, restored.uploadedBytes)
+        } finally {
+            outbox.close()
+            deleteFiles(context.noBackupFilesDir, name)
+        }
+    }
+
     private fun image(
         bytes: ByteArray,
         uploadId: String = "upload",

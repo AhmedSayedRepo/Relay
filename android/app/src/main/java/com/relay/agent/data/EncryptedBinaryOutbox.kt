@@ -102,27 +102,19 @@ class EncryptedBinaryOutbox(
     override suspend fun next(): QueuedImage? = io {
         val db = writableDatabase
         purgeExpired(db)
-        db
-            .query(
-                "binary_outbox",
-                arrayOf("upload_id", "ciphertext"),
-                null,
-                null,
-                null,
-                null,
-                "created_at ASC, upload_id ASC",
-                "1"
-            ).use { cursor ->
-                if (!cursor.moveToFirst()) return@io null
-                val id = cursor.getString(0)
-                try {
-                    codec.decode(cipher.decrypt(cursor.getBlob(1)))
-                } catch (_: Exception) {
-                    db.delete("binary_outbox", "upload_id = ?", arrayOf(id))
-                    incrementDropped(db, 1)
+        val id =
+            db
+                .rawQuery(
+                    "SELECT upload_id FROM binary_outbox ORDER BY created_at ASC, upload_id ASC LIMIT 1",
                     null
-                }
-            }
+                ).use { if (it.moveToFirst()) it.getString(0) else null } ?: return@io null
+        try {
+            codec.decode(cipher.decrypt(requireNotNull(ciphertext(db, id))))
+        } catch (_: Exception) {
+            db.delete("binary_outbox", "upload_id = ?", arrayOf(id))
+            incrementDropped(db, 1)
+            null
+        }
     }
 
     override suspend fun progress(uploadId: String, sessionId: String, uploadedBytes: Int) =
@@ -233,17 +225,39 @@ class EncryptedBinaryOutbox(
         BinaryOutboxStats(count(db), bytes(db), dropped)
     }
 
-    private fun record(db: SQLiteDatabase, uploadId: String): QueuedImage? = db
-        .query(
-            "binary_outbox",
-            arrayOf("ciphertext"),
-            "upload_id = ?",
-            arrayOf(uploadId),
-            null,
-            null,
-            null,
-            "1"
-        ).use { if (it.moveToFirst()) codec.decode(cipher.decrypt(it.getBlob(0))) else null }
+    private fun record(db: SQLiteDatabase, uploadId: String): QueuedImage? =
+        ciphertext(db, uploadId)?.let { codec.decode(cipher.decrypt(it)) }
+
+    /**
+     * Reads a stored photo in pieces. Android cannot read a row over about 2 MB
+     * in one go (SQLiteBlobTooBigException), and photos can be up to 8 MB.
+     */
+    private fun ciphertext(db: SQLiteDatabase, uploadId: String): ByteArray? {
+        val size =
+            db
+                .rawQuery(
+                    "SELECT length(ciphertext) FROM binary_outbox WHERE upload_id = ?",
+                    arrayOf(uploadId)
+                ).use { if (it.moveToFirst()) it.getInt(0) else null } ?: return null
+        val out = ByteArray(size)
+        var offset = 0
+        while (offset < size) {
+            val take = minOf(READ_CHUNK_BYTES, size - offset)
+            db
+                .rawQuery(
+                    "SELECT substr(ciphertext, ${offset + 1}, $take) " +
+                        "FROM binary_outbox WHERE upload_id = ?",
+                    arrayOf(uploadId)
+                ).use {
+                    require(it.moveToFirst())
+                    val part = it.getBlob(0)
+                    require(part.size == take)
+                    part.copyInto(out, offset)
+                }
+            offset += take
+        }
+        return out
+    }
 
     private fun purgeExpired(db: SQLiteDatabase) {
         val removed =
@@ -374,5 +388,6 @@ class EncryptedBinaryOutbox(
         const val MAX_OBSERVATIONS = 500
         const val MAX_OBSERVATION_RETENTION_MILLIS = 180L * 24 * 60 * 60 * 1000
         const val MAX_SEEN_RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
+        const val READ_CHUNK_BYTES = 512 * 1024
     }
 }
