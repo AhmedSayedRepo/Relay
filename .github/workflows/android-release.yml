@@ -2,7 +2,8 @@ name: Android release
 
 # Builds the signed Relay Agent APKs (full with bank SMS, and receipts-only
 # without SMS access) and publishes them as a GitHub Release.
-# Start it by pushing a tag like agent-v0.5.0, or manually with a version.
+# Start it by pushing a tag like agent-v0.5.0 (agent-v0.5.0-bank also builds
+# Relay Bank SMS), or manually with a version.
 on:
   push:
     tags: ["agent-v*"]
@@ -26,7 +27,7 @@ jobs:
     env:
       VERSION: ${{ inputs.version || github.ref_name }}
       # Relay Bank SMS updates are rare: built and offered only when asked.
-      BANK_SMS: ${{ inputs.bank_sms && 'true' || 'false' }}
+      BANK_SMS: ${{ (inputs.bank_sms || endsWith(github.ref_name, '-bank')) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check release settings
@@ -66,6 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${VERSION#agent-v}"
+          version="${version%-bank}"
           echo "APP_VERSION=$version" >> "$GITHUB_ENV"
           export RELAY_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
           printf '%s' "$RELAY_KEYSTORE_BASE64" | base64 --decode > "$RELAY_KEYSTORE_FILE"
