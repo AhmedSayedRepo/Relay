@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 GAP = timedelta(hours=1)  # same as alerts.QUIET
+CRASH_SHOWN = timedelta(hours=24)  # how long a crash report stays on view
 # Android's reasons for closing the app, as the phone names them.
 KILLED = {"low_memory", "battery_saving", "frozen", "system", "crash"}
 STOPPED = {"force_stopped", "user_stopped"}
@@ -101,15 +102,33 @@ def stored(
     return kept
 
 
-def summary(health: Any) -> dict[str, Any] | None:
+def current_crash(health: dict[str, Any], now: datetime) -> dict[str, Any] | None:
+    """The last crash, while it still matters: hidden once the app was
+    updated after it (the update may hold the fix) or after a day."""
+    crash = health.get("last_crash")
+    if not isinstance(crash, dict):
+        return None
+    at = _time(crash.get("at"))
+    if at is None or now - at > CRASH_SHOWN:
+        return None
+    exits = health.get("exits")
+    for item in exits if isinstance(exits, list) else []:
+        if not isinstance(item, dict) or item.get("reason") != "updated":
+            continue
+        updated = _time(item.get("at"))
+        if updated is not None and updated > at:
+            return None
+    return crash
+
+
+def summary(health: Any, now: datetime | None = None) -> dict[str, Any] | None:
     """For the portal and emails: the last silence and current risks."""
     if not isinstance(health, dict):
         return None
     gap = health.get("gap")
-    crash = health.get("last_crash")
     return {
         "gap": gap if isinstance(gap, dict) else None,
-        "last_crash": crash if isinstance(crash, dict) else None,
+        "last_crash": current_crash(health, now or datetime.now(UTC)),
         "risks": risks(health),
         "battery_percent": health.get("battery_percent"),
         "charging": health.get("charging"),
