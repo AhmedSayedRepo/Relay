@@ -249,13 +249,14 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades
 
 
 def combined(current: dict[str, str], helper: dict[str, str]) -> dict[str, str]:
-    """What the confirming step now sees: the current reader first, the
-    helper (classic PaddleOCR) where the current reader found nothing, and
-    the recipient matched when either reader matches."""
+    """What the confirming step now sees: the helper's (classic PaddleOCR)
+    amount when it read one, else the current reader's; the current reader's
+    reference, else the helper's; the recipient matched when either matches."""
     merged = dict(current)
-    for field in ("amount", "reference"):
-        if current[field] == "miss":
-            merged[field] = helper[field]
+    if helper["amount"] != "miss":
+        merged["amount"] = helper["amount"]
+    if current["reference"] == "miss":
+        merged["reference"] = helper["reference"]
     if helper["recipient"] == "ok" or (
         current["recipient"] == "miss" and helper["recipient"] != "skip"
     ):
