@@ -1008,10 +1008,15 @@ async def auto_confirm(
                 unclear = True
             elif tagged is not None:
                 await _untag(database, candidate_id, "recipient_mismatch")
-        text_amount, amount_reader = _text_amount(machine), TEXT_READER
-        if text_amount is None:
-            # Tesseract found no amount: classic PaddleOCR's leads instead.
-            text_amount, amount_reader = _helper_amount(helper), HELPER_READER
+        tesseract_amount, helper_amount = _text_amount(machine), _helper_amount(helper)
+        # Shown amount: classic PaddleOCR's when it read one (99% right on
+        # confirmed receipts against Tesseract's 80%), else Tesseract's. When
+        # they disagree, the bank SMS below decides between them.
+        text_amount: str | None
+        if helper_amount is not None:
+            text_amount, amount_reader = helper_amount, HELPER_READER
+        else:
+            text_amount, amount_reader = tesseract_amount, TEXT_READER
         read_amount = model_values(resolution, ("amount",))
         if text_amount and (read_amount or {}).get("amount") != text_amount:
             # The trained model sometimes drops a digit ("1,140" -> 114). The text
@@ -1047,23 +1052,49 @@ async def auto_confirm(
         if (unclear or scaled) and not alone(candidate_id, day, core["amount"]):
             counts["waiting"] += 1  # two receipts could claim the one SMS
             continue
-        async with database.session() as session:
-            sms = await build_sms_verification_service(
-                SqlUnitOfWork(session), settings
-            ).match_by_day(
-                device_id,
-                candidate_id,
-                core["amount"],
-                core["currency"],
-                aware(folder_at),
-                frozenset(used),
-            )
+        # The shown amount first, then what the other reader saw (each only
+        # if no other receipt that day shows it: one SMS, one receipt).
+        tries: list[tuple[str, str | None, str | None]] = [
+            (core["amount"], scaled, None)
+        ]
+        for other, other_reader in (
+            (tesseract_amount, TEXT_READER),
+            (helper_amount, HELPER_READER),
+        ):
+            if (
+                other is not None
+                and not any(_same_amount(other, tried) for tried, _, _ in tries)
+                and alone(candidate_id, day, other)
+            ):
+                tries.append((other, None, other_reader))
+        sms = None
+        amount, lifted, reader = tries[0]
+        for attempt in tries:
+            amount, lifted, reader = attempt
+            async with database.session() as session:
+                sms = await build_sms_verification_service(
+                    SqlUnitOfWork(session), settings
+                ).match_by_day(
+                    device_id,
+                    candidate_id,
+                    amount,
+                    core["currency"],
+                    aware(folder_at),
+                    frozenset(used),
+                )
+            if sms is not None:
+                break
         if sms is None:
             counts["waiting"] += 1
             continue
-        if scaled is not None:
+        if lifted is not None:
             # The SMS proves the corrected amount: offer it before confirming.
-            await _suggest_amount(database, candidate_id, scaled)
+            await _suggest_amount(database, candidate_id, lifted)
+        elif reader is not None:
+            # The SMS proves the other reader's amount.
+            await _suggest_amount(database, candidate_id, amount, reader)
+            core = core | {"amount": amount}
+            read_as, scaled = amount, None
         values = dict(core)
         # The SMS makes the rest optional: keep what was read plausibly.
         for name in ("reference_number", "date", "time"):

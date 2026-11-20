@@ -727,3 +727,24 @@ def test_a_price_tag_shows_no_transfer() -> None:
     )
     assert transfer_words("متابعة المعاملة\nhagarsalah2222@instapay\n590.59 EGP")
     assert transfer_words("تم التحويل بنجاح\nFT26323HQ8RM")
+
+
+async def test_bank_sms_decides_when_the_readers_disagree(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-disagree")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-disagree-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 56.00 via InstaPay", _now()
+    )
+    await model_suggest(
+        app.state.database, app.state.object_storage, FakeReader({}), 10
+    )
+    # Tesseract reads 56.00, PaddleOCR 590.00 (total minus fee): the only
+    # SMS that day says 56.00, so Tesseract's reading is the one proved.
+    await _text(app, "تم التحويل بنجاح\n56.00 EGP")
+    await _ppocr(app, "تم التحويل بنجاح\nالرسوم 0.59 EGP\nالمبلغ الإجمالي 590.59 EGP")
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert counts["sms_day"] == 1
+    resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    assert resolution["fields"]["amount"]["value"] == "56.00"
