@@ -825,3 +825,31 @@ async def test_review_rejects_a_failed_send_screen(client, auth_headers, app):
     detail = await _detail(client, auth_headers, candidate)
     assert detail["review_status"] == "REJECTED"
     assert detail["resolution_result"]["rejected_reason"] == "not_completed"
+
+
+async def test_dashboard_counts_unchecked_receipts_and_unused_sms(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "dash-counts")
+    bundle = await _link_sms(client, auth_headers, [candidate], "dash-counts-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 777.00 via InstaPay", _now()
+    )
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.review_status = "NEEDS_REVIEW"
+        await session.commit()
+    today = _now().date().isoformat()
+    response = await client.get(
+        "/api/v1/dashboard",
+        headers=auth_headers,
+        params={"date_from": today, "date_to": today},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    # The receipt waits in Review with no SMS check yet: it counts as waiting.
+    sms = data["sms_by_status"]
+    assert sum(sms.values()) >= 1 and sms.get("VERIFIED", 0) == 0
+    # The 777 SMS has no receipt.
+    assert data["bank_sms_unused_count"] == 1
+    assert data["bank_sms_unused_totals"][0]["amount"] == "777.00"

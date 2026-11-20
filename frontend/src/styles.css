@@ -537,6 +537,9 @@ td { font-variant-numeric: tabular-nums; }
 .sms-tile span:last-child { font-size: .8rem; color: var(--ink-soft); }
 .sms-tile.verified { --tone: var(--success); }.sms-tile.waiting { --tone: #b56d22; }
 .sms-tile.unmatched { --tone: var(--danger); }.sms-tile.ambiguous { --tone: #7a65b0; }
+.sms-tile.unused { --tone: var(--ink-soft); }.sms-tile.unused.attention { --tone: var(--danger); }.sms-tile.wide { grid-column: 1 / -1; }
+.sms-tile[title], .queue-rows li[title], .pulse-panel .fact-list > div[title], .metric[title] { cursor: help; }
+.metric-link[title] { cursor: pointer; }
 .alerts-panel.has-alerts { border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
 .alerts-list { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; max-height: 26rem; overflow-y: auto; overscroll-behavior: contain; padding-inline-end: .2rem; }
 .alert-item { display: flex; align-items: flex-start; gap: .7rem; padding: .7rem .8rem; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--danger) 6%, var(--surface)); border: 1px solid color-mix(in srgb, var(--danger) 16%, transparent); }
