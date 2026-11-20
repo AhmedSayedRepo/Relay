@@ -160,10 +160,14 @@ def compare(
             and before[key].get(field) not in ("ok", "skip", None)
             and grades[field] == "ok"
         ]
+        # Only receipts scored before: a newly confirmed receipt the reader
+        # gets wrong is a new test case, not a change that broke something.
         newly_wrong = [
             key
             for key, grades in now.items()
-            if grades[field] == "wrong" and before.get(key, {}).get(field) != "wrong"
+            if key in before
+            and grades[field] == "wrong"
+            and before[key].get(field) != "wrong"
         ]
         if broke or fixed:
             lines.append(f"{field}: fixed {len(fixed)}, broke {len(broke)}")
