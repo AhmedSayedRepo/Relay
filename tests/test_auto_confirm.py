@@ -933,3 +933,13 @@ async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
         assert len(hidden) == 1
         assert kept[0].review_status == "AUTO_ACCEPTED"
         assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
+
+
+def test_paddleocr_amount_read_without_its_currency() -> None:
+    from relay.infrastructure.cli import _paddle_amount
+
+    # A sharp photo of a cracked screen: the red "EGP" beside 571 was lost.
+    read = "571\nfagrsayed62@instapay\n01003405232\n522448348349\nNov 2026 03:28 PM"
+    assert _paddle_amount(read, read) == "571.00"
+    # A year, a phone or a reference alone on a line is not an amount.
+    assert _paddle_amount("2026\n20 Nov 2026\n01003405232", None) is None

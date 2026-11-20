@@ -351,13 +351,17 @@ def _helper_read(machine: Any) -> dict[str, Any] | None:
 def _paddle_amount(text: str, latin: str | None) -> str | None:
     """PaddleOCR's amount: from its Latin recognizer's lines first (digits
     are its strength; the Arabic one can drop a digit), else from both."""
-    from relay.infrastructure.text_recheck import VERSION, single
+    from relay.infrastructure.text_recheck import VERSION, bare_amount, single
 
     if latin:
         amount = _text_amount({VERSION: single(latin)})
         if amount is not None:
             return amount
-    return _text_amount({VERSION: single(text)})
+    amount = _text_amount({VERSION: single(text)})
+    if amount is not None:
+        return amount
+    # "571" alone on its line: the red currency beside it was not read.
+    return bare_amount(latin or "") or bare_amount(text)
 
 
 def _helper_amount(helper: dict[str, Any] | None) -> str | None:
