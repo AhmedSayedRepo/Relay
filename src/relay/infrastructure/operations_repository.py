@@ -792,9 +792,12 @@ class SqlOperationsRepository:
             "manual_confirmed_count": max(
                 0, int(final_count or 0) - int(auto_count or 0)
             ),
-            "sms_by_status": _with_unchecked(
-                {str(status): int(count) for status, count in sms_counts},
-                int(unchecked or 0),
+            "sms_by_status": cast(
+                dict[str, JsonValue],
+                _with_unchecked(
+                    {str(status): int(count) for status, count in sms_counts},
+                    int(unchecked or 0),
+                ),
             ),
             "review_totals_by_currency": [
                 {
