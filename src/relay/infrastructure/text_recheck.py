@@ -236,6 +236,33 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
     }
 
 
+# A shop's printed bill (restaurant, delivery): items, prices, cash paid.
+_INVOICE_MARKS = (
+    re.compile(r"فاتور[ةه]|invoice", re.I),
+    re.compile(r"item\s*name|\bqty\b|الكمي[ةه]|الصنف", re.I),
+    re.compile(r"الصاف[ىي]|المدفوع\s*نقد|نقد[اًا]|\bcash\b", re.I),
+    re.compile(r"خدم[ةه]\s*(?:ال)?توصيل|الطيار|delivery", re.I),
+    re.compile(r"[اإ]لوردي[ةه]|المستخدم\s*كاشير|cashier", re.I),
+)
+
+
+def shop_invoice(text: str) -> bool:
+    """A shop's bill, not a money transfer: at least two kinds of bill
+    wording and nothing of InstaPay or a bank transfer."""
+    text = text.translate(_DIGITS)
+    if _BRAND.search(text) or _SUCCESS.search(text) or _REQUEST.search(text):
+        return False
+    return sum(bool(mark.search(text)) for mark in _INVOICE_MARKS) >= 2
+
+
+def single(text: str) -> dict[str, Any]:
+    """``signals`` for one clean reading from a model (classic PaddleOCR):
+    its values count as agreed with itself, since there is no second pass."""
+    read = signals(text, text)
+    read["text"] = text.translate(_DIGITS)[:MAX_TEXT]
+    return read
+
+
 _TO = re.compile(r"^\W*(?:[اإ]ل[ىي]|to)\b", re.I)
 _END = re.compile(r"powered\s*by", re.I)
 _NOT_NAMES = {"ACCOUNT", "BANK", "EGP", "IPN", "INSTAPAY", "MISR", "POWERED", "XXXX"}

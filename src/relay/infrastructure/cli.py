@@ -179,6 +179,22 @@ def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
     )
 
 
+def _shop_invoice(row: ReceiptCandidateRow) -> bool:
+    """An untouched Review item that either reader shows is a shop's bill."""
+    from relay.infrastructure import text_recheck
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+
+    if not _machine_only(row):
+        return False
+    machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+    texts = [
+        str(reading.get("text") or "")
+        for reading in (machine.get(text_recheck.VERSION), machine.get(PPOCR))
+        if isinstance(reading, dict)
+    ]
+    return any(text_recheck.shop_invoice(text) for text in texts if text)
+
+
 def _read_by_more_than_model(field: Any) -> bool:
     if not isinstance(field, dict) or not field.get("value"):
         return False
@@ -204,6 +220,11 @@ async def hide_non_receipts(database: Database) -> int:
         for row in rows:
             if _clear_non_receipt(row):
                 row.hidden_reason = "not_a_receipt"
+                hidden += 1
+            elif _shop_invoice(row):
+                # Its own reason: unhide_receipt_like must not bring it back
+                # (a bill prints amounts, so it looks receipt-like).
+                row.hidden_reason = "shop_invoice"
                 hidden += 1
         await session.commit()
     if hidden:
@@ -237,7 +258,9 @@ async def unhide_receipt_like(database: Database) -> int:
     return restored
 
 
-def _suggest_missing(resolution: dict[str, Any], values: dict[str, str]) -> int:
+def _suggest_missing(
+    resolution: dict[str, Any], values: dict[str, str], reader: str = TEXT_READER
+) -> int:
     """Offer text readings only for fields nothing has suggested yet."""
     fields = resolution.get("fields")
     if not isinstance(fields, dict):
@@ -247,8 +270,84 @@ def _suggest_missing(resolution: dict[str, Any], values: dict[str, str]) -> int:
         for name, value in values.items()
         if isinstance(fields.get(name), dict) and fields[name].get("value") is None
     }
-    applied, _ = apply_suggestions(resolution, empty, TEXT_READER, "text")
+    applied, _ = apply_suggestions(resolution, empty, reader, "text")
     return applied
+
+
+HELPER_READER = "ppocr_helper_v1"
+
+
+def _helper_read(machine: Any) -> dict[str, Any] | None:
+    """The classic PaddleOCR reading as the text reader sees it, or None
+    until PP-OCR has read the receipt (or when its reading failed)."""
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+    from relay.infrastructure.text_recheck import single
+
+    reading = machine.get(PPOCR) if isinstance(machine, dict) else None
+    if not isinstance(reading, dict) or reading.get("error"):
+        return None
+    text = reading.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return None
+    return single(text)
+
+
+def _helper_amount(helper: dict[str, Any] | None) -> str | None:
+    from relay.infrastructure.text_recheck import VERSION
+
+    return _text_amount({VERSION: helper}) if helper is not None else None
+
+
+async def helper_suggest(database: Database) -> int:
+    """Fill fields still empty on receipts waiting for review from the
+    classic PaddleOCR reading, so Review shows a value to confirm."""
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+
+    async with database.session() as session:
+        ids = (
+            await session.scalars(
+                select(ReceiptCandidateRow.id).where(
+                    ReceiptCandidateRow.hidden_reason.is_(None),
+                    ReceiptCandidateRow.review_status
+                    == ReviewStatus.NEEDS_REVIEW.value,
+                    ReceiptCandidateRow.machine_result[PPOCR].as_string().is_not(None),
+                )
+            )
+        ).all()
+    filled = 0
+    for candidate_id in ids:
+        async with database.session() as session:
+            row = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == candidate_id)
+                .with_for_update()
+            )
+            if (
+                row is None
+                or not isinstance(row.resolution_result, dict)
+                or not _machine_only(row)
+            ):
+                continue
+            helper = _helper_read(row.machine_result)
+            if helper is None:
+                continue
+            values = {
+                name: value
+                for name, value in (helper.get("values") or {}).items()
+                if name not in ("amount", "currency")
+            }
+            amount = _helper_amount(helper)
+            if amount is not None:
+                values |= {"amount": amount, "currency": "EGP"}
+            resolution = copy.deepcopy(row.resolution_result)
+            if _suggest_missing(resolution, values, HELPER_READER):
+                row.resolution_result = resolution
+                row.updated_at = datetime.now(UTC)
+                await session.commit()
+                filled += 1
+    if filled:
+        print(f"PaddleOCR filled empty fields on {filled} receipts.")
+    return filled
 
 
 async def text_pass(
@@ -667,7 +766,7 @@ FEE_CEILING = 20.0
 
 
 async def _suggest_amount(
-    database: Database, candidate_id: UUID, amount: str
+    database: Database, candidate_id: UUID, amount: str, reader: str = TEXT_READER
 ) -> dict[str, Any] | None:
     """Offer the text reader's amount (and EGP) as the suggestion."""
     async with database.session() as session:
@@ -680,7 +779,7 @@ async def _suggest_amount(
             return None
         resolution = copy.deepcopy(row.resolution_result)
         applied, _ = apply_suggestions(
-            resolution, {"amount": amount, "currency": "EGP"}, TEXT_READER, "text"
+            resolution, {"amount": amount, "currency": "EGP"}, reader, "text"
         )
         if not applied:
             return None
@@ -844,6 +943,7 @@ async def auto_confirm(
         if not isinstance(text, dict) or text.get("payment_request"):
             counts["waiting"] += 1  # wait for the text reading (or a request)
             continue
+        helper = _helper_read(machine)
         unclear = False
         if owner is not None:
             name, phone = owner
@@ -851,13 +951,29 @@ async def auto_confirm(
             instapay = bool(found.get("brand")) if isinstance(found, dict) else False
             printed = str(text.get("text") or "")
             verdict = recipient_check(printed, name, phone, instapay)
+            if verdict != "match" and helper is not None:
+                # Classic PaddleOCR often reads what Tesseract cannot: a
+                # match by either reader is a match; when Tesseract could not
+                # read the recipient, PaddleOCR's verdict stands.
+                second = recipient_check(
+                    str(helper["text"]),
+                    name,
+                    phone,
+                    instapay or bool((helper.get("found") or {}).get("brand")),
+                )
+                if second == "match" or verdict == "unclear":
+                    verdict = second
             tagged = resolution.get("recipient_mismatch")
             if verdict != "match":
                 if not isinstance(tagged, dict) or tagged.get("kind") != verdict:
                     await _tag(
                         database, candidate_id, "recipient_mismatch", {"kind": verdict}
                     )
-                if verdict != "unclear" or shows_a_phone(printed):
+                if (
+                    verdict != "unclear"
+                    or shows_a_phone(printed)
+                    or (helper is not None and shows_a_phone(str(helper["text"])))
+                ):
                     # Someone else's, or a readable phone that is not the
                     # owner's: a person decides.
                     counts["waiting"] += 1
@@ -867,13 +983,18 @@ async def auto_confirm(
                 unclear = True
             elif tagged is not None:
                 await _untag(database, candidate_id, "recipient_mismatch")
-        text_amount = _text_amount(machine)
+        text_amount, amount_reader = _text_amount(machine), TEXT_READER
+        if text_amount is None:
+            # Tesseract found no amount: classic PaddleOCR's leads instead.
+            text_amount, amount_reader = _helper_amount(helper), HELPER_READER
         read_amount = model_values(resolution, ("amount",))
         if text_amount and (read_amount or {}).get("amount") != text_amount:
             # The trained model sometimes drops a digit ("1,140" -> 114). The text
             # reader only offers an amount both of its readings agree on, so its
             # amount leads; the SMS check below then decides.
-            fixed = await _suggest_amount(database, candidate_id, text_amount)
+            fixed = await _suggest_amount(
+                database, candidate_id, text_amount, amount_reader
+            )
             if fixed is not None:
                 resolution = fixed
         core = model_values(resolution, ("amount", "currency"))
@@ -1300,6 +1421,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                     database, storage, provider, tuple(settings.ocr_languages), 4
                 )
                 await hide_non_receipts(database)
+                await helper_suggest(database)
                 async with database.session() as session:
                     await build_sms_verification_service(
                         SqlUnitOfWork(session), settings

@@ -99,10 +99,19 @@ def grade(
     """Re-read one receipt's stored text and grade each field. ``single``:
     the text is one reading (the model reader), not the two Tesseract passes."""
     from relay.infrastructure.cli import _receipt_like, _text_amount
-    from relay.infrastructure.text_recheck import VERSION, recipient_check, signals
+    from relay.infrastructure.text_recheck import (
+        VERSION,
+        recipient_check,
+        signals,
+    )
+    from relay.infrastructure.text_recheck import (
+        single as one_reading,
+    )
 
-    block, sparse = (text, None) if single else split_passes(text)
-    read = signals(block, sparse)
+    if single:
+        read = one_reading(text)
+    else:
+        read = signals(*split_passes(text))
     values = read.get("values") or {}
     found = read.get("found") or {}
     result = {
@@ -184,6 +193,7 @@ MODEL_NAMES = {
     "vl_glm_v1": "GLM-OCR",
     "ppocr_v4": "PaddleOCR (classic)",
 }
+HELPER = "ppocr_v4"  # must match ppocr_reader.VERSION (checked in tests)
 
 
 async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades]]:
@@ -231,6 +241,21 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades
     return grades, models
 
 
+def combined(current: dict[str, str], helper: dict[str, str]) -> dict[str, str]:
+    """What the confirming step now sees: the current reader first, the
+    helper (classic PaddleOCR) where the current reader found nothing, and
+    the recipient matched when either reader matches."""
+    merged = dict(current)
+    for field in ("amount", "reference"):
+        if current[field] == "miss":
+            merged[field] = helper[field]
+    if helper["recipient"] == "ok" or (
+        current["recipient"] == "miss" and helper["recipient"] != "skip"
+    ):
+        merged["recipient"] = helper["recipient"]
+    return merged
+
+
 def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int:
     """Print the reader's score; with a score file, gate on it.
 
@@ -249,6 +274,11 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
             print("  current" + line)
         for line in summary({key: model[key] for key in both})[1:]:
             print("  model  " + line)
+        if version == HELPER:
+            print(f"\nSame {len(both)} receipts, current reader + {name} as helper:")
+            merged = {key: combined(grades[key], model[key]) for key in both}
+            for line in summary(merged)[1:]:
+                print("  both   " + line)
     if score is None:
         return 0
     before: dict[str, dict[str, str]] = {}

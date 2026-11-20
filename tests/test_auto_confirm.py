@@ -640,3 +640,75 @@ async def test_alerts_for_a_silent_phone_and_an_sms_without_receipt(
         )
     response = await client.get("/api/v1/alerts", headers=auth_headers)
     assert response.status_code == 200 and "alerts" in response.json()
+
+
+async def _ppocr(app, text):
+    """What the classic PaddleOCR reader would store."""
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.machine_result = row.machine_result | {PPOCR: {"text": text}}
+        await session.commit()
+
+
+async def test_paddleocr_helps_when_tesseract_reads_nothing(client, auth_headers, app):
+    await _owner(client, auth_headers)
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-helper")
+    bundle = await _link_sms(client, auth_headers, [candidate], "day-helper-phone")
+    # Total 590.59 includes the 0.59 fee: the transfer is 590.00.
+    body = "notice: You have received EGP 590.00 via InstaPay"
+    await _send_sms(client, bundle, body, _now())
+    # A photo of a phone: Tesseract reads neither amount nor recipient.
+    await model_suggest(
+        app.state.database, app.state.object_storage, FakeReader({}), 10
+    )
+    await _text(app, "متابعة المعاملة")
+    await _ppocr(
+        app,
+        "إلى YOUSSEF M***** Y****** M******\n01003405232\nالمبلغ الإجمالي 590.59 EGP",
+    )
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert counts["sms_day"] == 1
+    resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    assert resolution["fields"]["amount"]["value"] == "590.00"
+    # PaddleOCR read the owner's name and phone: not an unclear recipient.
+    assert "recipient" not in resolution["auto_confirmed"]
+    assert "recipient_mismatch" not in resolution
+
+
+async def test_paddleocr_fills_empty_review_fields(client, auth_headers, app):
+    from relay.infrastructure.cli import helper_suggest
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-helper-fill")
+    await _ppocr(app, "المرجع 885379009975\n590.59 EGP")
+    before = (await _detail(client, auth_headers, candidate))["resolution_result"]
+    empty = [
+        name
+        for name in ("amount", "reference_number")
+        if before["fields"][name].get("value") is None
+    ]
+    await helper_suggest(app.state.database)
+    fields = (await _detail(client, auth_headers, candidate))["resolution_result"][
+        "fields"
+    ]
+    expected = {"amount": "590.59", "reference_number": "885379009975"}
+    for name in empty:
+        assert fields[name]["value"] == expected[name]
+        assert fields[name]["candidates"][0]["adapter"] == "ppocr_helper_v1"
+
+
+def test_a_shop_bill_is_not_a_transfer() -> None:
+    from relay.infrastructure.text_recheck import shop_invoice
+
+    bill = (
+        "لحوم أبو عفصة\nرقم الفاتورة 160 التاريخ 2026/11/19\nالوردية 1,564\n"
+        "Total Item Name Price Qty\n480.00 برجر 480.00 1\nالاجمالى 1,977.35\n"
+        "خدمة توصيل 20.00\nالصافى 1,997.35\nالمدفوع نقدا 1,997.35\nاسم الطيار"
+    )
+    assert shop_invoice(bill)
+    # A transfer receipt that mentions an amount and a cashier is kept.
+    assert not shop_invoice("تم التحويل بنجاح\nInstaPay\n500.00 EGP\ncashier")
+    assert not shop_invoice("متابعة المعاملة\nالمبلغ الإجمالي 590.59 EGP")
