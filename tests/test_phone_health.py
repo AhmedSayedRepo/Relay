@@ -61,6 +61,10 @@ def test_risks_and_the_last_silence_are_kept() -> None:
     assert later["gap"]["reason"] == "phone_off"
     assert "phone was off" in describe(summary(later))
     assert describe(None).startswith("no health report")
+    crashed = summary(
+        {"last_crash": {"at": NOW.isoformat(), "error": "NPE | Sync.run:12"}}
+    )
+    assert crashed is not None and "Sync.run:12" in describe(crashed)
 
 
 @pytest.mark.asyncio

@@ -77,6 +77,7 @@ function phoneNotes(health: PhoneHealth | null | undefined, d: Messages["dashboa
   const notes = (health.risks ?? []).map((code) => d.phoneRisks[code]).filter(Boolean);
   const gap = health.gap;
   if (gap && d.phoneGaps[gap.reason]) notes.push(formatMessage(d.phoneGapLine, { reason: d.phoneGaps[gap.reason], time: cairoClock(gap.at ?? gap.to, locale) }));
+  if (health.last_crash?.error) notes.push(formatMessage(d.phoneCrash, { time: cairoClock(health.last_crash.at, locale), error: health.last_crash.error }));
   return notes;
 }
 

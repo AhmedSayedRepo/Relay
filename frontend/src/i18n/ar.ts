@@ -58,6 +58,7 @@ export const ar = {
     alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
     alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
     lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
+    phoneCrash: "التطبيق وقع {time}: {error}",
     phoneGapLine: "آخر مرة سكت: {reason}، {time}",
     phoneGaps: { phone_off: "الموبايل كان مقفول أو اتعمله ريستارت", force_stopped: "التطبيق اتقفل بالإجبار", app_killed: "أندرويد قفل التطبيق", no_internet: "مكانش فيه نت" },
     phoneRisks: { sms_denied: "مش مسموحله يستقبل الرسايل: اسمح بالرسايل لـ Relay Bank SMS من إعدادات الموبايل", folder_lost: "مش قادر يقرا فولدر الصور: اختاره تاني من التطبيق", battery_restricted: "توفير البطارية مقيّد التطبيق: خليها غير مقيدة", battery_low: "البطارية قربت تخلص", power_save: "الموبايل في وضع توفير الطاقة" },
