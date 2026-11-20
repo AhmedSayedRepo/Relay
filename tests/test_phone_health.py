@@ -73,9 +73,7 @@ def test_risks_and_the_last_silence_are_kept() -> None:
     day_later = summary({"last_crash": crash}, NOW + timedelta(hours=25))
     assert day_later is not None and day_later["last_crash"] is None
     update = {"at": (NOW + timedelta(minutes=5)).isoformat(), "reason": "updated"}
-    updated = summary(
-        {"last_crash": crash, "exits": [update]}, NOW + timedelta(hours=1)
-    )
+    updated = summary({"last_crash": crash, "exits": [update]}, NOW + timedelta(hours=1))
     assert updated is not None and updated["last_crash"] is None
 
 
