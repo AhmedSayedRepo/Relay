@@ -89,6 +89,24 @@ class SqlEventRepository:
             else AddEventResult.CONFLICT
         )
 
+    async def same_sms_seen(
+        self, occurred_at: datetime, sender: str, body: str
+    ) -> bool:
+        """The same bank SMS (sender, text, time received) already stored,
+        e.g. from before the app was reinstalled and caught up its inbox."""
+        rows = await self.session.scalars(
+            select(RawEventRow.payload).where(
+                RawEventRow.collector == "sms",
+                RawEventRow.occurred_at == occurred_at,
+            )
+        )
+        return any(
+            isinstance(payload, dict)
+            and payload.get("sender") == sender
+            and payload.get("body") == body
+            for payload in rows
+        )
+
     async def by_identity(
         self, installation_id: UUID, event_id: UUID
     ) -> RawEvent | None:

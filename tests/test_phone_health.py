@@ -121,3 +121,34 @@ def test_warning_email_says_why_the_phone_is_silent() -> None:
     assert "Cashier &lt;1&gt;" in html
     assert "battery saving limits the app" in html
     assert "590.00 EGP" in html and "2 warnings" in html
+
+
+@pytest.mark.asyncio
+async def test_the_same_bank_sms_caught_up_again_is_stored_once(
+    client: AsyncClient, auth_headers: dict[str, str], app: Any
+) -> None:
+    from relay.infrastructure.event_models import RawEventRow
+    from tests.test_events import event, headers
+    from tests.test_events import provision as provision_sms
+
+    _, bundle = await provision_sms(client, auth_headers, "sms-twice-phone")
+    first = event(bundle["installation_id"])
+    # Caught up from the inbox: a new event id, the same SMS.
+    again = event(bundle["installation_id"])
+    again["occurred_at"] = first["occurred_at"]
+    statuses = []
+    for item in (first, again):
+        response = await client.post(
+            "/api/v1/device/events/batch",
+            headers=headers(bundle),
+            json={"events": [item]},
+        )
+        statuses.append(response.json()["results"][0]["status"])
+    assert statuses == ["accepted", "duplicate"]
+    async with app.state.database.session() as session:
+        rows = (
+            await session.scalars(
+                select(RawEventRow).where(RawEventRow.collector == "sms")
+            )
+        ).all()
+    assert len(rows) == 1

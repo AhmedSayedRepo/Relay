@@ -28,6 +28,10 @@
     <string name="reason_waiting_sync">بانتظار المزامنة القادمة.</string>
     <string name="allow_sms_switch">جمع رسائل البنك على هذا الهاتف</string>
     <string name="allow_images_switch">جمع صور الإيصالات على هذا الهاتف</string>
+    <string name="catch_up_sms">هات رسايل البنك اللي فاتت (آخر 3 أيام)</string>
+    <string name="catch_up_done">اتبعت %1$d رسالة بنك فاتت لـ Relay</string>
+    <string name="catch_up_none">مفيش رسايل بنك فاتت</string>
+    <string name="catch_up_denied">اسمح بقراءة الرسايل علشان نجيب رسايل البنك اللي فاتت</string>
     <string name="allow_sms_access">السماح بالوصول إلى الرسائل</string>
     <string name="choose_folder">اختيار مجلد</string>
     <string name="change_folder">تغيير المجلد</string>

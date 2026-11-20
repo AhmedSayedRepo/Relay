@@ -26,6 +26,7 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.relay.agent.BuildConfig
 import com.relay.agent.R
+import com.relay.agent.RelayApplication
 import com.relay.agent.presentation.theme.RelayTheme
 
 class MainActivity : ComponentActivity() {
@@ -63,6 +64,24 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
         ActivityResultContracts.RequestPermission()
     ) { model.permissionChanged() }
     val context = LocalContext.current
+    val app = RelayApplication.from(context)
+    val caughtUp: (Int) -> Unit = { count ->
+        val text = if (count > 0) {
+            context.getString(R.string.catch_up_done, count)
+        } else {
+            context.getString(R.string.catch_up_none)
+        }
+        Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+    }
+    val readSmsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            model.catchUpSms(caughtUp)
+        } else {
+            Toast.makeText(context, R.string.catch_up_denied, Toast.LENGTH_LONG).show()
+        }
+    }
     val folderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -103,6 +122,13 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
             setSmsConsent = model::setSmsConsent,
             requestSmsPermission = { permissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
             discardSms = model::discardQueuedEvents,
+            catchUpSms = {
+                if (app.readSmsGranted()) {
+                    model.catchUpSms(caughtUp)
+                } else {
+                    readSmsLauncher.launch(Manifest.permission.READ_SMS)
+                }
+            },
             setImageConsent = model::setImageConsent,
             chooseFolder = { folderLauncher.launch(null) },
             removeFolder = {

@@ -57,6 +57,14 @@ class EventService:
                     settings, value.rule_id, value.sender, value.body
                 ):
                     raise EventRejected("collector_not_enabled_or_unmatched")
+                if await self.uow.events.same_sms_seen(
+                    value.occurred_at, value.sender, value.body
+                ):
+                    # Caught up again from the phone's inbox (new install):
+                    # one bank SMS, one event.
+                    counts["duplicate"] += 1
+                    results.append(ItemResult(supplied_id, "duplicate"))
+                    continue
                 event = RawEvent(
                     uuid4(),
                     value.event_id,
