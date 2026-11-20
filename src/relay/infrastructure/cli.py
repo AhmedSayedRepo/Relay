@@ -1012,6 +1012,7 @@ async def auto_confirm(
         # Shown amount: classic PaddleOCR's when it read one (99% right on
         # confirmed receipts against Tesseract's 80%), else Tesseract's. When
         # they disagree, the bank SMS below decides between them.
+        text_amount: str | None
         if helper_amount is not None:
             text_amount, amount_reader = helper_amount, HELPER_READER
         else:
@@ -1056,7 +1057,7 @@ async def auto_confirm(
         tries: list[tuple[str, str | None, str | None]] = [
             (core["amount"], scaled, None)
         ]
-        for other, reader in (
+        for other, other_reader in (
             (tesseract_amount, TEXT_READER),
             (helper_amount, HELPER_READER),
         ):
@@ -1065,7 +1066,7 @@ async def auto_confirm(
                 and not any(_same_amount(other, tried) for tried, _, _ in tries)
                 and alone(candidate_id, day, other)
             ):
-                tries.append((other, None, reader))
+                tries.append((other, None, other_reader))
         sms = None
         amount, lifted, reader = tries[0]
         for attempt in tries:
