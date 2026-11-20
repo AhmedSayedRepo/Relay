@@ -8,6 +8,7 @@ from uuid import UUID
 
 from relay.application.errors import Conflict, NotFound
 from relay.application.sms_verification_ports import (
+    DayReceipt,
     SmsEvent,
     SmsVerificationUnitOfWork,
     StoredVerification,
@@ -72,6 +73,39 @@ def _sms_json(sms: SmsFacts, *, in_window: bool | None = None) -> dict[str, Json
     return value
 
 
+# Why an incoming SMS confirmed nothing, most useful first.
+UNUSED_REASONS = ("waiting", "rejected", "hidden", "receipt_used")
+
+
+def unused_reason(
+    at: datetime, amount: Decimal, receipts: list[DayReceipt], zone: tzinfo
+) -> tuple[str, UUID | None]:
+    """Why an SMS was not used, from receipts that reached a phone the same
+    day showing its amount: one waits in Review, was rejected, was hidden
+    (not a receipt, or a copy), or was already confirmed by another SMS.
+    "no_receipt" when no receipt that day shows this amount (never sent,
+    or its amount was misread)."""
+    day = at.astimezone(zone).date()
+    found: dict[str, UUID] = {}
+    for receipt in receipts:
+        if receipt.folder_at.astimezone(zone).date() != day:
+            continue
+        if amount not in receipt.amounts:
+            continue
+        kind = {
+            "NEEDS_REVIEW": "waiting",
+            "REJECTED": "rejected",
+            "HIDDEN": "hidden",
+            "AUTO_ACCEPTED": "receipt_used",
+        }.get(receipt.status)
+        if kind is not None:
+            found.setdefault(kind, receipt.candidate_id)
+    for kind in UNUSED_REASONS:
+        if kind in found:
+            return kind, found[kind]
+    return "no_receipt", None
+
+
 class SmsVerificationService:
     def __init__(
         self,
@@ -102,6 +136,10 @@ class SmsVerificationService:
         rows: list[JsonValue] = []
         counts = {"MATCHED": 0, "UNUSED": 0, "NO_AMOUNT": 0}
         unused: dict[str, Decimal] = {}
+        # Receipts from the same days, to say why an SMS was not used.
+        receipts = await self.repo.day_receipts(
+            since - timedelta(days=1), until + timedelta(days=1)
+        )
         for sms in await self.repo.bank_sms(since, until, device_id):
             parsed = parse_bank_sms(sms.body)
             state = "UNUSED"
@@ -116,6 +154,9 @@ class SmsVerificationService:
                 )
             if status and state != status:
                 continue
+            why: tuple[str | None, UUID | None] = (None, None)
+            if parsed is not None and state == "UNUSED":
+                why = unused_reason(sms.occurred_at, parsed.amount, receipts, self.zone)
             rows.append(
                 {
                     "event_id": str(sms.event_id),
@@ -130,6 +171,8 @@ class SmsVerificationService:
                     "candidate_id": (
                         str(sms.candidate_id) if sms.candidate_id else None
                     ),
+                    "reason": why[0],
+                    "reason_candidate_id": str(why[1]) if why[1] else None,
                 }
             )
         return {
