@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2
     && rm -rf /var/lib/apt/lists/*
 # rapidocr[rtl] adds python-bidi, which the Arabic engine needs to read.
 RUN pip install "rapidocr[rtl]>=3.3,<4" "onnxruntime>=1.18,<2" \
-    && python -c "import bidi; from relay.infrastructure.ppocr_reader import engines; engines()"
+    && python -c "import bidi; from relay.infrastructure.ppocr_reader import self_test; self_test()"
 
 USER relay
 ENV HOME=/tmp

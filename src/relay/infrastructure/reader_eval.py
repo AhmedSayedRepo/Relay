@@ -182,7 +182,7 @@ MODEL_PREFIXES = ("vl_", "ppocr_")
 MODEL_NAMES = {
     "vl_ocr_v1": "PaddleOCR-VL",
     "vl_glm_v1": "GLM-OCR",
-    "ppocr_v3": "PaddleOCR (classic)",
+    "ppocr_v4": "PaddleOCR (classic)",
 }
 
 
