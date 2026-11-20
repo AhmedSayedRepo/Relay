@@ -150,6 +150,9 @@ services:
       OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-20}
       PROCESSING_STALE_MINUTES: ${PROCESSING_STALE_MINUTES:-5}
       PROCESSING_BATCH_LIMIT: ${PROCESSING_BATCH_LIMIT:-10}
+      # Classic PaddleOCR is the first reader: wait this long for it on a
+      # new receipt before Tesseract alone decides.
+      RELAY_PPOCR_WAIT_MINUTES: ${RELAY_PPOCR_WAIT_MINUTES:-10}
     depends_on:
       db:
         condition: service_healthy

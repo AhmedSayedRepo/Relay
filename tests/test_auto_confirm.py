@@ -853,3 +853,25 @@ async def test_dashboard_counts_unchecked_receipts_and_unused_sms(
     # The 777 SMS has no receipt.
     assert data["bank_sms_unused_count"] == 1
     assert data["bank_sms_unused_totals"][0]["amount"] == "777.00"
+
+
+async def test_paddleocr_values_lead_in_review(client, auth_headers, app):
+    from relay.infrastructure.cli import helper_suggest
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-primary")
+    # The trained model read 114.00; PaddleOCR reads 1,140.
+    await model_suggest(
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"amount": "114.00", "currency": "EGP"}),
+        10,
+    )
+    await _ppocr(app, "تم التحويل بنجاح\n1,140 EGP\nالمرجع 885379009975")
+    assert await helper_suggest(app.state.database) == 1
+    fields = (await _detail(client, auth_headers, candidate))["resolution_result"][
+        "fields"
+    ]
+    assert fields["amount"]["value"] == "1140.00"
+    assert fields["reference_number"]["value"] == "885379009975"
+    # Once per reading.
+    assert await helper_suggest(app.state.database) == 0

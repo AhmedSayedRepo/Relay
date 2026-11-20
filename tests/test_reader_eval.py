@@ -51,8 +51,9 @@ def test_a_change_that_breaks_more_than_it_fixes_fails() -> None:
     assert not compare({"a": ok, "b": ok}, {"a": miss, "b": ok})[0]
     # Any newly wrong amount fails, even when another receipt was fixed.
     assert not compare({"a": miss, "b": ok}, {"a": ok, "b": wrong})[0]
-    # New receipts with no earlier score never count as broken.
+    # New receipts with no earlier score never count as broken, even wrong.
     assert compare({}, {"a": miss})[0]
+    assert compare({"b": ok}, {"a": wrong, "b": ok})[0]
 
 
 def test_one_model_reading_grades_its_reference() -> None:
@@ -80,3 +81,6 @@ def test_helper_fills_what_the_current_reader_missed() -> None:
         "recipient": "ok",
         "kept": "ok",
     }
+    # PaddleOCR is first: its reading stands even when Tesseract's differs.
+    wrong = helper | {"recipient": "wrong"}
+    assert combined(current | {"recipient": "ok"}, wrong)["recipient"] == "wrong"
