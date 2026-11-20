@@ -50,7 +50,11 @@ class RelayApplication : Application() {
             BuildConfig.RELAY_BASE_URL,
             BuildConfig.VERSION_NAME,
             BuildConfig.DEBUG,
-            PhoneHealthReader(this) { store.read().imageSources.map { it.treeUri } }::read
+            PhoneHealthReader(
+                this,
+                // Relay Bank SMS also reports whether it may still receive SMS.
+                smsAllowed = if (BuildConfig.SMS_CAPTURE) ::smsPermissionGranted else null
+            ) { store.read().imageSources.map { it.treeUri } }::read
         )
     }
     private fun smsPermissionGranted(): Boolean = ContextCompat.checkSelfPermission(

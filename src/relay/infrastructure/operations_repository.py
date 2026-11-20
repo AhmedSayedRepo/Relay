@@ -20,6 +20,7 @@ from relay.infrastructure.datetime_utils import aware
 from relay.infrastructure.event_models import RawEventRow
 from relay.infrastructure.models import DeviceRow
 from relay.infrastructure.operation_models import OperatorAuditRow
+from relay.infrastructure.phone_health import summary as health_summary
 from relay.infrastructure.processing_models import (
     OcrResultRow,
     ProcessingJobRow,
@@ -657,8 +658,6 @@ class SqlOperationsRepository:
         device_rows = device_counts.all()
         # Each phone's health report (why it went quiet), read separately:
         # a JSON column cannot be grouped on.
-        from relay.infrastructure.phone_health import summary as health_summary
-
         healths = dict(
             (
                 await self.db.execute(
@@ -1261,6 +1260,7 @@ class SqlOperationsRepository:
                     "app_version": device.app_version,
                     "status": str(device.status),
                     "last_seen_at": _iso(device.last_seen_at),
+                    "health": cast(JsonValue, health_summary(device.health)),
                     "configuration_version": int(row.version),
                     "configuration_schema_version": int(row.schema_version),
                     "configuration": _safe_configuration(row.settings),
