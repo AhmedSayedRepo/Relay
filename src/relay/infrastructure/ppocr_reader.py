@@ -5,7 +5,7 @@ recognizers, Chinese/English (Latin letters and digits) and Arabic, because
 receipts mix both. It is fast enough on a CPU to read every receipt within
 seconds, so it runs all day in its own container (compose.yaml, "ppocr").
 
-The text is stored under ``machine_result["ppocr_v1"]``, lines top to bottom,
+The text is stored under ``machine_result[VERSION]``, lines top to bottom,
 and nothing else: auto-confirm does not use it. ``eval-reader`` scores it
 against the current reader on confirmed receipts first.
 """
@@ -28,8 +28,9 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
-# v1 readings all failed (see lines()); v2 reads every receipt again.
-VERSION = "ppocr_v2"
+# v1 and v2 readings all failed (numpy results, then missing python-bidi);
+# v3 reads every receipt again.
+VERSION = "ppocr_v3"
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
