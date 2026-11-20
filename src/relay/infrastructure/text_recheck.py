@@ -255,6 +255,22 @@ def shop_invoice(text: str) -> bool:
     return sum(bool(mark.search(text)) for mark in _INVOICE_MARKS) >= 2
 
 
+_TRANSFER_WORDS = re.compile(
+    r"تحويل|حوال[ةه]|transfer|محفظ[ةه]|wallet|@\s*instapay|EGP|جنيه|ج\.م", re.I
+)
+
+
+def transfer_words(text: str) -> bool:
+    """Any sign of a money transfer: InstaPay, transfer or success wording,
+    receipt labels, or an amount in EGP. A photo of goods with a price tag
+    (a meat label) has none."""
+    text = text.translate(_DIGITS)
+    return any(
+        pattern.search(text)
+        for pattern in (_BRAND, _SUCCESS, _LABEL, _REQUEST, _AMOUNT, _TRANSFER_WORDS)
+    )
+
+
 def single(text: str) -> dict[str, Any]:
     """``signals`` for one clean reading from a model (classic PaddleOCR):
     its values count as agreed with itself, since there is no second pass."""

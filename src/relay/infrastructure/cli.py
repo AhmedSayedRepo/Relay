@@ -195,6 +195,27 @@ def _shop_invoice(row: ReceiptCandidateRow) -> bool:
     return any(text_recheck.shop_invoice(text) for text in texts if text)
 
 
+def _no_transfer(row: ReceiptCandidateRow) -> bool:
+    """An untouched Review item that both readers read, with no sign of a
+    money transfer in either (a photo of goods with a price tag). Waits for
+    classic PaddleOCR: Tesseract alone reads phone photos too poorly."""
+    from relay.infrastructure import text_recheck
+
+    if not _machine_only(row):
+        return False
+    machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+    tesseract = machine.get(text_recheck.VERSION)
+    helper = _helper_read(machine)
+    if not isinstance(tesseract, dict) or helper is None:
+        return False
+    if tesseract.get("payment_request"):
+        return False
+    return not any(
+        text_recheck.transfer_words(str(text))
+        for text in (tesseract.get("text") or "", helper["text"])
+    )
+
+
 def _read_by_more_than_model(field: Any) -> bool:
     if not isinstance(field, dict) or not field.get("value"):
         return False
@@ -225,6 +246,10 @@ async def hide_non_receipts(database: Database) -> int:
                 # Its own reason: unhide_receipt_like must not bring it back
                 # (a bill prints amounts, so it looks receipt-like).
                 row.hidden_reason = "shop_invoice"
+                hidden += 1
+            elif _no_transfer(row):
+                # Own reason too: a price tag prints an amount.
+                row.hidden_reason = "no_transfer"
                 hidden += 1
         await session.commit()
     if hidden:

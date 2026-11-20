@@ -712,3 +712,13 @@ def test_a_shop_bill_is_not_a_transfer() -> None:
     # A transfer receipt that mentions an amount and a cashier is kept.
     assert not shop_invoice("تم التحويل بنجاح\nInstaPay\n500.00 EGP\ncashier")
     assert not shop_invoice("متابعة المعاملة\nالمبلغ الإجمالي 590.59 EGP")
+
+
+def test_a_price_tag_shows_no_transfer() -> None:
+    from relay.infrastructure.text_recheck import transfer_words
+
+    assert not transfer_words(
+        "كندوز ممتاز\nالاجمالي 318.00\n0.600\n2013-08-16\nلحوم ابو عفصة"
+    )
+    assert transfer_words("متابعة المعاملة\nhagarsalah2222@instapay\n590.59 EGP")
+    assert transfer_words("تم التحويل بنجاح\nFT26323HQ8RM")
