@@ -237,9 +237,13 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
 
 
 # A shop's printed bill (restaurant, delivery): items, prices, cash paid.
+# Each pattern is one kind of bill wording; OCR misreads included ("Qtv").
 _INVOICE_MARKS = (
     re.compile(r"فاتور[ةه]|invoice", re.I),
-    re.compile(r"item\s*name|\bqty\b|الكمي[ةه]|الصنف", re.I),
+    re.compile(r"\bit[e]?r?m\b|\blem\s*name|الصنف", re.I),
+    re.compile(r"\bq[t][yv]\b|الكمي[ةه]", re.I),
+    re.compile(r"\bprice\b|السعر", re.I),
+    re.compile(r"\btotal\b", re.I),
     re.compile(r"الصاف[ىي]|المدفوع\s*نقد|نقد[اًا]|\bcash\b", re.I),
     re.compile(r"خدم[ةه]\s*(?:ال)?توصيل|الطيار|delivery", re.I),
     re.compile(r"[اإ]لوردي[ةه]|المستخدم\s*كاشير|cashier", re.I),
@@ -248,11 +252,27 @@ _INVOICE_MARKS = (
 
 def shop_invoice(text: str) -> bool:
     """A shop's bill, not a money transfer: at least two kinds of bill
-    wording and nothing of InstaPay or a bank transfer."""
-    text = text.translate(_DIGITS)
-    if _BRAND.search(text) or _SUCCESS.search(text) or _REQUEST.search(text):
+    wording and no sign of a transfer (see ``transfer_words``)."""
+    if transfer_words(text):
         return False
+    text = text.translate(_DIGITS)
     return sum(bool(mark.search(text)) for mark in _INVOICE_MARKS) >= 2
+
+
+_TRANSFER_WORDS = re.compile(
+    r"تحويل|حوال[ةه]|transfer|محفظ[ةه]|wallet|@\s*instapay|EGP|جنيه|ج\.م", re.I
+)
+
+
+def transfer_words(text: str) -> bool:
+    """Any sign of a money transfer: InstaPay, transfer or success wording,
+    receipt labels, or an amount in EGP. A photo of goods with a price tag
+    (a meat label) has none."""
+    text = text.translate(_DIGITS)
+    return any(
+        pattern.search(text)
+        for pattern in (_BRAND, _SUCCESS, _LABEL, _REQUEST, _AMOUNT, _TRANSFER_WORDS)
+    )
 
 
 def single(text: str) -> dict[str, Any]:

@@ -103,6 +103,7 @@ def grade(
         VERSION,
         recipient_check,
         signals,
+        transfer_words,
     )
     from relay.infrastructure.text_recheck import (
         single as one_reading,
@@ -117,7 +118,13 @@ def grade(
     result = {
         "amount": outcome(answers.get("amount"), _text_amount({VERSION: read})),
         "reference": outcome(answers.get("reference"), values.get("reference_number")),
-        "kept": "ok" if _receipt_like(read) else "wrong",
+        # A model reading must also show transfer words: the no-transfer
+        # rule hides a photo when neither reader does.
+        "kept": (
+            "ok"
+            if _receipt_like(read) and (not single or transfer_words(text))
+            else "wrong"
+        ),
         "recipient": "skip",
     }
     if owner is not None:

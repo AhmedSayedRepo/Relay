@@ -709,6 +709,21 @@ def test_a_shop_bill_is_not_a_transfer() -> None:
         "خدمة توصيل 20.00\nالصافى 1,997.35\nالمدفوع نقدا 1,997.35\nاسم الطيار"
     )
     assert shop_invoice(bill)
+    # Real PaddleOCR readings of bills that were missed: misread "Qtv",
+    # "lem Name", a photo of the till screen.
+    assert shop_invoice("35 2026/11/19 1,564 11:49AM Total Item Name Price Qtv 240.00")
+    assert shop_invoice("11126 202511/19 lem Name Price Qty 830.00 0.33 194.90")
+    assert shop_invoice("11418 Total Item 530.00 530.00 20.00 550.00 550.00")
     # A transfer receipt that mentions an amount and a cashier is kept.
     assert not shop_invoice("تم التحويل بنجاح\nInstaPay\n500.00 EGP\ncashier")
     assert not shop_invoice("متابعة المعاملة\nالمبلغ الإجمالي 590.59 EGP")
+
+
+def test_a_price_tag_shows_no_transfer() -> None:
+    from relay.infrastructure.text_recheck import transfer_words
+
+    assert not transfer_words(
+        "كندوز ممتاز\nالاجمالي 318.00\n0.600\n2013-08-16\nلحوم ابو عفصة"
+    )
+    assert transfer_words("متابعة المعاملة\nhagarsalah2222@instapay\n590.59 EGP")
+    assert transfer_words("تم التحويل بنجاح\nFT26323HQ8RM")
