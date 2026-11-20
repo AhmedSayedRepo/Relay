@@ -52,9 +52,9 @@ function MoneyValue({ totals, locale }: { totals: Money | undefined; locale: Loc
 }
 
 /** A dashboard number; the whole card opens its list when `to` is set. */
-function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: string; label: string; value: ReactNode; hint?: ReactNode }) {
+function MetricCard({ to, tone = "", label, value, hint, tip }: { to: string; tone?: string; label: string; value: ReactNode; hint?: ReactNode; tip?: string }) {
   const body = <><span>{label}</span><strong>{value}</strong>{hint && <small>{hint}</small>}</>;
-  return to ? <Link className={"metric metric-link " + tone} to={to}>{body}</Link> : <article className={"metric " + tone}>{body}</article>;
+  return to ? <Link className={"metric metric-link " + tone} to={to} title={tip}>{body}</Link> : <article className={"metric " + tone} title={tip}>{body}</article>;
 }
 
 type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt"; device?: string; amount?: string; currency?: string; since?: string | null; health?: PhoneHealth | null };
@@ -102,11 +102,11 @@ function Alerts({ token }: { token: string }) {
 const QUEUE_TONES = { ready: "success", missing: "warning", duplicate: "duplicate", in_progress: "accent", done: "neutral" } as const;
 
 /** The review workload: one bar for the mix, then a clickable row per kind. */
-function Workload({ queue, waiting, sms, role }: { queue: (readonly [keyof typeof QUEUE_TONES, number])[]; waiting: number; sms: Record<string, number>; role: ReturnType<typeof useRole> }) {
+function Workload({ queue, waiting, sms, unused, role }: { queue: (readonly [keyof typeof QUEUE_TONES, number])[]; waiting: number; sms: Record<string, number>; unused: number; role: ReturnType<typeof useRole> }) {
   const { messages: m } = useI18n(); const d = m.dashboard; const total = queue.reduce((sum, [, value]) => sum + value, 0);
   const row = (key: keyof typeof QUEUE_TONES, value: number) => {
     const body = <><span className={"dot " + QUEUE_TONES[key]} aria-hidden="true" /><span className="label">{m.review.categories[key]}</span><Bidi className="value">{value}</Bidi></>;
-    return <li key={key} className={value ? "" : "zero"}>{canReview(role) ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
+    return <li key={key} className={value ? "" : "zero"} title={d.tips.queue[key]}>{canReview(role) ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
   };
   return <article className="panel workload-panel">
     <div className="panel-head"><h2>{d.workloadTitle}</h2><span className="count-pill"><Bidi>{waiting}</Bidi></span></div>
@@ -114,7 +114,8 @@ function Workload({ queue, waiting, sms, role }: { queue: (readonly [keyof typeo
     <div className="mix-bar" aria-hidden="true">{total > 0 ? queue.filter(([, value]) => value > 0).map(([key, value]) => <span key={key} className={QUEUE_TONES[key]} style={{ flexGrow: value }} />) : <span className="neutral" style={{ flexGrow: 1 }} />}</div>
     <ul className="queue-rows">{queue.map(([key, value]) => row(key, value))}</ul>
     <h3>{d.smsTitle}</h3>
-    <div className="sms-tiles">{(["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"] as const).map((key) => <div key={key} className={"sms-tile " + key.toLowerCase()}><Bidi className="value">{Number(sms[key]) || 0}</Bidi><span>{(d.sms as Record<string, string>)[key]}</span></div>)}</div>
+    <div className="sms-tiles">{(["VERIFIED", "WAITING", "UNMATCHED", "AMBIGUOUS"] as const).map((key) => <div key={key} className={"sms-tile " + key.toLowerCase()} title={d.tips.sms[key]}><Bidi className="value">{Number(sms[key]) || 0}</Bidi><span>{(d.sms as Record<string, string>)[key]}</span></div>)}
+      <div className={"sms-tile unused wide" + (unused ? " attention" : "")} title={d.tips.sms.UNUSED}><Bidi className="value">{unused}</Bidi><span>{d.smsUnused}</span></div></div>
   </article>;
 }
 
@@ -140,17 +141,17 @@ export function Dashboard({ token }: { token: string }) {
       <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} tone="money" label={d.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
-        <MetricCard to="/transactions" label={d.confirmedTotal} value={<MoneyValue totals={data.totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.final_transaction_count) })} · {d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
-        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} label={d.smsMatchedCard} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
-        <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
-        <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
+        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
+        <MetricCard to="/transactions" label={d.confirmedTotal} tip={d.tips.confirmedTotal} value={<MoneyValue totals={data.totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.final_transaction_count) })} · {d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
+        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.notConfirmed} tip={d.tips.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
+        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} label={d.smsMatchedCard} tip={d.tips.smsMatched} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
+        <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} tip={d.tips.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
+        <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} tip={d.tips.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
       <div className="two-column">
-      <Workload queue={queue} waiting={waiting} sms={sms} role={role} /><Alerts token={token} /></div>
+      <Workload queue={queue} waiting={waiting} sms={sms} unused={n(data.bank_sms_unused_count)} role={role} /><Alerts token={token} /></div>
       <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.smsMatchedCol}</th><th>{d.total}</th><th>{d.lastPhoto}</th><th>{d.lastSeen}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.smsMatchedCol}><Bidi>{n(item.sms_verified_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td><td data-label={d.lastPhoto}><span className={"seen " + freshness(item.last_photo_at)}>{ago(item.last_photo_at, locale) || d.never}</span></td><td data-label={d.lastSeen}><span className={"seen " + freshness(item.last_seen_at)}>{ago(item.last_seen_at, locale) || d.never}</span>{phoneNotes(item.health, d, locale).map((note) => <small key={note} className="health-note">{note}</small>)}</td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
-      <article className="panel pulse-panel"><div className="section-heading"><div><h2>{d.activity}</h2><p className="subhead">{d.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div><dt>{d.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div>{data.hidden_image_count > 0 && <div><dt>{d.hiddenImages}</dt><dd><Bidi>{data.hidden_image_count}</Bidi></dd></div>}<div><dt>{d.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div><dt>{d.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div><dt>{d.failedProcessing}</dt><dd><Bidi>{data.processing_failure_count}</Bidi></dd></div></dl></article>
+      <article className="panel pulse-panel"><div className="section-heading"><div><h2>{d.activity}</h2><p className="subhead">{d.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div title={d.tips.pulse.receiptImages}><dt>{d.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div>{data.hidden_image_count > 0 && <div title={d.tips.pulse.hiddenImages}><dt>{d.hiddenImages}</dt><dd><Bidi>{data.hidden_image_count}</Bidi></dd></div>}<div title={d.tips.pulse.smsEvents}><dt>{d.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div title={d.tips.pulse.pendingProcessing}><dt>{d.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div title={d.tips.pulse.failedProcessing}><dt>{d.failedProcessing}</dt><dd><Bidi>{data.processing_failure_count}</Bidi></dd></div></dl></article>
     </>}
   </section>;
 }

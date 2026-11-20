@@ -92,6 +92,12 @@ def _similar_to(value: ReceiptCandidateRow) -> str | None:
     return str(other) if other else None
 
 
+def _with_unchecked(counts: dict[str, int], unchecked: int) -> dict[str, int]:
+    if unchecked:
+        counts["WAITING"] = counts.get("WAITING", 0) + unchecked
+    return counts
+
+
 def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
     """Why a receipt waits for review or was rejected, as a short code the
     portal translates. None for accepted receipts."""
@@ -436,22 +442,43 @@ class SqlOperationsRepository:
         they reached the phone), summed per currency."""
         from relay.domain.sms_verification import SmsDirection, parse_bank_sms
 
-        payloads = await self.db.scalars(
-            select(RawEventRow.payload).where(
+        rows = await self.db.execute(
+            select(RawEventRow.id, RawEventRow.payload).where(
                 RawEventRow.collector == "sms",
                 RawEventRow.occurred_at >= window.start,
                 RawEventRow.occurred_at < window.end_exclusive,
             )
         )
+        used = set(
+            await self.db.scalars(
+                select(SmsVerificationRow.sms_event_id).where(
+                    SmsVerificationRow.sms_event_id.is_not(None)
+                )
+            )
+        )
         totals: dict[str, tuple[int, Decimal]] = {}
-        for payload in payloads:
+        unused: dict[str, tuple[int, Decimal]] = {}
+        for event_id, payload in rows:
             body = payload.get("body") if isinstance(payload, dict) else None
             parsed = parse_bank_sms(body) if isinstance(body, str) else None
             if parsed is None or parsed.direction != SmsDirection.IN:
                 continue
             count, amount = totals.get(parsed.currency, (0, Decimal(0)))
             totals[parsed.currency] = (count + 1, amount + parsed.amount)
+            if event_id not in used:
+                # No receipt claims it: a receipt photo may be missing.
+                count, amount = unused.get(parsed.currency, (0, Decimal(0)))
+                unused[parsed.currency] = (count + 1, amount + parsed.amount)
         return {
+            "bank_sms_unused_count": sum(count for count, _ in unused.values()),
+            "bank_sms_unused_totals": [
+                {
+                    "currency": currency,
+                    "amount": f"{amount:.2f}",
+                    "transaction_count": count,
+                }
+                for currency, (count, amount) in sorted(unused.items())
+            ],
             "bank_sms_received_count": sum(count for count, _ in totals.values()),
             "bank_sms_received_totals": [
                 {
@@ -685,6 +712,19 @@ class SqlOperationsRepository:
             .where(*receipt_range)
             .group_by(SmsVerificationRow.status)
         )
+        # Receipts in Review that were never checked against the SMS yet
+        # (no verification row) still wait for one: count them as waiting.
+        unchecked = await self.db.scalar(
+            select(func.count())
+            .select_from(ReceiptCandidateRow)
+            .where(
+                *receipt_range,
+                ReceiptCandidateRow.review_status == "NEEDS_REVIEW",
+                ~select(SmsVerificationRow.candidate_id)
+                .where(SmsVerificationRow.candidate_id == ReceiptCandidateRow.id)
+                .exists(),
+            )
+        )
         jobs = {str(status): int(count) for status, count in job_counts}
         events: dict[str, int] = {}
         hidden_images = 0
@@ -752,7 +792,10 @@ class SqlOperationsRepository:
             "manual_confirmed_count": max(
                 0, int(final_count or 0) - int(auto_count or 0)
             ),
-            "sms_by_status": {str(status): int(count) for status, count in sms_counts},
+            "sms_by_status": _with_unchecked(
+                {str(status): int(count) for status, count in sms_counts},
+                int(unchecked or 0),
+            ),
             "review_totals_by_currency": [
                 {
                     "currency": code,

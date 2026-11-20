@@ -55,6 +55,8 @@ export type DashboardData = {
   sms_activity: number;
   hidden_image_count: number;
   bank_sms_received_count: number;
+  bank_sms_unused_count?: number;
+  bank_sms_unused_totals?: { currency: string; amount: string; transaction_count: number }[];
   bank_sms_received_totals: { currency: string; amount: string; transaction_count: number }[];
   totals_by_currency: { currency: string; amount: string; transaction_count: number }[];
   processing_by_status: { status: string; count: number }[];
