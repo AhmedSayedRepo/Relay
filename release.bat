@@ -11,7 +11,9 @@ set RELEASES=AhmedSayedRepo/relay-releases
 set NOTES=android/app/src/main/java/com/relay/agent/presentation/WhatsNew.kt
 
 where gh >nul 2>&1 || (echo GitHub CLI is not installed: https://cli.github.com & exit /b 1)
-gh auth status >nul 2>&1 || (echo Run "gh auth login" first. & exit /b 1)
+rem "gh auth status" asks api.github.com, which times out on this network and
+rem looked like being signed out. "gh auth token" only reads the saved sign-in.
+gh auth token >nul 2>&1 || (echo Run "gh auth login" first. & exit /b 1)
 
 set VER=%~1
 if "%VER%"=="" (
@@ -23,7 +25,8 @@ if "%VER%"=="" (
 )
 
 rem The "What's new" window shows only for versions that have notes.
-gh api -H "Accept: application/vnd.github.raw" repos/%REPO%/contents/%NOTES% 2>nul | findstr /c:"\"%VER%\" to" >nul
+rem Read from this folder (after git pull), not from the GitHub API.
+findstr /c:"\"%VER%\" to" "%~dp0%NOTES:/=\%" >nul 2>&1
 if errorlevel 1 (
   echo WARNING: no release notes for %VER% in WhatsNew.kt - the app will not show "What's new".
 )
