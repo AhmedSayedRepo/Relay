@@ -170,7 +170,27 @@ async def test_repeat_without_references_waits(client, auth_headers, app):
     await _send_sms(client, bundle, body, _now())
     await _send_sms(client, bundle, body, _now())
     # Same amount, no reference and no readable sender: could be one transfer.
-    counts = await _read_and_confirm(app, {"amount": "410.00", "currency": "EGP"})
+    await model_suggest(
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"amount": "410.00", "currency": "EGP"}),
+        10,
+    )
+    await _text(app)
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            resolution = dict(row.resolution_result)
+            fields = dict(resolution["fields"])
+            fields["reference_number"] = {
+                **fields["reference_number"],
+                "value": None,
+                "candidates": [],
+            }
+            row.resolution_result = resolution | {"fields": fields}
+        await session.commit()
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
     assert counts["sms_day"] == 0 and counts["waiting"] == 2
     listed = await client.get("/api/v1/transactions", headers=auth_headers)
     pair = {i["id"]: i["similar_to"] for i in listed.json()["items"]}
@@ -908,8 +928,8 @@ async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
     assert again["sms_day"] == 1
     async with app.state.database.session() as session:
         rows = (await session.scalars(select(ReceiptCandidateRow))).all()
-    hidden = [row for row in rows if row.hidden_reason == "same_receipt"]
-    assert len(hidden) == 1
-    kept = [row for row in rows if row.hidden_reason is None]
-    assert kept[0].review_status == "AUTO_ACCEPTED"
-    assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
+        hidden = [row for row in rows if row.hidden_reason == "same_receipt"]
+        kept = [row for row in rows if row.hidden_reason is None]
+        assert len(hidden) == 1
+        assert kept[0].review_status == "AUTO_ACCEPTED"
+        assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
