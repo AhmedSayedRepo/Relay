@@ -386,6 +386,20 @@ private fun Header(
                 }
             }
         }
+        // Which phone this is (its name in Relay), so a cashier can tell
+        // the phones apart at a glance.
+        val name = status.deviceName
+        if (status.enrollment == EnrollmentState.ENROLLED && !name.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Surface(shape = CircleShape, color = relay.headerRule) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = relay.onHeader,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                )
+            }
+        }
         when (status.enrollment) {
             EnrollmentState.LOADING -> {
                 Spacer(Modifier.height(20.dp))
