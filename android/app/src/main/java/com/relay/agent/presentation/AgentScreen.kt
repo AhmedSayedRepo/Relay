@@ -104,6 +104,8 @@ data class AgentActions(
     val setSmsConsent: (Boolean) -> Unit = {},
     val requestSmsPermission: () -> Unit = {},
     val discardSms: () -> Unit = {},
+    /** Relay Bank SMS: send missed bank SMS from the phone's inbox. */
+    val catchUpSms: () -> Unit = {},
     val setImageConsent: (Boolean) -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val removeFolder: () -> Unit = {},
@@ -540,6 +542,10 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                         if (sms == Blocker.SMS_PERMISSION) {
                             Button(onClick = actions.requestSmsPermission) {
                                 Text(stringResource(R.string.allow_sms_access))
+                            }
+                        } else if (sms == Blocker.NONE) {
+                            OutlinedButton(onClick = actions.catchUpSms) {
+                                Text(stringResource(R.string.catch_up_sms))
                             }
                         }
                     }

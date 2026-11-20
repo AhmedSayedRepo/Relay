@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid3
 
 import pytest
 from httpx import AsyncClient
@@ -121,3 +121,42 @@ def test_warning_email_says_why_the_phone_is_silent() -> None:
     assert "Cashier &lt;1&gt;" in html
     assert "battery saving limits the app" in html
     assert "590.00 EGP" in html and "2 warnings" in html
+
+
+@pytest.mark.asyncio
+async def test_the_same_bank_sms_caught_up_again_is_stored_once(
+    client: AsyncClient, auth_headers: dict[str, str], app: Any
+) -> None:
+    from relay.infrastructure.event_models import RawEventRow
+    from tests.test_events import event, headers
+    from tests.test_events import provision as provision_sms
+
+    _, bundle = await provision_sms(client, auth_headers, "sms-twice-phone")
+    first = event(bundle["installation_id"])
+    # Caught up from the inbox: an id named after the SMS (version 3).
+    again = event(bundle["installation_id"], event_id=str(uuid3(NAMESPACE_URL, "sms")))
+    # A second live SMS with the same text and time is kept (two payments).
+    live = event(bundle["installation_id"])
+    again["occurred_at"] = first["occurred_at"]
+    statuses = []
+    for item in (first, again):
+        item["occurred_at"] = first["occurred_at"]
+        response = await client.post(
+            "/api/v1/device/events/batch",
+            headers=headers(bundle),
+            json={"events": [item]},
+        )
+        statuses.append(response.json()["results"][0]["status"])
+    assert statuses == ["accepted", "duplicate"]
+    live["occurred_at"] = first["occurred_at"]
+    response = await client.post(
+        "/api/v1/device/events/batch", headers=headers(bundle), json={"events": [live]}
+    )
+    assert response.json()["results"][0]["status"] == "accepted"
+    async with app.state.database.session() as session:
+        rows = (
+            await session.scalars(
+                select(RawEventRow).where(RawEventRow.collector == "sms")
+            )
+        ).all()
+    assert len(rows) == 2

@@ -18,7 +18,18 @@ class SmsCollector(
     private val newEventId: () -> String = { UUID.randomUUID().toString() },
     private val log: (String) -> Unit = { Log.i(TAG, it) }
 ) {
-    suspend fun collect(message: IncomingSms): CollectionOutcome {
+    /**
+     * A bank SMS caught up from the phone's inbox (after the app was missing
+     * or stopped). Its event id comes from the message itself, so catching up
+     * twice sends it once; the server also skips an SMS it already has.
+     */
+    suspend fun collectMissed(message: IncomingSms): CollectionOutcome {
+        val installation = store.read().installationId
+        val key = "$installation|sms|${message.sender}|${message.receivedAtMillis}|${message.body}"
+        return collect(message, UUID.nameUUIDFromBytes(key.toByteArray()).toString())
+    }
+
+    suspend fun collect(message: IncomingSms, eventId: String? = null): CollectionOutcome {
         val state = store.read()
         val configuration = state.configuration
         if (
@@ -42,7 +53,7 @@ class SmsCollector(
         }
         val capturedAt = now().toString()
         val value = GenericEvent(
-            newEventId(),
+            eventId ?: newEventId(),
             state.installationId,
             "sms",
             1,

@@ -74,8 +74,9 @@ class SecureStorageInstrumentedTest {
         val context = ApplicationProvider.getApplicationContext<RelayApplication>()
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 4096)
         val requested = packageInfo.requestedPermissions?.toSet().orEmpty()
+        // READ_SMS is requested (full build) but asked only to catch up
+        // missed bank SMS.
         val forbidden = setOf(
-            Manifest.permission.READ_SMS,
             Manifest.permission.READ_CONTACTS,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.READ_PHONE_STATE,

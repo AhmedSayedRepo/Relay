@@ -15,6 +15,9 @@ class AddEventResult(StrEnum):
 
 class EventRepository(Protocol):
     async def add(self, event: RawEvent) -> AddEventResult: ...
+    async def same_sms_seen(
+        self, occurred_at: datetime, sender: str, body: str
+    ) -> bool: ...
     async def by_identity(
         self, installation_id: UUID, event_id: UUID
     ) -> RawEvent | None: ...

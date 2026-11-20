@@ -20,7 +20,9 @@ import com.relay.agent.data.HttpRelayApi
 import com.relay.agent.data.KeystoreCredentialCipher
 import com.relay.agent.data.PhoneHealthReader
 import com.relay.agent.data.SafTreeImageSource
+import com.relay.agent.data.SmsInbox
 import com.relay.agent.data.SyncScheduler
+import com.relay.agent.domain.CollectionOutcome
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +77,26 @@ class RelayApplication : Application() {
     val scheduler by lazy { SyncScheduler(this, store) }
     val uploadScheduler by lazy { EventUploadScheduler(this) }
     val smsCollector by lazy { SmsCollector(store, outbox, ::smsPermissionGranted) }
+
+    fun readSmsGranted(): Boolean = ContextCompat.checkSelfPermission(
+        this,
+        Manifest.permission.READ_SMS
+    ) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Sends the bank SMS of the last [days] days from the phone's inbox:
+     * what arrived while the app was missing or stopped. Returns how many
+     * bank SMS were queued (others are filtered out as usual).
+     */
+    suspend fun catchUpSms(days: Long = CATCH_UP_DAYS): Int {
+        if (!readSmsGranted()) return 0
+        val since = System.currentTimeMillis() - days * 24 * 60 * 60 * 1000
+        val captured = SmsInbox(this).since(since).count {
+            smsCollector.collectMissed(it) == CollectionOutcome.CAPTURED
+        }
+        if (captured > 0) uploadScheduler.enqueue()
+        return captured
+    }
     val imageCollector by lazy { ImageCollector(store, imageSource, binaryOutbox) }
     val imageUploader by lazy { ImageUploader(store, api, binaryOutbox) }
 
@@ -87,6 +109,8 @@ class RelayApplication : Application() {
     }
 
     companion object {
+        const val CATCH_UP_DAYS = 3L
+
         fun from(context: Context): RelayApplication =
             context.applicationContext as RelayApplication
     }

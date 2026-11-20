@@ -101,6 +101,22 @@ class SmsCollectorTest {
     }
 
     @Test
+    fun aMissedSmsCaughtUpTwiceKeepsOneEventId() = runTest {
+        val outbox = RecordingOutbox()
+        val state = StoredState("installation", credentials, enabled, localSmsConsent = true)
+        val collector = collector(state, outbox, true)
+
+        assertEquals(CollectionOutcome.CAPTURED, collector.collectMissed(message))
+        assertEquals(CollectionOutcome.CAPTURED, collector.collectMissed(message))
+        val other = message.copy(body = message.body + " ")
+        assertEquals(CollectionOutcome.CAPTURED, collector.collectMissed(other))
+
+        val ids = outbox.events.map { it.eventId }
+        assertEquals(ids[0], ids[1])
+        assertTrue(ids[0] != ids[2])
+    }
+
+    @Test
     fun permissionWithdrawalStopsSubsequentCollectionImmediately() = runTest {
         var permission = true
         val outbox = RecordingOutbox()

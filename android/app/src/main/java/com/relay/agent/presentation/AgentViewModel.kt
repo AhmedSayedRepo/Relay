@@ -75,6 +75,11 @@ class AgentViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Catches up bank SMS from the inbox; [done] gets how many were queued. */
+    fun catchUpSms(done: (Int) -> Unit) {
+        viewModelScope.launch { done(app.catchUpSms()) }
+    }
+
     fun discardQueuedEvents() {
         viewModelScope.launch { app.controller.discardQueuedEvents() }
     }
