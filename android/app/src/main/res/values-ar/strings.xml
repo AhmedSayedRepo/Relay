@@ -32,6 +32,9 @@
     <string name="catch_up_done">رسايل البنك اللي فاتت واتبعتت لـ Relay: %1$d</string>
     <string name="catch_up_none">مفيش رسايل بنك فاتت</string>
     <string name="catch_up_denied">اسمح بقراءة الرسايل علشان نجيب رسايل البنك اللي فاتت</string>
+    <string name="battery_restricted_title">توفير البطارية مقيّد Relay</string>
+    <string name="battery_restricted_text">الإيصالات ممكن تتأخر أو ماتوصلش. اسمح لـ Relay يشتغل في الخلفية.</string>
+    <string name="battery_allow">اسمح بالتشغيل في الخلفية</string>
     <string name="allow_sms_access">السماح بالوصول إلى الرسائل</string>
     <string name="choose_folder">اختيار مجلد</string>
     <string name="change_folder">تغيير المجلد</string>

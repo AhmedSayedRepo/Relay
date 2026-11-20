@@ -3,10 +3,14 @@
 package com.relay.agent.presentation
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -16,6 +20,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -56,14 +63,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = viewModel()) {
     val status by model.status.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val power = context.getSystemService(PowerManager::class.java)
+    var batteryRestricted by remember { mutableStateOf(false) }
     LifecycleResumeEffect(model) {
         model.permissionChanged()
+        // Checked again on return from Android's battery question.
+        batteryRestricted = !power.isIgnoringBatteryOptimizations(context.packageName)
         onPauseOrDispose {}
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { model.permissionChanged() }
-    val context = LocalContext.current
     val app = RelayApplication.from(context)
     val caughtUp: (Int) -> Unit = { count ->
         val text = if (count > 0) {
@@ -116,12 +127,14 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
         status = status,
         appVersion = BuildConfig.VERSION_NAME,
         switchLanguage = switchLanguage,
+        batteryRestricted = batteryRestricted,
         actions = AgentActions(
             enroll = model::enroll,
             sync = model::sync,
             setSmsConsent = model::setSmsConsent,
             requestSmsPermission = { permissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
             discardSms = model::discardQueuedEvents,
+            allowBackground = { askToRunInBackground(context) },
             catchUpSms = {
                 if (app.readSmsGranted()) {
                     model.catchUpSms(caughtUp)
@@ -171,4 +184,26 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
             }
         )
     )
+}
+
+/**
+ * Android's own "let this app always run in the background?" question, so
+ * nobody has to find the battery menus. Falls back to the list of apps when a
+ * phone does not offer the question.
+ */
+@SuppressLint("BatteryLife")
+private fun askToRunInBackground(context: Context) {
+    val ask = Intent(
+        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        "package:${context.packageName}".toUri()
+    )
+    try {
+        context.startActivity(ask)
+    } catch (_: ActivityNotFoundException) {
+        try {
+            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        } catch (_: ActivityNotFoundException) {
+            Unit
+        }
+    }
 }
