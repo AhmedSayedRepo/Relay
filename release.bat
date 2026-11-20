@@ -43,15 +43,13 @@ for /l %%n in (1,1,3) do if not defined STARTED (
   if not defined STARTED (echo GitHub API did not answer, try %%n of 3... & timeout /t 5 /nobreak >nul)
 )
 if not defined STARTED (
-  if "%BANK%"=="true" (
-    echo GitHub API is unreachable and a tag cannot include Relay Bank SMS.
-    echo Start it on the website: https://github.com/%REPO%/actions/workflows/android-release.yml
-    exit /b 1
-  )
-  echo Starting the release with a git tag instead...
+  rem A tag ending in -bank also builds Relay Bank SMS.
+  set TAG=agent-v%VER%
+  if "%BANK%"=="true" set TAG=agent-v%VER%-bank
+  echo Starting the release with a git tag instead: !TAG!
   git fetch -q origin main || (echo Could not reach GitHub at all. Check the internet. & exit /b 1)
-  git tag agent-v%VER% origin/main || exit /b 1
-  git push -q origin agent-v%VER% || (git tag -d agent-v%VER% >nul & echo Could not push the tag. & exit /b 1)
+  git tag !TAG! origin/main || exit /b 1
+  git push -q origin !TAG! || (git tag -d !TAG! >nul & echo Could not push the tag. & exit /b 1)
   set STARTED=tag
 )
 echo Started. Waiting for GitHub to pick it up...
