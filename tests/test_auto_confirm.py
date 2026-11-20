@@ -886,3 +886,30 @@ def test_paddleocr_amount_comes_from_its_latin_reader_first() -> None:
     assert _paddle_amount(both, latin) == "577.00"
     # Older readings without the Latin lines still give an amount.
     assert _paddle_amount("تم التحويل بنجاح\n577 EGP\nمبلغ التحويل", None) == "577.00"
+
+
+async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
+    client, auth_headers, app
+):
+    first, _ = await run_receipt(client, auth_headers, app, "day-copy-a")
+    second, _ = await run_receipt(client, auth_headers, app, "day-copy-b")
+    bundle = await _link_sms(client, auth_headers, [first, second], "day-copy-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 577.00 via InstaPay", _now()
+    )
+    # One transfer, photographed twice (forwarded, or in two folders).
+    same = {"amount": "577.00", "currency": "EGP", "reference_number": "820492013227"}
+    counts = await _read_and_confirm(app, same)
+    assert counts["copies"] == 1
+    # With the copy out of the way, the first one is confirmed.
+    again = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert again["sms_day"] == 1
+    async with app.state.database.session() as session:
+        rows = (await session.scalars(select(ReceiptCandidateRow))).all()
+    hidden = [row for row in rows if row.hidden_reason == "same_receipt"]
+    assert len(hidden) == 1
+    kept = [row for row in rows if row.hidden_reason is None]
+    assert kept[0].review_status == "AUTO_ACCEPTED"
+    assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)

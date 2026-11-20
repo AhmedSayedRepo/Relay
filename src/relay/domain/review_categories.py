@@ -54,6 +54,16 @@ def _handled(fields: dict[str, JsonValue], name: str) -> bool:
     )
 
 
+def _repeats(row: dict[str, JsonValue]) -> bool:
+    """Flagged as maybe the same payment as another receipt (also one that
+    is already confirmed, which the reference count above cannot see)."""
+    resolution = row.get("resolution_result")
+    return bool(row.get("duplicate_of_candidate_id")) or (
+        isinstance(resolution, dict)
+        and isinstance(resolution.get("possible_repeat"), dict)
+    )
+
+
 def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
     """Map receipt id to one category, checked in this order:
     done (every remaining field was marked unavailable), in_progress (an
@@ -77,7 +87,7 @@ def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
             result[identifier] = "done"
         elif decided:
             result[identifier] = "in_progress"
-        elif reference and counts[reference] > 1:
+        elif (reference and counts[reference] > 1) or _repeats(row):
             result[identifier] = "duplicate"
         elif any(suggestion(fields.get(name)) is None for name in _blocking(row)):
             result[identifier] = "missing"
