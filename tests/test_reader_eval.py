@@ -80,3 +80,6 @@ def test_helper_fills_what_the_current_reader_missed() -> None:
         "recipient": "ok",
         "kept": "ok",
     }
+    # PaddleOCR is first: its reading stands even when Tesseract's differs.
+    wrong = helper | {"recipient": "wrong"}
+    assert combined(current | {"recipient": "ok"}, wrong)["recipient"] == "wrong"

@@ -249,18 +249,15 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades
 
 
 def combined(current: dict[str, str], helper: dict[str, str]) -> dict[str, str]:
-    """What the confirming step now sees: the helper's (classic PaddleOCR)
-    amount when it read one, else the current reader's; the current reader's
-    reference, else the helper's; the recipient matched when either matches."""
+    """What the confirming step sees: classic PaddleOCR first, Tesseract
+    where PaddleOCR read nothing (a "miss"); the receipt is kept when either
+    reader keeps it (PaddleOCR brings back what Tesseract rejected)."""
     merged = dict(current)
-    if helper["amount"] != "miss":
-        merged["amount"] = helper["amount"]
-    if current["reference"] == "miss":
-        merged["reference"] = helper["reference"]
-    if helper["recipient"] == "ok" or (
-        current["recipient"] == "miss" and helper["recipient"] != "skip"
-    ):
-        merged["recipient"] = helper["recipient"]
+    for field in ("amount", "reference", "recipient"):
+        if helper[field] not in ("miss", "skip"):
+            merged[field] = helper[field]
+    if helper["kept"] == "ok":
+        merged["kept"] = "ok"
     return merged
 
 
@@ -271,22 +268,25 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
     not set). An improved or equal score replaces the saved one."""
     import asyncio
 
-    grades, models = asyncio.run(confirmed_grades(settings))
+    tesseract, models = asyncio.run(confirmed_grades(settings))
+    # What is in use: PaddleOCR first, Tesseract second (Tesseract alone
+    # where PaddleOCR has not read the receipt).
+    helper = models.get(HELPER, {})
+    grades = {
+        key: combined(value, helper[key]) if key in helper else value
+        for key, value in tesseract.items()
+    }
+    print("In use: PaddleOCR (classic) first, Tesseract second")
     for line in summary(grades):
         print(line)
     for version, model in sorted(models.items()):
-        both = {key: grades[key] for key in model if key in grades}
+        both = {key: tesseract[key] for key in model if key in tesseract}
         name = MODEL_NAMES.get(version, version)
-        print(f"\nSame {len(both)} receipts, current reader vs {name}:")
+        print(f"\nSame {len(both)} receipts, each reader alone:")
         for line in summary(both)[1:]:
-            print("  current" + line)
+            print("  Tesseract" + line)
         for line in summary({key: model[key] for key in both})[1:]:
-            print("  model  " + line)
-        if version == HELPER:
-            print(f"\nSame {len(both)} receipts, current reader + {name} as helper:")
-            merged = {key: combined(grades[key], model[key]) for key in both}
-            for line in summary(merged)[1:]:
-                print("  both   " + line)
+            print(f"  {name[:9]:<9}" + line)
     if score is None:
         return 0
     before: dict[str, dict[str, str]] = {}
