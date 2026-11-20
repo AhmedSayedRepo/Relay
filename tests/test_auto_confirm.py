@@ -1018,6 +1018,8 @@ async def test_a_receipt_paid_days_before_it_arrived_waits(client, auth_headers,
     async with app.state.database.session() as session:
         row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
         assert row.resolution_result["old_receipt"]["paid_on"] == paid
+
+
 def test_paddleocr_amount_read_without_its_currency() -> None:
     from relay.infrastructure.cli import _paddle_amount
 
