@@ -790,3 +790,38 @@ async def test_a_receipt_a_person_rejected_stays_rejected(client, auth_headers, 
         await session.commit()
     await _ppocr(app, "تم التحويل بنجاح\n500.00 EGP\nالرقم المرجعي 111122223333")
     assert await helper_reopen(app.state.database) == 0
+
+
+def test_a_send_screen_with_an_error_is_not_a_transfer() -> None:
+    from relay.infrastructure.text_recheck import not_completed
+
+    error = (
+        "إرسال نقود\nfonpn@instapay CHECKING\nإرسال النقود إلى المفضلين\n"
+        "رقم الهاتف أو عنوان الدفع اللحظي غير صحيح ، يرجى المحاولة مرة أخرى "
+        "بعد التحقق من بيانات المستفيد\nEGP 1,300\nأضف سبب التحويل\nالتالي"
+    )
+    assert not_completed(error)
+    assert not_completed("إرسال النقود إلى\n01003405232\nEGP 820\nالتالي")
+    assert not not_completed("تم التحويل بنجاح\n530 EGP\nمبلغ التحويل")
+    assert not not_completed("Your transaction was successful\n195 EGP")
+
+
+async def test_review_rejects_a_failed_send_screen(client, auth_headers, app):
+    from relay.infrastructure.cli import hide_non_receipts
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-failed-send")
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.review_status = "NEEDS_REVIEW"
+            row.reviewed_result = None
+        await session.commit()
+    await _text(app, "")
+    await _ppocr(
+        app,
+        "إرسال نقود\nرقم الهاتف أو عنوان الدفع اللحظي غير صحيح ، يرجى المحاولة "
+        "مرة أخرى\nEGP 1,300\nالتالي",
+    )
+    await hide_non_receipts(app.state.database)
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "REJECTED"
+    assert detail["status_reason"] == "transfer_failed"

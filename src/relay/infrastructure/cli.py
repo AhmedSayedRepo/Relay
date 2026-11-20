@@ -197,6 +197,24 @@ def _shop_invoice(row: ReceiptCandidateRow) -> bool:
     return any(text_recheck.shop_invoice(text) for text in texts if text)
 
 
+def _not_completed(row: ReceiptCandidateRow) -> bool:
+    """An untouched Review item that either reader shows is a transfer that
+    did not happen (error message, or the send form), with no success
+    wording in either reading."""
+    from relay.infrastructure import text_recheck
+
+    if not _machine_only(row):
+        return False
+    machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+    texts = [
+        str(reading.get("text") or "")
+        for reading in (machine.get(text_recheck.VERSION), _helper_read(machine))
+        if isinstance(reading, dict)
+    ]
+    joined = "\n".join(texts)
+    return bool(joined.strip()) and text_recheck.not_completed(joined)
+
+
 def _no_transfer(row: ReceiptCandidateRow) -> bool:
     """An untouched Review item that both readers read, with no sign of a
     money transfer in either (a photo of goods with a price tag). Waits for
@@ -241,7 +259,17 @@ async def hide_non_receipts(database: Database) -> int:
             )
         )
         for row in rows:
-            if _clear_non_receipt(row):
+            if _not_completed(row):
+                # An error screen or the send form: no money moved. Rejected,
+                # with nothing suggested, so no amount is offered.
+                resolution = copy.deepcopy(row.resolution_result or {})
+                resolution["state"] = "REJECTED_OR_UNKNOWN_RECEIPT"
+                resolution["blocking_fields"] = []
+                resolution["rejected_reason"] = "not_completed"
+                row.resolution_result = resolution
+                row.review_status = ReviewStatus.REJECTED.value
+                hidden += 1
+            elif _clear_non_receipt(row):
                 row.hidden_reason = "not_a_receipt"
                 hidden += 1
             elif _shop_invoice(row):
@@ -327,14 +355,16 @@ def _helper_amount(helper: dict[str, Any] | None) -> str | None:
 
 def _helper_receipt(helper: dict[str, Any] | None) -> bool:
     """Classic PaddleOCR clearly read a money transfer."""
-    from relay.infrastructure.text_recheck import transfer_words
+    from relay.infrastructure.text_recheck import not_completed, transfer_words
 
+    text = str((helper or {}).get("text") or "")
     return bool(
         helper is not None
         and helper.get("receipt")
         and not helper.get("payment_request")
         and not helper.get("failed")
-        and transfer_words(str(helper.get("text") or ""))
+        and transfer_words(text)
+        and not not_completed(text)
     )
 
 
