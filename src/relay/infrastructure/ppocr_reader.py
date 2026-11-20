@@ -1,13 +1,15 @@
-"""Fourth receipt reader, under trial: classic PaddleOCR (PP-OCR) via RapidOCR.
+"""First receipt reader: classic PaddleOCR (PP-OCR) via RapidOCR.
 
 A small detector finds the text lines and a recognizer reads each one: two
 recognizers, Chinese/English (Latin letters and digits) and Arabic, because
 receipts mix both. It is fast enough on a CPU to read every receipt within
 seconds, so it runs all day in its own container (compose.yaml, "ppocr").
 
-The text is stored under ``machine_result[VERSION]``, lines top to bottom,
-and nothing else: auto-confirm does not use it. ``eval-reader`` scores it
-against the current reader on confirmed receipts first.
+Stored under ``machine_result[VERSION]``: ``text`` (both recognizers'
+lines, top to bottom) and ``latin`` (the Chinese/English recognizer alone,
+which reads digits best: the Arabic one can drop a digit, 577 read as 57).
+``latest`` gives the newest reading, falling back to earlier versions while
+receipts are read again.
 """
 
 from __future__ import annotations
@@ -28,8 +30,33 @@ from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
 # v1-v3 readings all failed (numpy results, missing python-bidi, no Arabic
-# model in PP-OCRv6); v4 reads every receipt again.
-VERSION = "ppocr_v4"
+# model in PP-OCRv6); v5 adds the Latin recognizer's lines on their own.
+VERSION = "ppocr_v5"
+EARLIER = ("ppocr_v4",)
+KEYS = (VERSION, *EARLIER)
+
+
+def latest_version(machine: Any) -> str | None:
+    """Which reading ``latest`` gives: the newest successful version."""
+    if not isinstance(machine, dict):
+        return None
+    for key in KEYS:
+        reading = machine.get(key)
+        if (
+            isinstance(reading, dict)
+            and not reading.get("error")
+            and str(reading.get("text") or "").strip()
+        ):
+            return key
+    return None
+
+
+def latest(machine: Any) -> dict[str, Any] | None:
+    """The newest successful PaddleOCR reading of a receipt, if any."""
+    key = latest_version(machine)
+    return machine[key] if key is not None else None
+
+
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
@@ -92,6 +119,11 @@ def lines(boxes: Any, texts: Any) -> list[str]:
 
 def read_ppocr(data: bytes) -> str:
     """Both recognizers' lines, one reading after the other."""
+    return str(read_parts(data)["text"])
+
+
+def read_parts(data: bytes) -> dict[str, str]:
+    """``text``: both recognizers' lines; ``latin``: the first alone."""
     from PIL import Image, ImageOps
 
     with Image.open(io.BytesIO(data)) as image:
@@ -107,7 +139,7 @@ def read_ppocr(data: bytes) -> str:
                 lines(getattr(result, "boxes", None), getattr(result, "txts", None))
             )
         )
-    return "\n".join(parts)
+    return {"text": "\n".join(parts), "latin": parts[0] if parts else ""}
 
 
 async def ppocr_pass(
@@ -141,9 +173,7 @@ async def ppocr_pass(
         started = time.monotonic()
         try:
             data = storage.read(storage_key, MAX_IMAGE_BYTES)
-            reading: dict[str, Any] = {
-                "text": await asyncio.to_thread(read_ppocr, data)
-            }
+            reading: dict[str, Any] = dict(await asyncio.to_thread(read_parts, data))
         except Exception as error:  # noqa: BLE001 - one bad image, not the batch
             reading = {"text": "", "error": f"{type(error).__name__}: {error}"[:300]}
         reading |= {

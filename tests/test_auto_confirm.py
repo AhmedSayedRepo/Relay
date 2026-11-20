@@ -875,3 +875,14 @@ async def test_paddleocr_values_lead_in_review(client, auth_headers, app):
     assert fields["reference_number"]["value"] == "885379009975"
     # Once per reading.
     assert await helper_suggest(app.state.database) == 0
+
+
+def test_paddleocr_amount_comes_from_its_latin_reader_first() -> None:
+    from relay.infrastructure.cli import _paddle_amount
+
+    latin = "577 EGP\nahmedhassan0902@instapay\n01003405232\n820492013227"
+    # The Arabic recognizer dropped a digit under the success line.
+    both = latin + "\nتم التحويل بنجاح\n57 EGP\nمبلغ التحويل"
+    assert _paddle_amount(both, latin) == "577.00"
+    # Older readings without the Latin lines still give an amount.
+    assert _paddle_amount("تم التحويل بنجاح\n577 EGP\nمبلغ التحويل", None) == "577.00"
