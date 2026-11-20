@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 from relay.application.agent_ports import AgentUnitOfWork, DeviceTokenProvider
@@ -415,7 +416,11 @@ class AgentService:
         return version
 
     async def heartbeat(
-        self, principal: DevicePrincipal, app_version: str, current_config_version: int
+        self,
+        principal: DevicePrincipal,
+        app_version: str,
+        current_config_version: int,
+        health: dict[str, Any] | None = None,
     ) -> Contact:
         validate_metadata(app_version, 64)
         installation = await self._authorize(principal)
@@ -435,8 +440,11 @@ class AgentService:
         if installation.reported_config_version != current_config_version:
             installation.reported_config_version = current_config_version
             await self.uow.agents.save_installation(installation)
+        now = datetime.now(UTC)
+        if health is not None:
+            await self.uow.agents.save_health(principal.device_id, health, now)
         seen = await self.uow.agents.contact(
-            principal.device_id, datetime.now(UTC), app_version, self.coalesce_seconds
+            principal.device_id, now, app_version, self.coalesce_seconds
         )
         await self.uow.commit()
         return Contact(seen, config.version, installation.acknowledged_version)

@@ -11,7 +11,7 @@ import { contextHelp, getHelpTopics } from "./help/topics";
 import { cairoDate, defaultDates, useApi } from "./hooks";
 import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
-import type { DashboardData, DuplicateGroup, Job, Json, Page, Transaction } from "./types";
+import type { DashboardData, DuplicateGroup, Job, Json, Page, PhoneHealth, Transaction } from "./types";
 import { canReview, isAdmin, useRole } from "./role";
 import { usePersisted } from "./filters";
 
@@ -57,7 +57,7 @@ function MetricCard({ to, tone = "", label, value, hint }: { to: string; tone?: 
   return to ? <Link className={"metric metric-link " + tone} to={to}>{body}</Link> : <article className={"metric " + tone}>{body}</article>;
 }
 
-type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt"; device?: string; amount?: string; currency?: string; since?: string | null };
+type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt"; device?: string; amount?: string; currency?: string; since?: string | null; health?: PhoneHealth | null };
 
 const cairoClock = (iso: string | null | undefined, locale: Locale) => iso ? new Date(iso).toLocaleTimeString(locale === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }) : "";
 
@@ -69,6 +69,15 @@ function ago(iso: string | null | undefined, locale: Locale): string {
   if (Math.abs(minutes) < 60) return words.format(minutes, "minute");
   if (Math.abs(minutes) < 60 * 24) return words.format(Math.round(minutes / 60), "hour");
   return words.format(Math.round(minutes / 1440), "day");
+}
+
+/** What the phone's app says about why it was quiet: current risks first, then the last silence. */
+function phoneNotes(health: PhoneHealth | null | undefined, d: Messages["dashboard"], locale: Locale): string[] {
+  if (!health) return [];
+  const notes = (health.risks ?? []).map((code) => d.phoneRisks[code]).filter(Boolean);
+  const gap = health.gap;
+  if (gap && d.phoneGaps[gap.reason]) notes.push(formatMessage(d.phoneGapLine, { reason: d.phoneGaps[gap.reason], time: cairoClock(gap.at ?? gap.to, locale) }));
+  return notes;
 }
 
 /** Green within the hour, amber after, grey when never. */
@@ -85,7 +94,7 @@ function Alerts({ token }: { token: string }) {
     {alerts.length === 0 ? <div className="all-clear"><Icon name="review" size={28} /><p>{d.alertsNone}</p></div> : <>
       <p className="subhead">{d.alertsResets}</p>
       <ul className="alerts-list">{alerts.map((item) => item.kind === "silent_phone"
-        ? <li key={item.key} className="alert-item phone"><span className="alert-icon"><Icon name="devices" size={18} /></span><div><strong>{item.device}</strong><span>{item.since ? formatMessage(d.alertSilentMeta, { time: cairoClock(item.since, locale) }) : d.alertSilentNeverMeta}</span><small>{d.alertSilentTip}</small></div></li>
+        ? <li key={item.key} className="alert-item phone"><span className="alert-icon"><Icon name="devices" size={18} /></span><div><strong>{item.device}</strong><span>{item.since ? formatMessage(d.alertSilentMeta, { time: cairoClock(item.since, locale) }) : d.alertSilentNeverMeta}</span>{phoneNotes(item.health, d, locale).map((note) => <small key={note} className="health-note">{note}</small>)}<small>{d.alertSilentTip}</small></div></li>
         : <li key={item.key} className="alert-item sms"><span className="alert-icon"><Icon name="bankSms" size={18} /></span><div><strong><Bidi>{money(item)}</Bidi></strong><span>{formatMessage(d.alertSmsMeta, { time: cairoClock(item.since, locale) })}</span><small>{d.alertSmsTip}</small></div></li>)}</ul></>}
   </article>;
 }
@@ -140,7 +149,7 @@ export function Dashboard({ token }: { token: string }) {
       </div>
       <div className="two-column">
       <Workload queue={queue} waiting={waiting} sms={sms} role={role} /><Alerts token={token} /></div>
-      <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.smsMatchedCol}</th><th>{d.total}</th><th>{d.lastPhoto}</th><th>{d.lastSeen}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.smsMatchedCol}><Bidi>{n(item.sms_verified_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td><td data-label={d.lastPhoto}><span className={"seen " + freshness(item.last_photo_at)}>{ago(item.last_photo_at, locale) || d.never}</span></td><td data-label={d.lastSeen}><span className={"seen " + freshness(item.last_seen_at)}>{ago(item.last_seen_at, locale) || d.never}</span></td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
+      <article className="panel wide"><div className="section-heading"><div><h2>{d.phonesTitle}</h2><p className="subhead">{d.phonesIntro}</p></div></div>{data.transactions_by_device.length ? <div className="table-wrap flush"><table><thead><tr><th>{d.phone}</th><th>{d.received}</th><th>{d.confirmed}</th><th>{d.smsMatchedCol}</th><th>{d.total}</th><th>{d.lastPhoto}</th><th>{d.lastSeen}</th></tr></thead><tbody>{data.transactions_by_device.map((item) => <tr key={item.device_id}><td data-label={d.phone}>{item.device_name}</td><td data-label={d.received}><Bidi>{item.count}</Bidi></td><td data-label={d.confirmed}><Bidi>{n(item.confirmed_count)}</Bidi></td><td data-label={d.smsMatchedCol}><Bidi>{n(item.sms_verified_count)}</Bidi></td><td data-label={d.total}><Amount amount={item.confirmed_amount ?? null} currency="EGP" locale={locale} /></td><td data-label={d.lastPhoto}><span className={"seen " + freshness(item.last_photo_at)}>{ago(item.last_photo_at, locale) || d.never}</span></td><td data-label={d.lastSeen}><span className={"seen " + freshness(item.last_seen_at)}>{ago(item.last_seen_at, locale) || d.never}</span>{phoneNotes(item.health, d, locale).map((note) => <small key={note} className="health-note">{note}</small>)}</td></tr>)}</tbody></table></div> : <p className="empty-inline">{d.noPhones}</p>}</article>
       <article className="panel pulse-panel"><div className="section-heading"><div><h2>{d.activity}</h2><p className="subhead">{d.deviceHealth}</p></div><span className="pulse" aria-hidden="true" /></div><dl className="fact-list"><div><dt>{d.receiptImages}</dt><dd><Bidi>{data.receipt_image_activity}</Bidi></dd></div>{data.hidden_image_count > 0 && <div><dt>{d.hiddenImages}</dt><dd><Bidi>{data.hidden_image_count}</Bidi></dd></div>}<div><dt>{d.smsEvents}</dt><dd><Bidi>{data.sms_activity}</Bidi></dd></div><div><dt>{d.pendingProcessing}</dt><dd><Bidi>{data.pending_processing_count}</Bidi></dd></div><div><dt>{d.failedProcessing}</dt><dd><Bidi>{data.processing_failure_count}</Bidi></dd></div></dl></article>
     </>}
   </section>;

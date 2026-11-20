@@ -1,7 +1,6 @@
 """End-of-day summary email for the admin, with the day's Excel export."""
 
 from datetime import UTC, date, datetime
-from html import escape
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -92,59 +91,98 @@ def render(day: date, summary: dict[str, Any], sms: dict[str, Any]) -> tuple[str
         lines.append("  No receipts today.")
     lines += ["", "The full list is in the attached Excel file."]
 
-    def table(heading: str, rows: list[tuple[str, Any]]) -> str:
-        body = "".join(
-            f'<tr><td style="padding:6px 12px;color:#4b5563">{escape(label)}</td>'
-            f'<td style="padding:6px 12px;text-align:right;font-weight:600">'
-            f"{escape(str(value))}</td></tr>"
-            for label, value in rows
-        )
-        return (
-            f'<h2 style="font-size:16px;margin:24px 0 8px">{escape(heading)}</h2>'
-            '<table style="border-collapse:collapse;width:100%;max-width:560px;'
-            'background:#fff;border:1px solid #e5e7eb">' + body + "</table>"
-        )
-
-    head = "".join(
-        f'<th style="padding:6px 12px;text-align:left;background:#f3f4f6">{name}</th>'
-        for name in ("Phone", "Received", "Confirmed", "SMS matched", "Money")
-    )
-    phone_rows = (
-        "".join(
-            "<tr>"
-            + "".join(
-                f'<td style="padding:6px 12px;border-top:1px solid #e5e7eb">'
-                f"{escape(str(value))}</td>"
-                for value in (
-                    item.get("device_name"),
-                    _number(item.get("count")),
-                    _number(item.get("confirmed_count")),
-                    _number(item.get("sms_verified_count")),
-                    f"{float(item.get('confirmed_amount') or 0):,.2f} EGP",
-                )
-            )
-            + "</tr>"
-            for item in phones
-        )
-        or '<tr><td colspan="5" style="padding:6px 12px">No receipts today.</td></tr>'
-    )
-    html = (
-        '<!doctype html><html><body style="margin:0;padding:24px;'
-        'background:#f9fafb;font-family:Segoe UI,Arial,sans-serif;color:#111827">'
-        f'<h1 style="font-size:20px;margin:0 0 4px">{escape(title)}</h1>'
-        '<p style="margin:0;color:#6b7280">From 12:00 AM to 11:59 PM, '
-        "by when receipts reached each phone's folder.</p>"
-        + table("Summary", facts)
-        + table("Bank SMS matching", matching)
-        + '<h2 style="font-size:16px;margin:24px 0 8px">Per phone</h2>'
-        '<table style="border-collapse:collapse;width:100%;max-width:560px;'
-        f'background:#fff;border:1px solid #e5e7eb"><tr>{head}</tr>{phone_rows}'
-        "</table>"
-        + table("Activity", activity)
-        + '<p style="margin-top:24px;color:#6b7280">The full list of receipts is '
-        "in the attached Excel file.</p></body></html>"
-    )
+    html = _html(day, summary, sms, matching, activity, phones)
     return "\n".join(lines), html
+
+
+def _html(
+    day: date,
+    summary: dict[str, Any],
+    sms: dict[str, Any],
+    matching: list[tuple[str, Any]],
+    activity: list[tuple[str, Any]],
+    phones: list[dict[str, Any]],
+) -> str:
+    """The QA-Studio-style HTML body (see email_layout)."""
+    from relay.infrastructure import email_layout as layout
+
+    bank = sms.get("counts") or {}
+    waiting = _number(summary.get("needs_review_count"))
+    unused = _number(bank.get("UNUSED"))
+    strip = layout.kpis(
+        [
+            ("Confirmed money", _money(summary.get("totals_by_currency")), "ok"),
+            (
+                "Confirmed",
+                str(_number(summary.get("final_transaction_count"))),
+                "brand",
+            ),
+            ("Needs review", str(waiting), "warn" if waiting else "muted"),
+            ("SMS not used", str(unused), "bad" if unused else "muted"),
+        ]
+    )
+    phone_rows = [
+        (
+            str(item.get("device_name") or ""),
+            str(_number(item.get("count"))),
+            str(_number(item.get("confirmed_count"))),
+            str(_number(item.get("sms_verified_count"))),
+            f"{float(item.get('confirmed_amount') or 0):,.2f}",
+        )
+        for item in phones
+    ]
+    status_rows = [
+        (
+            "Auto-confirmed (bank SMS)",
+            _number(summary.get("auto_confirmed_count")),
+        ),
+        (
+            "Confirmed by a reviewer",
+            _number(summary.get("manual_confirmed_count")),
+        ),
+        ("Waiting for review", waiting),
+        (
+            "Duplicate groups",
+            _number(summary.get("duplicate_group_count")),
+        ),
+    ]
+    sections = [
+        layout.section_head("Per phone", len(phones))
+        + "<div style='margin-top:14px'>"
+        + layout.table(
+            ("Phone", "Received", "Confirmed", "SMS matched", "Money (EGP)"),
+            phone_rows,
+            right=(1, 2, 3, 4),
+            empty="No receipts today.",
+        )
+        + "</div>",
+        layout.section_head("Receipts")
+        + "<div style='margin-top:14px'>"
+        + layout.table(
+            ("Status", "Count"),
+            [(label, str(count)) for label, count in status_rows],
+            right=(1,),
+        )
+        + "</div>",
+        layout.section_head("Bank SMS matching", dot=layout.ACCENT)
+        + "<div style='margin-top:14px'>"
+        + layout.facts([(label, str(value)) for label, value in matching])
+        + "</div>",
+        layout.section_head("Activity", dot=layout.INK3)
+        + "<div style='margin-top:14px'>"
+        + layout.facts([(label, str(value)) for label, value in activity])
+        + "</div>",
+    ]
+    return layout.page(
+        kind="Daily report",
+        stamp=day.isoformat(),
+        badge=("DAILY SUMMARY", "brand"),
+        title=f"{day:%A %d %B %Y}",
+        subtitle="12:00 AM to 11:59 PM, by when receipts reached each phone",
+        strip=strip,
+        sections=sections,
+        footer="The full list is attached as Excel.",
+    )
 
 
 async def send_daily_report(
@@ -169,7 +207,7 @@ async def send_daily_report(
             uow = SqlUnitOfWork(session)
             service = OperationsService(
                 uow,
-                OpenpyxlWorkbookExporter(),
+                OpenpyxlWorkbookExporter(settings.receipt_timezone),
                 audit_retention_days=settings.operator_audit_retention_days,
             )
             summary = await service.dashboard(window)

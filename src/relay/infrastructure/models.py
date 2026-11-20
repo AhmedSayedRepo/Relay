@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -11,6 +13,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relay.domain.devices import DeviceStatus
@@ -66,5 +69,10 @@ class DeviceRow(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The phone's last health report and its last silence explained
+    # (see phone_health); None for apps older than 0.8.1.
+    health: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql")
+    )
     # A deleted device that collected evidence is hidden, not erased.
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

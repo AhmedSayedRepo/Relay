@@ -1,5 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -196,6 +197,19 @@ class SqlAgentRepository:
         return (
             await self.session.get(DeliveryRow, (installation_id, version)) is not None
         )
+
+    async def save_health(
+        self, device_id: UUID, report: dict[str, Any], now: datetime
+    ) -> None:
+        """Keep the phone's report, explaining the silence since its last
+        contact (read before ``contact`` moves last_seen_at)."""
+        from relay.infrastructure.phone_health import stored
+
+        row = await self.session.get(DeviceRow, device_id, populate_existing=True)
+        assert row is not None
+        previous = aware(row.last_seen_at) if row.last_seen_at else None
+        row.health = stored(report, previous, now, row.health)
+        await self.session.flush()
 
     async def contact(
         self,

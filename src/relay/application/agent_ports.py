@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from relay.application.ports import AccessToken, DeviceRepository
@@ -40,6 +40,9 @@ class AgentRepository(Protocol):
         app_version: str | None,
         coalesce_seconds: int,
     ) -> datetime: ...
+    async def save_health(
+        self, device_id: UUID, report: dict[str, Any], now: datetime
+    ) -> None: ...
 
 
 class AgentUnitOfWork(Protocol):

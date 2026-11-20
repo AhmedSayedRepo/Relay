@@ -27,7 +27,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class HttpRelayApi(baseUrl: String, private val appVersion: String, debug: Boolean) : RelayApi {
+class HttpRelayApi(
+    baseUrl: String,
+    private val appVersion: String,
+    debug: Boolean,
+    /** What the phone looked like since its last contact (see PhoneHealthReader). */
+    private val health: (suspend () -> JsonObject?)? = null
+) : RelayApi {
     private val base = baseUrl.toHttpUrl().also {
         require(
             it.username.isEmpty() && it.password.isEmpty() && it.query == null &&
@@ -90,11 +96,14 @@ class HttpRelayApi(baseUrl: String, private val appVersion: String, debug: Boole
     }
 
     override suspend fun heartbeat(accessToken: String, version: Int) {
+        // Best effort: a phone that cannot read its health still checks in.
+        val report = health?.let { runCatching { it() }.getOrNull() }
         post(
             "api/v1/device/heartbeat",
             buildJsonObject {
                 put("app_version", appVersion)
                 put("current_config_version", version)
+                if (report != null) put("health", report)
             },
             accessToken
         )

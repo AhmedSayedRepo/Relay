@@ -23,6 +23,8 @@ from relay.domain.devices import DeviceStatus
 from relay.infrastructure.config import Settings
 from relay.infrastructure.event_models import RawEventRow
 from relay.infrastructure.models import DeviceRow
+from relay.infrastructure.phone_health import describe as health_words
+from relay.infrastructure.phone_health import summary
 from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
 WORK_STARTS, WORK_ENDS = 9, 23  # receipt hours, local time
@@ -44,7 +46,9 @@ async def current_alerts(
 
     if WORK_STARTS <= local.hour < WORK_ENDS:
         phones = await session.execute(
-            select(DeviceRow.id, DeviceRow.name, DeviceRow.last_seen_at).where(
+            select(
+                DeviceRow.id, DeviceRow.name, DeviceRow.last_seen_at, DeviceRow.health
+            ).where(
                 DeviceRow.status == DeviceStatus.ACTIVE,
                 select(RawEventRow.id)
                 .where(
@@ -54,7 +58,7 @@ async def current_alerts(
                 .exists(),
             )
         )
-        for device_id, name, seen in phones.all():
+        for device_id, name, seen, health in phones.all():
             if seen is not None and moment - _aware(seen) < QUIET:
                 continue
             alerts.append(
@@ -63,6 +67,7 @@ async def current_alerts(
                     "kind": "silent_phone",
                     "device": str(name),
                     "since": _aware(seen).isoformat() if seen else None,
+                    "health": summary(health),
                 }
             )
 
@@ -112,9 +117,10 @@ def describe(alert: dict[str, Any], zone: ZoneInfo) -> str:
         else "-"
     )
     if alert["kind"] == "silent_phone":
+        why = health_words(alert.get("health"))
         return (
-            f"{alert['device']}: no contact since {at}. Open Relay Receipts, tap "
-            "Sync now, and set its battery to Unrestricted."
+            f"{alert['device']}: no contact since {at} ({why}). "
+            "Open Relay Receipts, tap Sync now, and set its battery to Unrestricted."
         )
     return (
         f"Bank SMS {alert['amount']} {alert['currency']} at {at}: no receipt matches "
@@ -150,11 +156,7 @@ async def check_alerts(settings: Settings, now: datetime | None = None) -> int:
             text = "Relay needs attention:\n\n" + "\n".join(
                 f"- {line}" for line in lines
             )
-            html = (
-                "<p>Relay needs attention:</p><ul>"
-                + "".join(f"<li>{_escape(line)}</li>" for line in lines)
-                + "</ul>"
-            )
+            html = render_email(fresh, zone, moment)
             await SmtpMailer(config).send_report(
                 config.report_email,
                 f"Relay: {len(fresh)} warning(s)",
@@ -180,7 +182,69 @@ async def check_alerts(settings: Settings, now: datetime | None = None) -> int:
         await database.close()
 
 
-def _escape(text: str) -> str:
-    from html import escape
+def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime) -> str:
+    """The warnings email, in the same look as the daily report."""
+    from relay.infrastructure import email_layout as layout
 
-    return escape(text)
+    def clock(alert: dict[str, Any]) -> str:
+        since = alert.get("since")
+        return (
+            datetime.fromisoformat(since).astimezone(zone).strftime("%H:%M")
+            if since
+            else "never"
+        )
+
+    phones = [alert for alert in alerts if alert["kind"] == "silent_phone"]
+    texts = [alert for alert in alerts if alert["kind"] != "silent_phone"]
+    sections = []
+    if phones:
+        sections.append(
+            layout.section_head(
+                "Silent phones", len(phones), dot=layout.TONES["bad"][0]
+            )
+            + "<div style='margin-top:14px'>"
+            + layout.table(
+                ("Phone", "Last contact", "Why"),
+                [
+                    (
+                        str(alert["device"]),
+                        clock(alert),
+                        health_words(alert.get("health")),
+                    )
+                    for alert in phones
+                ],
+            )
+            + "</div>"
+            + layout.note(
+                "On the phone: open Relay Receipts, tap Sync now, and set its "
+                "battery to Unrestricted."
+            )
+        )
+    if texts:
+        sections.append(
+            layout.section_head(
+                "Bank SMS with no receipt", len(texts), dot=layout.TONES["warn"][0]
+            )
+            + "<div style='margin-top:14px'>"
+            + layout.table(
+                ("Amount", "Arrived"),
+                [
+                    (f"{float(alert['amount']):,.2f} {alert['currency']}", clock(alert))
+                    for alert in texts
+                ],
+                right=(0,),
+            )
+            + "</div>"
+            + layout.note(
+                "Check that the receipt photo reached the cashier phone and Relay."
+            )
+        )
+    local = moment.astimezone(zone)
+    return layout.page(
+        kind="Warnings",
+        stamp=f"{local:%Y-%m-%d %H:%M}",
+        badge=("NEEDS ATTENTION", "bad"),
+        title=f"{len(alerts)} warning{'s' if len(alerts) != 1 else ''}",
+        subtitle="Each warning is sent once. Today's list is on the dashboard.",
+        sections=sections,
+    )

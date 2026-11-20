@@ -620,6 +620,20 @@ class SqlOperationsRepository:
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
             .limit(20)
         )
+        device_rows = device_counts.all()
+        # Each phone's health report (why it went quiet), read separately:
+        # a JSON column cannot be grouped on.
+        from relay.infrastructure.phone_health import summary as health_summary
+
+        healths = dict(
+            (
+                await self.db.execute(
+                    select(DeviceRow.id, DeviceRow.health).where(
+                        DeviceRow.id.in_([row[0] for row in device_rows])
+                    )
+                )
+            ).all()
+        )
         # Money still waiting for review, by the amount read so far (counted
         # once per payment: possible copies of another receipt are left out).
         waiting: dict[str, list[Decimal]] = {}
@@ -713,6 +727,7 @@ class SqlOperationsRepository:
                     "sms_verified_count": int(sms_verified or 0),
                     "last_seen_at": _iso(seen),
                     "last_photo_at": _iso(photo),
+                    "health": cast(JsonValue, health_summary(healths.get(device_id))),
                 }
                 for (
                     device_id,
@@ -723,7 +738,7 @@ class SqlOperationsRepository:
                     confirmed,
                     amount,
                     sms_verified,
-                ) in device_counts
+                ) in device_rows
             ],
             "auto_confirmed_count": int(auto_count or 0),
             "manual_confirmed_count": max(
