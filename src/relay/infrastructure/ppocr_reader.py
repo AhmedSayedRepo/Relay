@@ -28,18 +28,41 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
-# v1 and v2 readings all failed (numpy results, then missing python-bidi);
-# v3 reads every receipt again.
-VERSION = "ppocr_v3"
+# v1-v3 readings all failed (numpy results, missing python-bidi, no Arabic
+# model in PP-OCRv6); v4 reads every receipt again.
+VERSION = "ppocr_v4"
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
 @lru_cache(maxsize=1)
 def engines() -> tuple[Any, Any]:
     """(Latin/digits engine, Arabic engine), loaded once per process."""
-    from rapidocr import LangRec, RapidOCR  # type: ignore[import-not-found]
+    from rapidocr import (  # type: ignore[import-not-found]
+        LangRec,
+        ModelType,
+        OCRVersion,
+        RapidOCR,
+    )
 
-    return RapidOCR(), RapidOCR(params={"Rec.lang_type": LangRec.ARABIC})
+    # The default (PP-OCRv6) has no Arabic recogniser; PP-OCRv5 mobile does.
+    arabic = {
+        "Rec.lang_type": LangRec.ARABIC,
+        "Rec.ocr_version": OCRVersion.PPOCRV5,
+        "Rec.model_type": ModelType.MOBILE,
+    }
+    return RapidOCR(), RapidOCR(params=arabic)
+
+
+def self_test() -> None:
+    """Run both engines on a drawn line of text; used at image build so a
+    missing model or dependency fails the build, not every reading."""
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (480, 120), "white")
+    ImageDraw.Draw(image).text((20, 40), "550.00 EGP", fill="black", font_size=40)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    read_ppocr(buffer.getvalue())
 
 
 def lines(boxes: Any, texts: Any) -> list[str]:
