@@ -112,6 +112,8 @@ data class AgentActions(
     val addFolder: () -> Unit = {},
     val removeExtraFolder: (String) -> Unit = {},
     val discardImages: () -> Unit = {},
+    /** Asks Android to let Relay run in the background (battery saving off). */
+    val allowBackground: (() -> Unit)? = null,
     /** Opens the camera code scanner; null when no scanner is available. */
     val scanCode: (() -> Unit)? = null
 )
@@ -207,7 +209,8 @@ fun AgentContent(
     actions: AgentActions,
     now: Instant = Instant.now(),
     appVersion: String = "",
-    switchLanguage: (() -> Unit)? = null
+    switchLanguage: (() -> Unit)? = null,
+    batteryRestricted: Boolean = false
 ) {
     val snackbar = remember { SnackbarHostState() }
     val message = status.message?.let { raw ->
@@ -276,6 +279,9 @@ fun AgentContent(
                     when (status.enrollment) {
                         EnrollmentState.LOADING -> Unit
                         EnrollmentState.ENROLLED -> {
+                            if (batteryRestricted && actions.allowBackground != null) {
+                                BatteryCard(actions.allowBackground)
+                            }
                             Collectors(status, actions, now)
                             DeviceDetails(status, appVersion)
                         }
@@ -465,6 +471,31 @@ private fun syncLine(status: AgentStatus, now: Instant): String = when (status.c
         relative(status.lastSuccessfulSync, now)
             ?.let { stringResource(R.string.synced_ago, it) }
             ?: stringResource(R.string.never_synced)
+}
+
+/** Battery saving holds Relay back: one tap opens Android's own question. */
+@Composable
+private fun BatteryCard(allow: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                stringResource(R.string.battery_restricted_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.battery_restricted_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = allow) { Text(stringResource(R.string.battery_allow)) }
+        }
+    }
 }
 
 @Composable

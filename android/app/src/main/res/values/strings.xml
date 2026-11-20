@@ -34,6 +34,9 @@
     <string name="catch_up_done">Missed bank SMS sent to Relay: %1$d</string>
     <string name="catch_up_none">No missed bank SMS found</string>
     <string name="catch_up_denied">Allow reading SMS to catch up missed bank SMS</string>
+    <string name="battery_restricted_title">Battery saving holds Relay back</string>
+    <string name="battery_restricted_text">Receipts may arrive late or not at all. Let Relay run in the background.</string>
+    <string name="battery_allow">Allow in background</string>
     <string name="allow_sms_access">Allow SMS access</string>
     <string name="choose_folder">Choose folder</string>
     <string name="change_folder">Change folder</string>

@@ -26,8 +26,14 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
         "0.8.3" to ReleaseNote(
-            en = listOf("If the app closes by itself, it tells Relay where, so it can be fixed."),
-            ar = listOf("لو التطبيق قفل لوحده، بيبلّغ Relay بالسبب علشان يتصلّح.")
+            en = listOf(
+                "If the app closes by itself, it tells Relay where, so it can be fixed.",
+                "One button to stop battery saving from holding the app back."
+            ),
+            ar = listOf(
+                "لو التطبيق قفل لوحده، بيبلّغ Relay بالسبب علشان يتصلّح.",
+                "زرار واحد يمنع توفير البطارية من إنه يقيّد التطبيق."
+            )
         ),
         "0.8.2" to ReleaseNote(
             en = listOf(
