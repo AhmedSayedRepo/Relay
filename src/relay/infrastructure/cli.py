@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from relay.application.auth import create_admin, disable_user
 from relay.application.binaries import BinaryService
@@ -172,6 +172,8 @@ def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
         return False
     if _receipt_like(read) or not _machine_only(row):
         return False
+    if _helper_receipt(_helper_read(row.machine_result)):
+        return False  # PaddleOCR read a transfer the first reader missed
     fields = (row.resolution_result or {}).get("fields")
     fields = fields if isinstance(fields, dict) else {}
     return not any(
@@ -321,6 +323,84 @@ def _helper_amount(helper: dict[str, Any] | None) -> str | None:
     from relay.infrastructure.text_recheck import VERSION
 
     return _text_amount({VERSION: helper}) if helper is not None else None
+
+
+def _helper_receipt(helper: dict[str, Any] | None) -> bool:
+    """Classic PaddleOCR clearly read a money transfer."""
+    from relay.infrastructure.text_recheck import transfer_words
+
+    return bool(
+        helper is not None
+        and helper.get("receipt")
+        and not helper.get("payment_request")
+        and not helper.get("failed")
+        and transfer_words(str(helper.get("text") or ""))
+    )
+
+
+async def helper_reopen(database: Database) -> int:
+    """Bring back to Review what the first reader rejected or hid as "not a
+    receipt" when classic PaddleOCR clearly reads a money transfer (photos of
+    a phone screen, dark photos). Receipts a person decided on stay as they
+    are. The values PaddleOCR read are offered as suggestions."""
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+
+    async with database.session() as session:
+        ids = (
+            await session.scalars(
+                select(ReceiptCandidateRow.id).where(
+                    or_(
+                        ReceiptCandidateRow.review_status
+                        == ReviewStatus.REJECTED.value,
+                        ReceiptCandidateRow.hidden_reason == "not_a_receipt",
+                    ),
+                    ReceiptCandidateRow.machine_result[PPOCR].as_string().is_not(None),
+                )
+            )
+        ).all()
+    reopened = 0
+    for candidate_id in ids:
+        async with database.session() as session:
+            row = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == candidate_id)
+                .with_for_update()
+            )
+            if row is None or not _machine_only(row):
+                continue
+            resolution_now = row.resolution_result or {}
+            if resolution_now.get("rejected_reason") == "payment_request":
+                continue
+            helper = _helper_read(row.machine_result)
+            if not _helper_receipt(helper):
+                continue
+            assert helper is not None
+            now = datetime.now(UTC)
+            row.hidden_reason = None
+            if row.review_status == ReviewStatus.REJECTED.value:
+                resolution = _reopen(row, HELPER_READER, now)
+            else:
+                resolution = copy.deepcopy(row.resolution_result or {})
+            values = {
+                name: value
+                for name, value in (helper.get("values") or {}).items()
+                if name not in ("amount", "currency")
+            }
+            amount = _helper_amount(helper)
+            if amount is not None:
+                values |= {"amount": amount, "currency": "EGP"}
+            if resolution.get("reopened_by") == HELPER_READER:
+                # The rejected first reading is not worth keeping.
+                apply_suggestions(resolution, values, HELPER_READER, "text")
+            else:
+                _suggest_missing(resolution, values, HELPER_READER)
+            row.resolution_result = resolution
+            row.updated_at = now
+            await session.commit()
+            reopened += 1
+    if reopened:
+        print(f"PaddleOCR brought {reopened} rejected receipts back to Review.")
+    return reopened
 
 
 async def helper_suggest(database: Database) -> int:
@@ -1476,6 +1556,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 await text_pass(
                     database, storage, provider, tuple(settings.ocr_languages), 4
                 )
+                await helper_reopen(database)
                 await hide_non_receipts(database)
                 await helper_suggest(database)
                 async with database.session() as session:

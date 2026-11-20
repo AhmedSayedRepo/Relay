@@ -20,9 +20,8 @@ from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
-from relay.domain.processing import ReviewStatus
 from relay.infrastructure.binary_models import BinaryObjectRow
 from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
@@ -124,8 +123,13 @@ async def ppocr_pass(
                     BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id
                 )
                 .where(
-                    ReceiptCandidateRow.hidden_reason.is_(None),
-                    ReceiptCandidateRow.review_status != ReviewStatus.REJECTED.value,
+                    # Rejected and "not a receipt" photos too: the first
+                    # reader misses real receipts (photos of a phone screen),
+                    # and helper_reopen brings those back to Review.
+                    or_(
+                        ReceiptCandidateRow.hidden_reason.is_(None),
+                        ReceiptCandidateRow.hidden_reason == "not_a_receipt",
+                    ),
                     ReceiptCandidateRow.machine_result[VERSION].as_string().is_(None),
                 )
                 .order_by(ReceiptCandidateRow.created_at.desc())

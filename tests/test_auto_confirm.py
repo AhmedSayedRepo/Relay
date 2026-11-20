@@ -748,3 +748,45 @@ async def test_bank_sms_decides_when_the_readers_disagree(client, auth_headers, 
     assert counts["sms_day"] == 1
     resolution = (await _detail(client, auth_headers, candidate))["resolution_result"]
     assert resolution["fields"]["amount"]["value"] == "56.00"
+
+
+async def test_paddleocr_brings_back_a_rejected_screen_photo(client, auth_headers, app):
+    from relay.infrastructure.cli import helper_reopen, hide_non_receipts
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "day-reopen")
+    await _machine_rejected(app)
+    # Tesseract could not read the photo of a phone; PaddleOCR could.
+    await _text(app, "")
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.hidden_reason = "not_a_receipt"
+        await session.commit()
+    await _ppocr(
+        app,
+        "تم التحويل بنجاح\n1,325 EGP\nالرسوم 1.33 EGP\nالمبلغ الإجمالي 1,326.33 EGP\n"
+        "الرقم المرجعي 735522508457",
+    )
+    assert await helper_reopen(app.state.database) == 1
+    await hide_non_receipts(app.state.database)
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    fields = detail["resolution_result"]["fields"]
+    assert fields["amount"]["value"] == "1325.00"
+    assert fields["reference_number"]["value"] == "735522508457"
+    # Still visible after the hiding pass.
+    async with app.state.database.session() as session:
+        row = await session.scalar(select(ReceiptCandidateRow))
+        assert row is not None and row.hidden_reason is None
+
+
+async def test_a_receipt_a_person_rejected_stays_rejected(client, auth_headers, app):
+    from relay.infrastructure.cli import helper_reopen
+
+    await run_receipt(client, auth_headers, app, "day-kept-rejected")
+    async with app.state.database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.review_status = "REJECTED"
+            row.reviewed_result = {"decision": "REJECT"}
+        await session.commit()
+    await _ppocr(app, "تم التحويل بنجاح\n500.00 EGP\nالرقم المرجعي 111122223333")
+    assert await helper_reopen(app.state.database) == 0
