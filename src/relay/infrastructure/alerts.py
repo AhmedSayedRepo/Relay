@@ -125,6 +125,21 @@ async def current_alerts(
     )
     for candidate_id, created, resolution, device in old.all():
         alerts.append(_old_receipt(candidate_id, created, resolution, device))
+
+    from relay.infrastructure.set_aside import rejected_with_sms
+
+    for item in await rejected_with_sms(session, local.date(), zone):
+        alerts.append(
+            {
+                "key": f"rejected:{item['id']}",
+                "kind": "rejected_with_sms",
+                "id": item["id"],
+                "amount": item["sms"]["amount"],
+                "currency": item["sms"]["currency"],
+                "since": item["sms"]["at"],
+                "arrived": item["arrived"],
+            }
+        )
     return alerts
 
 
@@ -189,6 +204,12 @@ def describe(alert: dict[str, Any], zone: ZoneInfo) -> str:
         return (
             f"{alert['device']}: no contact since {at} ({why}). "
             "Open Relay Receipts, tap Sync now, and set its battery to Unrestricted."
+        )
+    if alert["kind"] == "rejected_with_sms":
+        return (
+            f"A rejected receipt shows {_money(alert)}, and the bank SMS for that "
+            f"amount at {at} is still unused. Check the Rejected page: if the "
+            "receipt is real, bring it back to Review."
         )
     if alert["kind"] == "old_receipt":
         return (
@@ -270,6 +291,7 @@ def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime)
     phones = [alert for alert in alerts if alert["kind"] == "silent_phone"]
     texts = [alert for alert in alerts if alert["kind"] == "sms_without_receipt"]
     old = [alert for alert in alerts if alert["kind"] == "old_receipt"]
+    rejected = [alert for alert in alerts if alert["kind"] == "rejected_with_sms"]
     sections = []
     if phones:
         sections.append(
@@ -336,6 +358,25 @@ def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime)
             + layout.note(
                 "Not confirmed. Open Review: if it is a copy of an old receipt, "
                 "reject it."
+            )
+        )
+    if rejected:
+        sections.append(
+            layout.section_head(
+                "Rejected, but the bank SMS is unused",
+                len(rejected),
+                dot=layout.TONES["bad"][0],
+            )
+            + "<div style='margin-top:14px'>"
+            + layout.table(
+                ("Amount", "SMS at"),
+                [(_money(alert), clock(alert)) for alert in rejected],
+                right=(0,),
+            )
+            + "</div>"
+            + layout.note(
+                "The money arrived but its receipt was rejected. Open the Rejected "
+                "page and bring the receipt back to Review if it is real."
             )
         )
     local = moment.astimezone(zone)

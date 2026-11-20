@@ -200,6 +200,26 @@ def bare_amount(text: str) -> str | None:
     return found.pop() if len(found) == 1 else None
 
 
+_BANK_APP = re.compile(r"beneficiar|transaction|posted|credited|debit", re.I)
+_GROUPED = re.compile(r"(?<![\d.,])(\d{1,3}(?:[.,]{1,2}\d{3})+)(?:\.(\d{2}))?(?![\d,])")
+
+
+def bank_app_amount(text: str) -> str | None:
+    """A bank app's transfer screen ("Transaction has been posted to
+    beneficiary") prints "1,096" with its currency elsewhere or not read.
+    Taken when the screen shows such transfer words and exactly one amount
+    written with a thousands separator ("1.,096" is read noise for "1,096")."""
+    text = text.translate(_DIGITS)
+    if not _BANK_APP.search(text):
+        return None
+    found: set[str] = set()
+    for whole, cents in _GROUPED.findall(text):
+        value = Decimal(re.sub(r"[.,]", "", whole) + "." + (cents or "0"))
+        if value >= 20:
+            found.add(f"{value:.2f}")
+    return found.pop() if len(found) == 1 else None
+
+
 def amounts(text: str) -> set[str]:
     # OCR sometimes reads the decimal point of a small amount as ":" ("0:62 EGP").
     text = _COLON_CENTS.sub(r"\1.\2", text)

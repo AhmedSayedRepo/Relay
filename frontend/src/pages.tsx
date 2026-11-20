@@ -216,6 +216,35 @@ export function Transactions({ token }: { token: string }) {
   </section>;
 }
 
+/** Receipts set aside: rejected (by a person or by Relay) or hidden as not a
+ * receipt, each with a button to bring it back to Review. */
+export function SetAside({ token }: { token: string }) {
+  const { locale, messages: m } = useI18n(); const r = m.rejected; const role = useRole(); const range = useDayRange();
+  const [offset, setOffset] = usePersisted("rejected.offset", 0); const limit = 25;
+  const [busy, setBusy] = useState(""); const [message, setMessage] = useState("");
+  const { data, error, loading, reload } = useApi<Page<Transaction>>("/transactions" + query({ ...range.params, review_status: "SET_ASIDE", sort_by: "folder_at", sort_direction: "desc", limit, offset }), token, true);
+  const reasons = m.transactions.reasons as Record<string, string>;
+  async function bringBack(id: string) {
+    setBusy(id); setMessage("");
+    try { await api("/receipts/" + encodeURIComponent(id) + "/reopen", token, { method: "POST" }); setMessage(r.broughtBack); reload(); }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : r.failed); }
+    finally { setBusy(""); }
+  }
+  return <section><PageHeading title={m.pages.rejected[0]} description={m.pages.rejected[1]} help={contextHelp.transactions} />
+    <div className="filter-bar"><DayRange range={range} changed={() => setOffset(0)} /></div>
+    {message && <p className="status" role="status">{message}</p>}
+    <Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={r.empty} />
+    {data && data.total > 0 && <div className="table-wrap"><table className="responsive-table"><thead><tr><th>{m.transactions.arrived}</th><th>{m.transactions.device}</th><th>{m.transactions.amount}</th><th>{r.why}</th><th>{r.action}</th></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}>
+      <td data-label={m.transactions.arrived}><Link to={"/transactions/" + item.id}><Timestamp value={item.folder_at || item.created_at} locale={locale} /></Link></td>
+      <td data-label={m.transactions.device}>{item.device_name}</td>
+      <td data-label={m.transactions.amount}>{item.amount || item.suggested_amount ? <Amount amount={String(item.amount || item.suggested_amount)} currency={item.currency || "EGP"} locale={locale} /> : dash}</td>
+      <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span></td>
+      <td data-label={r.action}>{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : dash}</td>
+    </tr>)}</tbody></table></div>}
+    {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}
+  </section>;
+}
+
 export function TransactionDetail({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const { id = "" } = useParams(); const role = useRole();
   const { data, error, loading, reload } = useApi<Transaction & Record<string, Json>>("/transactions/" + id, token);

@@ -9,8 +9,8 @@ import { WhatsNew } from "./WhatsNew";
 
 // Duplicates, Processing and Reports stay reachable (Review links to duplicates;
 // the Dashboard exports Excel) but are kept out of the menu.
-const routes = ["dashboard", "review", "transactions", "bankSms", "devices", "users", "emailSettings"] as const;
-const paths = ["/", "/review", "/transactions", "/bank-sms", "/devices", "/users", "/email-settings"];
+const routes = ["dashboard", "review", "transactions", "rejected", "bankSms", "devices", "users", "emailSettings"] as const;
+const paths = ["/", "/review", "/transactions", "/rejected", "/bank-sms", "/devices", "/users", "/email-settings"];
 const tabs = ["dashboard", "review", "transactions"] as const;
 const adminOnly = new Set<string>(["bankSms", "devices", "users", "emailSettings"]);
 

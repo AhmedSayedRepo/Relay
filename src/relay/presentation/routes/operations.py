@@ -106,7 +106,9 @@ async def transactions(
     time_from: time | None = None,
     time_to: time | None = None,
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
-    review_status: Literal["AUTO_ACCEPTED", "NEEDS_REVIEW", "REJECTED"] | None = None,
+    review_status: (
+        Literal["AUTO_ACCEPTED", "NEEDS_REVIEW", "REJECTED", "SET_ASIDE"] | None
+    ) = None,
     duplicate_status: (
         Literal["DUPLICATE", "CANONICAL", "GROUPED", "UNIQUE", "COPY"] | None
     ) = None,
@@ -140,6 +142,36 @@ async def transactions(
     query = _transaction_query(**values)
     rows, total = await service.transactions(query)
     return OperationPage(items=rows, total=total, limit=limit, offset=offset)
+
+
+@router.post("/receipts/{candidate_id}/reopen", status_code=204)
+async def reopen_receipt(
+    candidate_id: UUID,
+    user: AuthenticatedUser,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> Response:
+    """Bring a rejected or hidden receipt back to Review (audited)."""
+    from relay.infrastructure.set_aside import reopen
+
+    await reopen(uow.session, candidate_id, user.id)
+    return Response(status_code=204)
+
+
+@router.get("/receipts/{candidate_id}/unused-sms")
+async def receipt_unused_sms(
+    candidate_id: UUID,
+    request: Request,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> dict[str, JsonValue]:
+    """Unused bank SMS that day with an amount this receipt shows: asked
+    before a reject, so a real receipt is not thrown away."""
+    from relay.infrastructure.set_aside import unused_sms_for
+
+    settings = cast(Settings, request.app.state.settings)
+    found = await unused_sms_for(
+        uow.session, candidate_id, ZoneInfo(settings.receipt_timezone)
+    )
+    return {"items": cast(JsonValue, found)}
 
 
 @router.get("/transactions/{candidate_id}", response_model=OperationData)

@@ -115,6 +115,9 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
     read = read if isinstance(read, dict) else {}
     if value.hidden_reason == "same_receipt":
         return "copy"
+    if value.hidden_reason is not None:
+        # not_a_receipt, shop_invoice, no_transfer: hidden by a reader.
+        return "hidden_" + value.hidden_reason
     if value.review_status == "REJECTED":
         if resolution.get("rejected_reason") == "payment_request":
             return "payment_request"
@@ -222,11 +225,20 @@ class SqlOperationsRepository:
         )
 
     @staticmethod
-    def _receipt_range(window: DateWindow, copies: bool = False) -> tuple[Any, ...]:
-        # Images that turned out not to be receipts are never counted or listed.
-        # The Copies list shows hidden copies and old receipts shown again.
-        visible = (
-            or_(
+    def _receipt_range(
+        window: DateWindow, copies: bool = False, set_aside: bool = False
+    ) -> tuple[Any, ...]:
+        # Images that turned out not to be receipts are never counted or listed,
+        # except on the Rejected page (set_aside). The Copies list shows hidden
+        # copies and old receipts shown again.
+        visible: Any
+        if set_aside:
+            visible = or_(
+                ReceiptCandidateRow.review_status == "REJECTED",
+                ReceiptCandidateRow.hidden_reason.is_not(None),
+            )
+        elif copies:
+            visible = or_(
                 ReceiptCandidateRow.hidden_reason == "same_receipt",
                 and_(
                     ReceiptCandidateRow.hidden_reason.is_(None),
@@ -235,9 +247,8 @@ class SqlOperationsRepository:
                     .is_not(None),
                 ),
             )
-            if copies
-            else ReceiptCandidateRow.hidden_reason.is_(None)
-        )
+        else:
+            visible = ReceiptCandidateRow.hidden_reason.is_(None)
         if window.folder_time:
             folder = select(RawEventRow.id).where(
                 RawEventRow.occurred_at >= window.start,
@@ -258,7 +269,11 @@ class SqlOperationsRepository:
         self, statement: Any, query: TransactionQuery
     ) -> Any:
         statement = statement.where(
-            *self._receipt_range(query.window, query.duplicate_status == "COPY")
+            *self._receipt_range(
+                query.window,
+                query.duplicate_status == "COPY",
+                query.review_status == "SET_ASIDE",
+            )
         )
         if query.search:
             escaped = self._escape_like(query.search.casefold())
@@ -280,7 +295,7 @@ class SqlOperationsRepository:
                     )
                 )
             statement = statement.where(or_(*conditions))
-        if query.review_status:
+        if query.review_status and query.review_status != "SET_ASIDE":
             if query.review_status == "NEEDS_REVIEW":
                 statement = statement.where(
                     or_(
@@ -386,6 +401,7 @@ class SqlOperationsRepository:
             or reviewed_value(resolution, "handle"),
             "recipient_name": reviewed_value(resolution, "recipient"),
             **_read_parties(value.machine_result),
+            "suggested_amount": _field_value(resolution, "amount"),
             "status_reason": _status_reason(value, row.sms_verification),
             "similar_to": _similar_to(value),
             "recipient_identifier": reviewed_value(resolution, "recipient_identifier"),

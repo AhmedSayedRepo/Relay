@@ -280,7 +280,8 @@ class ReceiptReviewAuditRow(Base):
     __tablename__ = "receipt_review_audit"
     __table_args__ = (
         CheckConstraint(
-            "action IN ('ACCEPT','CORRECT','REJECT')", name="receipt_review_action"
+            "action IN ('ACCEPT','CORRECT','REJECT','REOPEN')",
+            name="receipt_review_action",
         ),
         Index("ix_receipt_review_candidate", "candidate_id", "created_at"),
         Index("ix_receipt_review_expires", "expires_at"),
