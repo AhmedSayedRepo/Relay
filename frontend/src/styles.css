@@ -561,3 +561,6 @@ td { font-variant-numeric: tabular-nums; }
 .record-card.clickable:has(.card-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .record-card.clickable .similar-link { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .record-card.clickable, .record-card.clickable:hover { transform: none; transition: none; } }
+.decide-all { align-items: center; padding-block-end: 1rem; border-block-end: 1px solid var(--line); }
+.decide-all > button { min-width: 9rem; }
+.decide-all > .hint { flex-basis: 100%; margin: 0; }

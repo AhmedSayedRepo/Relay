@@ -87,4 +87,23 @@ describe("Exception-only evidence review", () => {
     const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => String(request) === "/image" ? Promise.resolve(new Response(new Blob(["image"]))) : json(init?.method === "POST" ? {} : receipt));
     mount(); fireEvent.click(await screen.findByRole("button", { name: "Reject" })); await waitFor(() => expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true)); const payload = JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body)); expect(payload.action).toBe("REJECT"); expect(payload.field).toBeUndefined(); expect(payload.value).toBeNull();
   });
+  it("confirms the whole receipt in one click, field by field with fresh versions", async () => {
+    const two = { ...evidence, blocking_fields: ["amount", "sender_name"], fields: { ...evidence.fields, sender_name: { ...field, field: "sender_name", value: "Ali", candidates: [{ ...candidate, value: "Ali", normalized_value: "Ali" }] } } };
+    let version = 1; const next = { ...receipt, id: "receipt-2" };
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation((request, init) => {
+      if (String(request) === "/image") return Promise.resolve(new Response(new Blob(["image"])));
+      if (init?.method === "POST") { version += 1; return json({ ...receipt, updated_at: "v" + version, resolution_result: { ...two, schema_version: 2, state: version > 2 ? "REVIEW_FINALIZED" : "NEEDS_REVIEW" } }); }
+      if (String(request).includes("next-exception")) return json(next);
+      return json(String(request).endsWith("receipt-2") ? next : { ...receipt, machine_result: { evidence_first: two } });
+    });
+    mount(); fireEvent.click(await screen.findByRole("button", { name: "Confirm receipt" }));
+    await waitFor(() => expect(fetcher.mock.calls.some(([request]) => String(request).endsWith("/transactions/receipt-2"))).toBe(true));
+    const payloads = fetcher.mock.calls.filter(([, init]) => init?.method === "POST").map(([, init]) => JSON.parse(String(init?.body)));
+    expect(payloads.map((p) => [p.field, p.action, p.value])).toEqual([["amount", "CONFIRM", "790"], ["sender_name", "CONFIRM", "Ali"]]);
+    expect(payloads[0].expected_updated_at).toBe(receipt.updated_at); expect(payloads[1].expected_updated_at).toBe("v2");
+  });
+  it("keeps Confirm receipt disabled until competing readings are settled", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((request) => String(request) === "/image" ? Promise.resolve(new Response(new Blob(["image"]))) : json({ ...receipt, machine_result: { evidence_first: { ...evidence, fields: { ...evidence.fields, amount: { ...field, candidates: [candidate, { ...candidate, value: "7900", normalized_value: "7900" }] } } } } }));
+    mount(); expect(await screen.findByRole("button", { name: "Confirm receipt" })).toBeDisabled(); expect(screen.getByText(/Pick or enter a value first: Amount/)).toBeVisible(); expect(screen.getByRole("button", { name: "Reject receipt" })).toBeEnabled();
+  });
 });
