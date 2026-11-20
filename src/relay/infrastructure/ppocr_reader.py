@@ -28,7 +28,8 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
-VERSION = "ppocr_v1"
+# v1 readings all failed (see lines()); v2 reads every receipt again.
+VERSION = "ppocr_v2"
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
 
 
@@ -44,7 +45,10 @@ def lines(boxes: Any, texts: Any) -> list[str]:
     """Text boxes grouped into lines (similar height on the page), top to
     bottom, each line left to right."""
     items: list[tuple[float, float, float, str]] = []
-    for box, text in zip(boxes or (), texts or (), strict=False):
+    # RapidOCR gives numpy arrays: "boxes or ()" would raise ValueError.
+    boxes = () if boxes is None else boxes
+    texts = () if texts is None else texts
+    for box, text in zip(boxes, texts, strict=False):
         if not text:
             continue
         ys = [float(point[1]) for point in box]
@@ -113,7 +117,7 @@ async def ppocr_pass(
                 "text": await asyncio.to_thread(read_ppocr, data)
             }
         except Exception as error:  # noqa: BLE001 - one bad image, not the batch
-            reading = {"text": "", "error": type(error).__name__}
+            reading = {"text": "", "error": f"{type(error).__name__}: {error}"[:300]}
         reading |= {
             "seconds": round(time.monotonic() - started, 1),
             "at": datetime.now(UTC).isoformat(),
