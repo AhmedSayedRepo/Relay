@@ -116,7 +116,7 @@ async def current_alerts(
         .where(
             ReceiptCandidateRow.review_status == "NEEDS_REVIEW",
             ReceiptCandidateRow.hidden_reason.is_(None),
-            ReceiptCandidateRow.created_at >= midnight,
+            ReceiptCandidateRow.created_at >= midnight.astimezone(UTC),
             ReceiptCandidateRow.resolution_result["old_receipt"]
             .as_string()
             .is_not(None),
