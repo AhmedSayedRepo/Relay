@@ -21,8 +21,16 @@ fi
 ./deploy/dc.sh up -d
 # Rebuild and (re)start the long-running reader once it is enabled (model present).
 if [ -f model/reader-config.json ]; then
-  ./deploy/dc.sh --profile reader build reader vl ppocr
-  ./deploy/dc.sh --profile reader up -d reader ocr vl ppocr
+  ./deploy/dc.sh --profile reader build reader ppocr
+  ./deploy/dc.sh --profile reader up -d reader ppocr
+  # The night model reader (PaddleOCR-VL / GLM-OCR) scored below classic
+  # PaddleOCR and took most of the CPU: off unless RELAY_NIGHT_MODEL=1.
+  if [ "${RELAY_NIGHT_MODEL:-0}" = "1" ]; then
+    ./deploy/dc.sh --profile reader build vl
+    ./deploy/dc.sh --profile reader up -d ocr vl
+  else
+    ./deploy/dc.sh --profile reader stop ocr vl 2>/dev/null || true
+  fi
 fi
 ./deploy/schedule.sh
 ./deploy/dc.sh ps

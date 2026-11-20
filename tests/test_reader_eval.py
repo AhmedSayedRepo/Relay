@@ -53,3 +53,30 @@ def test_a_change_that_breaks_more_than_it_fixes_fails() -> None:
     assert not compare({"a": miss, "b": ok}, {"a": ok, "b": wrong})[0]
     # New receipts with no earlier score never count as broken.
     assert compare({}, {"a": miss})[0]
+
+
+def test_one_model_reading_grades_its_reference() -> None:
+    text = "تم التحويل بنجاح\nYOUSSEF\n590.59 EGP\nالمرجع 885379009975"
+    grades = grade(
+        text,
+        {"amount": "590.59", "reference": "885379009975"},
+        ("YOUSSEF", "01003405232"),
+        single=True,
+    )
+    assert grades["reference"] == "ok"
+    assert grades["amount"] == "ok"
+
+
+def test_helper_fills_what_the_current_reader_missed() -> None:
+    from relay.infrastructure.ppocr_reader import VERSION
+    from relay.infrastructure.reader_eval import HELPER, combined
+
+    assert HELPER == VERSION
+    current = {"amount": "miss", "reference": "ok", "recipient": "miss", "kept": "ok"}
+    helper = {"amount": "ok", "reference": "miss", "recipient": "ok", "kept": "ok"}
+    assert combined(current, helper) == {
+        "amount": "ok",
+        "reference": "ok",
+        "recipient": "ok",
+        "kept": "ok",
+    }

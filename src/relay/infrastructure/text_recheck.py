@@ -236,6 +236,14 @@ def signals(text: str, second: str | None = None) -> dict[str, Any]:
     }
 
 
+def single(text: str) -> dict[str, Any]:
+    """``signals`` for one clean reading from a model (classic PaddleOCR):
+    its values count as agreed with itself, since there is no second pass."""
+    read = signals(text, text)
+    read["text"] = text.translate(_DIGITS)[:MAX_TEXT]
+    return read
+
+
 _TO = re.compile(r"^\W*(?:[اإ]ل[ىي]|to)\b", re.I)
 _END = re.compile(r"powered\s*by", re.I)
 _NOT_NAMES = {"ACCOUNT", "BANK", "EGP", "IPN", "INSTAPAY", "MISR", "POWERED", "XXXX"}
