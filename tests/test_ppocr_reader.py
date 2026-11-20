@@ -46,3 +46,17 @@ async def test_each_receipt_is_read_once(client, auth_headers, app, monkeypatch)
             )
         )
     assert machine[ppocr_reader.VERSION]["text"] == "550 EGP"
+
+
+class ArrayLike(list):
+    """Like a numpy array: iterable, but has no plain truth value."""
+
+    def __bool__(self) -> bool:
+        raise ValueError("ambiguous truth value")
+
+
+def test_numpy_style_results_are_read() -> None:
+    boxes = ArrayLike([box(10, 40), box(10, 100)])
+    texts = ArrayLike(["تم التحويل بنجاح", "550 EGP"])
+    assert ppocr_reader.lines(boxes, texts) == ["تم التحويل بنجاح", "550 EGP"]
+    assert ppocr_reader.lines(None, None) == []
