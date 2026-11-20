@@ -56,6 +56,7 @@ export const en = {
     alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
     alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
     lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
+    phoneCrash: "App crashed {time}: {error}",
     phoneGapLine: "Last silence: {reason}, {time}",
     phoneGaps: { phone_off: "phone was off or restarted", force_stopped: "app was force-stopped", app_killed: "Android closed the app", no_internet: "no internet" },
     phoneRisks: { sms_denied: "Not allowed to receive SMS: allow SMS for Relay Bank SMS in the phone settings", folder_lost: "Can't read the photo folder: choose it again in the app", battery_restricted: "Battery saving limits the app: set it to Unrestricted", battery_low: "Battery almost empty", power_save: "Phone is in power saving mode" },

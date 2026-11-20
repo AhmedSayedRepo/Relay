@@ -76,6 +76,12 @@ class ExitReport(BaseModel):
     reason: str = Field(max_length=32)
 
 
+class CrashReport(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    at: datetime
+    error: str = Field(max_length=500)
+
+
 class PhoneHealth(BaseModel):
     """What the app reports about the phone (0.8.1+). Unknown keys from a
     newer app are dropped, so an old server still accepts it."""
@@ -95,6 +101,7 @@ class PhoneHealth(BaseModel):
     android: int | None = Field(default=None, ge=0, le=1000)
     maker: str | None = Field(default=None, max_length=40)
     exits: list[ExitReport] = Field(default_factory=list, max_length=10)
+    last_crash: CrashReport | None = None
 
 
 class HeartbeatRequest(InputModel):

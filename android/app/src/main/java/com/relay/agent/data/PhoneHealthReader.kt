@@ -48,6 +48,7 @@ class PhoneHealthReader(
             put("charging", battery.isCharging)
             put("folders_ok", chosen.all { it.toUri() in granted })
             smsAllowed?.let { put("sms_allowed", it()) }
+            CrashLog.last(context)?.let { put("last_crash", it) }
             put("android", Build.VERSION.SDK_INT)
             put("maker", Build.MANUFACTURER.take(40))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

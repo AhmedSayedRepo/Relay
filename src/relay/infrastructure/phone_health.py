@@ -103,8 +103,10 @@ def summary(health: Any) -> dict[str, Any] | None:
     if not isinstance(health, dict):
         return None
     gap = health.get("gap")
+    crash = health.get("last_crash")
     return {
         "gap": gap if isinstance(gap, dict) else None,
+        "last_crash": crash if isinstance(crash, dict) else None,
         "risks": risks(health),
         "battery_percent": health.get("battery_percent"),
         "charging": health.get("charging"),
@@ -135,5 +137,8 @@ def describe(info: Any) -> str:
         parts.append(
             "last time " + WORDS.get(str(info["gap"].get("reason")), "unknown")
         )
-    parts += [WORDS[code] for code in info["risks"] if code in WORDS]
+    parts += [WORDS[code] for code in info.get("risks") or [] if code in WORDS]
+    crash = info.get("last_crash")
+    if isinstance(crash, dict) and crash.get("error"):
+        parts.append(f"last crash {crash.get('at', '')}: {crash['error']}")
     return "; ".join(parts) or "no problem reported"

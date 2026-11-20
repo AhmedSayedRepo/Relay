@@ -11,6 +11,7 @@ import com.relay.agent.application.ImageCollector
 import com.relay.agent.application.ImageUploader
 import com.relay.agent.application.SmsCollector
 import com.relay.agent.data.ConfigurationCodec
+import com.relay.agent.data.CrashLog
 import com.relay.agent.data.CredentialCodec
 import com.relay.agent.data.DataStoreAgentStore
 import com.relay.agent.data.EncryptedBinaryOutbox
@@ -102,6 +103,7 @@ class RelayApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         applicationScope.launch {
             controller.initialize()
             scheduler.schedule()
