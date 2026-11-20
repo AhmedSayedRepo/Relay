@@ -184,14 +184,14 @@ def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
 def _shop_invoice(row: ReceiptCandidateRow) -> bool:
     """An untouched Review item that either reader shows is a shop's bill."""
     from relay.infrastructure import text_recheck
-    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+    from relay.infrastructure.ppocr_reader import latest
 
     if not _machine_only(row):
         return False
     machine = row.machine_result if isinstance(row.machine_result, dict) else {}
     texts = [
         str(reading.get("text") or "")
-        for reading in (machine.get(text_recheck.VERSION), machine.get(PPOCR))
+        for reading in (machine.get(text_recheck.VERSION), latest(machine))
         if isinstance(reading, dict)
     ]
     return any(text_recheck.shop_invoice(text) for text in texts if text)
@@ -335,22 +335,35 @@ HELPER_READER = "ppocr_helper_v1"
 def _helper_read(machine: Any) -> dict[str, Any] | None:
     """The classic PaddleOCR reading as the text reader sees it, or None
     until PP-OCR has read the receipt (or when its reading failed)."""
-    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+    from relay.infrastructure.ppocr_reader import latest
     from relay.infrastructure.text_recheck import single
 
-    reading = machine.get(PPOCR) if isinstance(machine, dict) else None
-    if not isinstance(reading, dict) or reading.get("error"):
+    reading = latest(machine)
+    if reading is None:
         return None
-    text = reading.get("text")
-    if not isinstance(text, str) or not text.strip():
-        return None
-    return single(text)
+    read = single(str(reading["text"]))
+    latin = reading.get("latin")
+    if isinstance(latin, str) and latin.strip():
+        read["latin"] = latin
+    return read
+
+
+def _paddle_amount(text: str, latin: str | None) -> str | None:
+    """PaddleOCR's amount: from its Latin recognizer's lines first (digits
+    are its strength; the Arabic one can drop a digit), else from both."""
+    from relay.infrastructure.text_recheck import VERSION, single
+
+    if latin:
+        amount = _text_amount({VERSION: single(latin)})
+        if amount is not None:
+            return amount
+    return _text_amount({VERSION: single(text)})
 
 
 def _helper_amount(helper: dict[str, Any] | None) -> str | None:
-    from relay.infrastructure.text_recheck import VERSION
-
-    return _text_amount({VERSION: helper}) if helper is not None else None
+    if helper is None:
+        return None
+    return _paddle_amount(str(helper.get("text") or ""), helper.get("latin"))
 
 
 def _helper_receipt(helper: dict[str, Any] | None) -> bool:
@@ -373,7 +386,7 @@ async def helper_reopen(database: Database) -> int:
     receipt" when classic PaddleOCR clearly reads a money transfer (photos of
     a phone screen, dark photos). Receipts a person decided on stay as they
     are. The values PaddleOCR read are offered as suggestions."""
-    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+    from relay.infrastructure.ppocr_reader import KEYS as PPOCR_KEYS
 
     async with database.session() as session:
         ids = (
@@ -384,7 +397,14 @@ async def helper_reopen(database: Database) -> int:
                         == ReviewStatus.REJECTED.value,
                         ReceiptCandidateRow.hidden_reason == "not_a_receipt",
                     ),
-                    ReceiptCandidateRow.machine_result[PPOCR].as_string().is_not(None),
+                    or_(
+                        *(
+                            ReceiptCandidateRow.machine_result[key]
+                            .as_string()
+                            .is_not(None)
+                            for key in PPOCR_KEYS
+                        )
+                    ),
                 )
             )
         ).all()
@@ -454,7 +474,8 @@ async def helper_suggest(database: Database) -> int:
     time replace the other readers' suggestions on receipts waiting for
     review (once per reading; operator decisions stay). The other readers
     fill only what it could not read."""
-    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+    from relay.infrastructure.ppocr_reader import KEYS as PPOCR_KEYS
+    from relay.infrastructure.ppocr_reader import latest_version
 
     async with database.session() as session:
         ids = (
@@ -463,7 +484,14 @@ async def helper_suggest(database: Database) -> int:
                     ReceiptCandidateRow.hidden_reason.is_(None),
                     ReceiptCandidateRow.review_status
                     == ReviewStatus.NEEDS_REVIEW.value,
-                    ReceiptCandidateRow.machine_result[PPOCR].as_string().is_not(None),
+                    or_(
+                        *(
+                            ReceiptCandidateRow.machine_result[key]
+                            .as_string()
+                            .is_not(None)
+                            for key in PPOCR_KEYS
+                        )
+                    ),
                 )
             )
         ).all()
@@ -479,9 +507,11 @@ async def helper_suggest(database: Database) -> int:
                 row is None
                 or not isinstance(row.resolution_result, dict)
                 or not _machine_only(row)
-                or row.resolution_result.get("primary_reader") == PPOCR
             ):
                 continue
+            used = latest_version(row.machine_result)
+            if used is None or row.resolution_result.get("primary_reader") == used:
+                continue  # applied once per reading
             helper = _helper_read(row.machine_result)
             if helper is None:
                 continue
@@ -495,7 +525,7 @@ async def helper_suggest(database: Database) -> int:
                 values |= {"amount": amount, "currency": "EGP"}
             resolution = copy.deepcopy(row.resolution_result)
             apply_suggestions(resolution, values, HELPER_READER, "text")
-            resolution["primary_reader"] = PPOCR
+            resolution["primary_reader"] = used
             row.resolution_result = resolution
             row.updated_at = datetime.now(UTC)
             await session.commit()

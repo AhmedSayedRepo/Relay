@@ -95,10 +95,11 @@ def grade(
     answers: dict[str, str],
     owner: tuple[str, str | None] | None,
     single: bool = False,
+    latin: str | None = None,
 ) -> dict[str, str]:
     """Re-read one receipt's stored text and grade each field. ``single``:
     the text is one reading (the model reader), not the two Tesseract passes."""
-    from relay.infrastructure.cli import _receipt_like, _text_amount
+    from relay.infrastructure.cli import _paddle_amount, _receipt_like, _text_amount
     from relay.infrastructure.text_recheck import (
         VERSION,
         recipient_check,
@@ -116,7 +117,10 @@ def grade(
     values = read.get("values") or {}
     found = read.get("found") or {}
     result = {
-        "amount": outcome(answers.get("amount"), _text_amount({VERSION: read})),
+        "amount": outcome(
+            answers.get("amount"),
+            _paddle_amount(text, latin) if single else _text_amount({VERSION: read}),
+        ),
         "reference": outcome(answers.get("reference"), values.get("reference_number")),
         # A model reading must also show transfer words: the no-transfer
         # rule hides a photo when neither reader does.
@@ -202,9 +206,10 @@ MODEL_PREFIXES = ("vl_", "ppocr_")
 MODEL_NAMES = {
     "vl_ocr_v1": "PaddleOCR-VL",
     "vl_glm_v1": "GLM-OCR",
-    "ppocr_v4": "PaddleOCR (classic)",
+    "ppocr_v4": "PaddleOCR (classic) v4",
+    "ppocr_v5": "PaddleOCR (classic)",
 }
-HELPER = "ppocr_v4"  # must match ppocr_reader.VERSION (checked in tests)
+HELPER = "ppocr_v5"  # must match ppocr_reader.VERSION (checked in tests)
 
 
 async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades]]:
@@ -246,8 +251,13 @@ async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades
                 and isinstance(seen, dict)
                 and seen.get("text")
             ):
+                latin = seen.get("latin")
                 models.setdefault(key, {})[str(candidate_id)] = grade(
-                    str(seen["text"]), answers, owner, single=True
+                    str(seen["text"]),
+                    answers,
+                    owner,
+                    single=True,
+                    latin=latin if isinstance(latin, str) else None,
                 )
     return grades, models
 
@@ -275,7 +285,9 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
     tesseract, models = asyncio.run(confirmed_grades(settings))
     # What is in use: PaddleOCR first, Tesseract second (Tesseract alone
     # where PaddleOCR has not read the receipt).
-    helper = models.get(HELPER, {})
+    # The newest PaddleOCR reading of each receipt (earlier versions while
+    # receipts are read again), as in use.
+    helper = {**models.get("ppocr_v4", {}), **models.get(HELPER, {})}
     grades = {
         key: combined(value, helper[key]) if key in helper else value
         for key, value in tesseract.items()
