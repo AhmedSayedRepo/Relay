@@ -486,6 +486,11 @@ class SqlOperationsRepository:
                 != "null",
             )
         )
+        rejected = await self.db.scalar(
+            select(func.count())
+            .select_from(ReceiptCandidateRow)
+            .where(*receipt_range, ReceiptCandidateRow.review_status == "REJECTED")
+        )
         needs_review = await self.db.scalar(
             select(func.count())
             .select_from(ReceiptCandidateRow)
@@ -691,6 +696,7 @@ class SqlOperationsRepository:
             "final_transaction_count": int(final_count or 0),
             "reviewed_count": int(reviewed_count or 0),
             "needs_review_count": int(needs_review or 0),
+            "rejected_count": int(rejected or 0),
             "duplicate_group_count": int(group_count or 0),
             "duplicate_candidate_count": int(duplicate_count or 0),
             "processing_failure_count": jobs.get("FAILED", 0),

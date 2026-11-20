@@ -46,7 +46,7 @@ export type DashboardData = {
   date_to: string;
   final_transaction_count: number;
   reviewed_count: number;
-  needs_review_count: number;
+  needs_review_count: number; rejected_count?: number;
   duplicate_group_count: number;
   duplicate_candidate_count: number;
   processing_failure_count: number;
