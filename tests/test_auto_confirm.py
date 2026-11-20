@@ -824,4 +824,4 @@ async def test_review_rejects_a_failed_send_screen(client, auth_headers, app):
     await hide_non_receipts(app.state.database)
     detail = await _detail(client, auth_headers, candidate)
     assert detail["review_status"] == "REJECTED"
-    assert detail["status_reason"] == "transfer_failed"
+    assert detail["resolution_result"]["rejected_reason"] == "not_completed"
