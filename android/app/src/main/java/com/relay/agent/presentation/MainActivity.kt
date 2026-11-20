@@ -207,4 +207,3 @@ private fun askToRunInBackground(context: Context) {
         }
     }
 }
-
