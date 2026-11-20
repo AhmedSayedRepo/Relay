@@ -35,7 +35,11 @@ def test_its_lines_feed_the_same_rules() -> None:
 
 async def test_each_receipt_is_read_once(client, auth_headers, app, monkeypatch):
     candidate, _ = await run_receipt(client, auth_headers, app, "ppocr-once")
-    monkeypatch.setattr(ppocr_reader, "read_ppocr", lambda data: "550 EGP")
+    monkeypatch.setattr(
+        ppocr_reader,
+        "read_parts",
+        lambda data: {"text": "550 EGP\nتم التحويل", "latin": "550 EGP"},
+    )
     database, storage = app.state.database, app.state.object_storage
     assert await ppocr_reader.ppocr_pass(database, storage, 5) >= 1
     assert await ppocr_reader.ppocr_pass(database, storage, 5) == 0
@@ -45,7 +49,8 @@ async def test_each_receipt_is_read_once(client, auth_headers, app, monkeypatch)
                 ReceiptCandidateRow.id == UUID(candidate["id"])
             )
         )
-    assert machine[ppocr_reader.VERSION]["text"] == "550 EGP"
+    assert machine[ppocr_reader.VERSION]["latin"] == "550 EGP"
+    assert ppocr_reader.latest(machine)["text"].startswith("550 EGP")
 
 
 class ArrayLike(list):
