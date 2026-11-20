@@ -13,9 +13,15 @@ export function ExceptionSummary({ receipt }: { receipt: Transaction }) {
   return <div><StatusBadge value={evidence.state} /><p className="hint">{m.exceptions.count.replace("{count}", String(evidence.blocking_fields.length))}</p>{evidence.blocking_fields.map((name) => <span className="badge warning" key={name}>{(m.exceptions.fields as Record<string, string>)[name] || name}</span>)}</div>;
 }
 
+/** The one value the machine suggests for a field, if its readings agree. */
+function suggestion(resolution?: FieldResolution): string {
+  const unique = [...new Set((resolution?.candidates || []).map((candidate) => candidate.normalized_value || candidate.value))];
+  return unique.length === 1 ? unique[0] : "";
+}
+
 function FieldCard({ resolution, field, busy, submit, focus }: { resolution?: FieldResolution; field: string; busy: boolean; submit: (field: string, action: "CONFIRM" | "CORRECT" | "UNAVAILABLE", value: string | null) => void; focus: (polygon: number[][]) => void }) {
   const { messages: m } = useI18n(); const [selected, setSelected] = useState(""); const [correcting, setCorrecting] = useState(false); const [value, setValue] = useState("");
-  const candidates = resolution?.candidates || []; const unique = [...new Set(candidates.map((candidate) => candidate.normalized_value || candidate.value))]; const suggested = unique.length === 1 ? unique[0] : selected;
+  const candidates = resolution?.candidates || []; const unique = [...new Set(candidates.map((candidate) => candidate.normalized_value || candidate.value))]; const suggested = suggestion(resolution) || selected;
   const label = (m.exceptions.fields as Record<string, string>)[field] || field;
   if (resolution?.reason === "operator_unavailable") return <article className="exception-field decided"><h3>{label}</h3><p className="status" role="status">{m.exceptions.markedUnavailable}</p>
     <div className="exception-actions"><button type="button" disabled={busy} onClick={() => setCorrecting(!correcting)}>{m.exceptions.enterValue}</button></div>
@@ -48,7 +54,7 @@ async function nextInQueue(token: string, current: string): Promise<string | nul
 }
 
 export function ExceptionReview({ receipt, evidence, token, reload, focus }: { receipt: Transaction; evidence: EvidenceFirst; token: string; reload: () => void; focus: (polygon: number[][]) => void }) {
-  const { messages: m } = useI18n(); const navigate = useNavigate(); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
+  const { messages: m, locale } = useI18n(); const navigate = useNavigate(); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const pending = useRef<{ signature: string; id: string } | null>(null); const inFlight = useRef(false);
   async function submit(field: string | undefined, action: "CONFIRM" | "CORRECT" | "UNAVAILABLE" | "REJECT", value: string | null) {
     if (inFlight.current || typeof receipt.updated_at !== "string") return;
@@ -58,6 +64,23 @@ export function ExceptionReview({ receipt, evidence, token, reload, focus }: { r
     try { const saved = await api<Transaction>(`/receipts/${receipt.id}/exceptions`, token, { method: "POST", body: JSON.stringify({ command_id: pending.current.id, ...payload }) }); pending.current = null; const after = evidenceFirst(saved); if (after?.state === "REVIEW_FINALIZED" || action === "REJECT" || allDecided(after)) { const nextId = await nextInQueue(token, String(receipt.id)); if (nextId) navigate(`/transactions/${nextId}`); else { reload(); setMessage(m.exceptions.noNext); } } else reload(); }
     catch { inFlight.current = false; setBusy(false); setMessage(m.exceptions.failed); }
   }
+  // Confirm every open field with its suggested value in one click.
+  const open = evidence.blocking_fields.filter((name) => evidence.fields[name]?.reason !== "operator_unavailable");
+  const plan = open.map((name) => [name, suggestion(evidence.fields[name])] as const);
+  const missing = plan.filter(([, value]) => !value).map(([name]) => (m.exceptions.fields as Record<string, string>)[name] || name);
+  async function confirmAll() {
+    if (inFlight.current || typeof receipt.updated_at !== "string" || !plan.length || missing.length) return;
+    inFlight.current = true; setBusy(true); setMessage("");
+    let updated: unknown = receipt.updated_at; let saved: Transaction | null = null;
+    try {
+      for (const [field, value] of plan) {
+        saved = await api<Transaction>(`/receipts/${receipt.id}/exceptions`, token, { method: "POST", body: JSON.stringify({ command_id: crypto.randomUUID(), expected_updated_at: updated, field, action: "CONFIRM", value }) });
+        updated = saved?.updated_at;
+      }
+      const after = evidenceFirst(saved as Transaction);
+      if (after?.state === "REVIEW_FINALIZED" || allDecided(after)) { const nextId = await nextInQueue(token, String(receipt.id)); if (nextId) navigate(`/transactions/${nextId}`); else { reload(); setMessage(m.exceptions.noNext); } } else reload();
+    } catch { inFlight.current = false; setBusy(false); setMessage(m.exceptions.failed); reload(); }
+  }
   async function next() {
     if (inFlight.current) return; inFlight.current = true; setBusy(true); setMessage(""); pending.current = null;
     try { const nextId = await nextInQueue(token, String(receipt.id)); if (nextId) navigate(`/transactions/${nextId}`); else { setMessage(m.exceptions.noNext); inFlight.current = false; setBusy(false); } }
@@ -66,6 +89,7 @@ export function ExceptionReview({ receipt, evidence, token, reload, focus }: { r
   const resolved = Object.entries(evidence.fields).filter(([, field]) => field.state === "RESOLVED");
   return <article className="panel wide exception-review"><h2>{m.exceptions.title}</h2><StatusBadge value={evidence.state} /><p className="hint">{m.exceptions.safety}</p>{message && <p role="alert" className="status error">{message}</p>}
     {typeof receipt.updated_at !== "string" && <p role="alert">{m.exceptions.failed}</p>}
+    {open.length > 0 && <div className="exception-actions decide-all"><button type="button" disabled={busy || typeof receipt.updated_at !== "string" || missing.length > 0} onClick={() => void confirmAll()}>{m.exceptions.confirmAll}</button><button type="button" className="danger-button" disabled={busy || typeof receipt.updated_at !== "string"} onClick={() => void submit(undefined, "REJECT", null)}>{m.exceptions.rejectReceipt}</button>{missing.length > 0 && <p className="hint">{m.exceptions.confirmAllNeeds.replace("{fields}", missing.join(locale === "ar" ? "، " : ", "))}</p>}</div>}
     {evidence.blocking_fields.length ? evidence.blocking_fields.map((field) => <FieldCard key={field} field={field} resolution={evidence.fields[field]} busy={busy || typeof receipt.updated_at !== "string"} submit={(name, action, value) => void submit(name, action, value)} focus={focus} />) : <p role="status">{m.exceptions.complete}</p>}
     <details><summary>{m.exceptions.resolved}</summary><dl className="fact-list">{resolved.map(([name, field]) => <div key={name}><dt>{(m.exceptions.fields as Record<string, string>)[name] || name}</dt><dd><Bidi>{field.value || "—"}</Bidi></dd></div>)}</dl></details>
     <div className="exception-actions"><button type="button" disabled={busy || typeof receipt.updated_at !== "string"} onClick={() => void submit(undefined, "REJECT", null)}>{m.detail.reject}</button><button type="button" disabled={busy} onClick={() => void next()}>{m.common.next}</button></div>
