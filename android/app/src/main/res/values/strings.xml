@@ -31,7 +31,7 @@
     <string name="allow_sms_switch">Collect bank SMS on this phone</string>
     <string name="allow_images_switch">Collect receipt images on this phone</string>
     <string name="catch_up_sms">Catch up missed bank SMS (last 3 days)</string>
-    <string name="catch_up_done">%1$d missed bank SMS sent to Relay</string>
+    <string name="catch_up_done">Missed bank SMS sent to Relay: %1$d</string>
     <string name="catch_up_none">No missed bank SMS found</string>
     <string name="catch_up_denied">Allow reading SMS to catch up missed bank SMS</string>
     <string name="allow_sms_access">Allow SMS access</string>
