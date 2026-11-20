@@ -9,7 +9,13 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from relay.infrastructure.models import DeviceRow
-from relay.infrastructure.phone_health import describe, gap_reason, risks, stored
+from relay.infrastructure.phone_health import (
+    describe,
+    gap_reason,
+    risks,
+    stored,
+    summary,
+)
 from tests.test_agent import agent_headers, provision
 
 NOW = datetime(2026, 11, 20, 9, 0, tzinfo=UTC)
@@ -52,7 +58,7 @@ def test_risks_and_the_last_silence_are_kept() -> None:
     # A quick check-in later keeps the explained silence.
     later = stored({}, NOW, NOW + timedelta(minutes=15), first)
     assert later["gap"]["reason"] == "phone_off"
-    assert "phone was off" in describe(later)
+    assert "phone was off" in describe(summary(later))
     assert describe(None).startswith("no health report")
 
 

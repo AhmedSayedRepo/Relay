@@ -122,10 +122,10 @@ WORDS = {
 }
 
 
-def describe(health: Any) -> str:
-    """One English phrase for emails: the last silence, then risks."""
-    info = summary(health)
-    if info is None:
+def describe(info: Any) -> str:
+    """One English phrase for emails from ``summary``: the last silence,
+    then risks."""
+    if not isinstance(info, dict):
         return "no health report yet (app older than 0.8.1)"
     parts = []
     if info["gap"]:
