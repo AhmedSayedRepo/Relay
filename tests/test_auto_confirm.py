@@ -1018,3 +1018,11 @@ async def test_a_receipt_paid_days_before_it_arrived_waits(client, auth_headers,
     async with app.state.database.session() as session:
         row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
         assert row.resolution_result["old_receipt"]["paid_on"] == paid
+def test_paddleocr_amount_read_without_its_currency() -> None:
+    from relay.infrastructure.cli import _paddle_amount
+
+    # A sharp photo of a cracked screen: the red "EGP" beside 571 was lost.
+    read = "571\nfagrsayed62@instapay\n01003405232\n522448348349\nNov 2026 03:28 PM"
+    assert _paddle_amount(read, read) == "571.00"
+    # A year, a phone or a reference alone on a line is not an amount.
+    assert _paddle_amount("2026\n20 Nov 2026\n01003405232", None) is None
