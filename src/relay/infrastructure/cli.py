@@ -1009,6 +1009,26 @@ def _same_amount(first: Any, second: Any) -> bool:
         return False
 
 
+async def _hide_copy(database: Database, candidate_id: UUID, other_id: UUID) -> bool:
+    """Hide an untouched receipt as a copy of ``other_id``."""
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.id == candidate_id)
+            .with_for_update()
+        )
+        if row is None or row.hidden_reason is not None or not _machine_only(row):
+            return False
+        resolution = copy.deepcopy(row.resolution_result or {})
+        resolution["copy_of"] = str(other_id)
+        resolution.pop("possible_repeat", None)
+        row.resolution_result = resolution
+        row.hidden_reason = "same_receipt"
+        row.updated_at = datetime.now(UTC)
+        await session.commit()
+        return True
+
+
 def _local_day(moment: datetime, settings: Settings) -> str:
     zone = ZoneInfo(settings.receipt_timezone)
     return aware(moment).astimezone(zone).date().isoformat()
@@ -1041,7 +1061,7 @@ async def auto_confirm(
         shows_a_phone,
     )
 
-    counts = {"sms_day": 0, "waiting": 0, "failed": 0}
+    counts = {"sms_day": 0, "waiting": 0, "failed": 0, "copies": 0}
     wait = _primary_wait()
     async with database.session() as session:
         reviewer = await session.scalar(
@@ -1087,6 +1107,9 @@ async def auto_confirm(
             "reference": values.get("reference_number"),
             "sender": text.get("sender") if isinstance(text, dict) else None,
         }
+
+    status_of = {row[0]: row[4] for row in rows}
+    arrived = {row[0]: row[6] for row in rows}
 
     # Every receipt of the day, confirmed or waiting, for the repeat check.
     known = [
@@ -1236,6 +1259,20 @@ async def auto_confirm(
         previous = resolution.get("possible_repeat")
         if repeat is not None:
             kind, other_id = repeat
+            other_arrived = arrived.get(other_id)
+            earlier = other_arrived is not None and (
+                (other_arrived, str(other_id)) < (created_at, str(candidate_id))
+            )
+            if kind == "reference" and (
+                status_of.get(other_id) == ReviewStatus.AUTO_ACCEPTED.value or earlier
+            ):
+                # Same reference and amount as a receipt already confirmed or
+                # sent earlier: the same photo again (forwarded, or in two
+                # folders). A reference is one transfer, so it is hidden as a
+                # copy instead of waiting in Review.
+                if await _hide_copy(database, candidate_id, other_id):
+                    counts["copies"] += 1
+                continue
             tag = {"day": day, "kind": kind, "with": str(other_id)}
             if previous != tag:
                 await _tag(database, candidate_id, "possible_repeat", tag)
