@@ -60,7 +60,7 @@ export const ar = {
     lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
     phoneGapLine: "آخر مرة سكت: {reason}، {time}",
     phoneGaps: { phone_off: "الموبايل كان مقفول أو اتعمله ريستارت", force_stopped: "التطبيق اتقفل بالإجبار", app_killed: "أندرويد قفل التطبيق", no_internet: "مكانش فيه نت" },
-    phoneRisks: { folder_lost: "مش قادر يقرا فولدر الصور: اختاره تاني من التطبيق", battery_restricted: "توفير البطارية مقيّد التطبيق: خليها غير مقيدة", battery_low: "البطارية قربت تخلص", power_save: "الموبايل في وضع توفير الطاقة" },
+    phoneRisks: { sms_denied: "مش مسموحله يستقبل الرسايل: اسمح بالرسايل لـ Relay Bank SMS من إعدادات الموبايل", folder_lost: "مش قادر يقرا فولدر الصور: اختاره تاني من التطبيق", battery_restricted: "توفير البطارية مقيّد التطبيق: خليها غير مقيدة", battery_low: "البطارية قربت تخلص", power_save: "الموبايل في وضع توفير الطاقة" },
     finalTransactions: "المعاملات النهائية", reviewDemand: "تحتاج إلى مراجعة", duplicateGroups: "مجموعات التكرار",
     failedProcessing: "مشكلات المعالجة", pendingProcessing: "مهام معلّقة", moneyTitle: "الأموال النهائية حسب العملة",
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",

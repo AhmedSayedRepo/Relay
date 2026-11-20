@@ -58,7 +58,7 @@ export const en = {
     lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
     phoneGapLine: "Last silence: {reason}, {time}",
     phoneGaps: { phone_off: "phone was off or restarted", force_stopped: "app was force-stopped", app_killed: "Android closed the app", no_internet: "no internet" },
-    phoneRisks: { folder_lost: "Can't read the photo folder: choose it again in the app", battery_restricted: "Battery saving limits the app: set it to Unrestricted", battery_low: "Battery almost empty", power_save: "Phone is in power saving mode" },
+    phoneRisks: { sms_denied: "Not allowed to receive SMS: allow SMS for Relay Bank SMS in the phone settings", folder_lost: "Can't read the photo folder: choose it again in the app", battery_restricted: "Battery saving limits the app: set it to Unrestricted", battery_low: "Battery almost empty", power_save: "Phone is in power saving mode" },
     finalTransactions: "Final transactions", reviewDemand: "Needs review", duplicateGroups: "Duplicate groups",
     failedProcessing: "Processing issues", pendingProcessing: "Pending jobs", moneyTitle: "Final money by currency",
     moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",

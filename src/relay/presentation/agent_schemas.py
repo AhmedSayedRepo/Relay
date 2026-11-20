@@ -91,6 +91,7 @@ class PhoneHealth(BaseModel):
     battery_percent: int | None = Field(default=None, ge=-1, le=100)
     charging: bool | None = None
     folders_ok: bool | None = None
+    sms_allowed: bool | None = None
     android: int | None = Field(default=None, ge=0, le=1000)
     maker: str | None = Field(default=None, max_length=40)
     exits: list[ExitReport] = Field(default_factory=list, max_length=10)

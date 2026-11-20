@@ -25,6 +25,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.8.2" to ReleaseNote(
+            en = listOf(
+                "Relay Bank SMS also tells Relay why it was quiet, " +
+                    "and if SMS access was removed."
+            ),
+            ar = listOf(
+                "Relay Bank SMS كمان بيبلّغ Relay ليه كان ساكت، " +
+                    "ولو إذن الرسايل اتشال."
+            )
+        ),
         "0.8.1" to ReleaseNote(
             en = listOf(
                 "The app tells Relay why it was quiet (phone off, app closed by " +

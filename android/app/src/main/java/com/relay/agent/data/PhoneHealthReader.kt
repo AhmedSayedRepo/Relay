@@ -23,6 +23,8 @@ import kotlinx.serialization.json.put
  */
 class PhoneHealthReader(
     private val context: Context,
+    /** Relay Bank SMS only: whether SMS may still be received. */
+    private val smsAllowed: (() -> Boolean)? = null,
     private val folders: suspend () -> List<String>
 ) {
     suspend fun read(): JsonObject {
@@ -45,6 +47,7 @@ class PhoneHealthReader(
             put("battery_percent", battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY))
             put("charging", battery.isCharging)
             put("folders_ok", chosen.all { it.toUri() in granted })
+            smsAllowed?.let { put("sms_allowed", it()) }
             put("android", Build.VERSION.SDK_INT)
             put("maker", Build.MANUFACTURER.take(40))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

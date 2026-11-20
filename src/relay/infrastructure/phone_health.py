@@ -66,6 +66,8 @@ def risks(report: dict[str, Any] | None) -> list[str]:
     if not isinstance(report, dict):
         return []
     found: list[str] = []
+    if report.get("sms_allowed") is False:
+        found.append("sms_denied")
     if report.get("folders_ok") is False:
         found.append("folder_lost")
     if (
@@ -115,6 +117,7 @@ WORDS = {
     "force_stopped": "the app was force-stopped on the phone",
     "app_killed": "Android closed the app",
     "no_internet": "the phone had no internet (or was in deep sleep)",
+    "sms_denied": "the app is no longer allowed to receive SMS",
     "folder_lost": "the app can no longer read the photo folder",
     "battery_restricted": "battery saving limits the app",
     "battery_low": "the battery is almost empty",
