@@ -103,6 +103,8 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
     if value.review_status == "REJECTED":
         if resolution.get("rejected_reason") == "payment_request":
             return "payment_request"
+        if resolution.get("rejected_reason") == "not_completed":
+            return "transfer_failed"
         if isinstance(value.reviewed_result, dict):
             return "rejected_by_reviewer"
         if read.get("failed"):

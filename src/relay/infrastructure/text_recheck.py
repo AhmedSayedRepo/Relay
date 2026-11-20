@@ -28,7 +28,8 @@ _DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890
 _BRAND = re.compile(r"instapay|[اإ]نستا\s*با[يى]|\bIPN\b", re.I)
 _SUCCESS = re.compile(
     r"تم\s*التحويل|تمت\s*العملي[ةه]|معامل[ةه]\s*ناجح[ةه]|"
-    r"transfer(red)?\s+success|successful\s+trans",
+    r"transfer(red)?\s+success|successful\s+trans|"
+    r"transaction\s+was\s+successful|approved\s+transaction",
     re.I,
 )
 _LABEL = re.compile(
@@ -46,7 +47,16 @@ _REQUEST = re.compile(r"طلب\s*دفع|payment\s*request|request(?:ed)?\s*money
 _HANDLE = re.compile(r"([a-z][a-z0-9._-]{1,40}(?:\s\d{1,8})?)\s*@\s*instapay", re.I)
 _FAILED = re.compile(
     r"فشل(?:ت)?\s*(?:ال)?(?:معامل[ةه]|عملي[ةه]|تحويل)|"
-    r"(?:transaction|transfer)\s+failed|unsuccessful",
+    r"(?:transaction|transfer)\s+failed|unsuccessful|"
+    # An error on the send screen: "the phone number or payment address is
+    # incorrect, please try again".
+    r"غير\s*صحيح|يرجى\s*المحاولة|حاول\s*مر[ةه]\s*[اأ]خرى|try\s+again|incorrect",
+    re.I,
+)
+# The send-money form itself, before anything was sent.
+_FORM = re.compile(
+    r"[اإ]رسال\s*النقود\s*[اإ]لى|[اأ]ضف\s*سبب\s*التحويل|send\s+money\s+to|"
+    r"add\s+(?:a\s+)?reason",
     re.I,
 )
 _ACCOUNT = re.compile(r"ACCOUNT\s*X+\s*(\d{4})", re.I)
@@ -273,6 +283,15 @@ def transfer_words(text: str) -> bool:
         pattern.search(text)
         for pattern in (_BRAND, _SUCCESS, _LABEL, _REQUEST, _AMOUNT, _TRANSFER_WORDS)
     )
+
+
+def not_completed(text: str) -> bool:
+    """A screenshot of a transfer that did not happen: an error, or the send
+    form before sending, and no success wording anywhere."""
+    text = text.translate(_DIGITS)
+    if _SUCCESS.search(text):
+        return False
+    return bool(_FAILED.search(text) or _FORM.search(text))
 
 
 def single(text: str) -> dict[str, Any]:
