@@ -57,11 +57,14 @@ class EventService:
                     settings, value.rule_id, value.sender, value.body
                 ):
                     raise EventRejected("collector_not_enabled_or_unmatched")
-                if await self.uow.events.same_sms_seen(
+                # Caught up from the phone's inbox: the app names those events
+                # after their content (UUID version 3, live ones are random,
+                # version 4). One already stored (sent live, or before a
+                # reinstall) is not stored twice. Live SMS are never skipped:
+                # two equal payments can bring two equal SMS.
+                if value.event_id.version == 3 and await self.uow.events.same_sms_seen(
                     value.occurred_at, value.sender, value.body
                 ):
-                    # Caught up again from the phone's inbox (new install):
-                    # one bank SMS, one event.
                     counts["duplicate"] += 1
                     results.append(ItemResult(supplied_id, "duplicate"))
                     continue
