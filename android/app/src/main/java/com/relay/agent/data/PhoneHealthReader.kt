@@ -3,12 +3,12 @@ package com.relay.agent.data
 import android.app.ActivityManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.os.SystemClock
+import androidx.core.net.toUri
 import java.time.Instant
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -44,7 +44,7 @@ class PhoneHealthReader(
             put("power_save", power.isPowerSaveMode)
             put("battery_percent", battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY))
             put("charging", battery.isCharging)
-            put("folders_ok", chosen.all { Uri.parse(it) in granted })
+            put("folders_ok", chosen.all { it.toUri() in granted })
             put("android", Build.VERSION.SDK_INT)
             put("maker", Build.MANUFACTURER.take(40))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
