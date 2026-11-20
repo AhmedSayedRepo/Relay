@@ -698,3 +698,17 @@ async def test_paddleocr_fills_empty_review_fields(client, auth_headers, app):
     for name in empty:
         assert fields[name]["value"] == expected[name]
         assert fields[name]["candidates"][0]["adapter"] == "ppocr_helper_v1"
+
+
+def test_a_shop_bill_is_not_a_transfer() -> None:
+    from relay.infrastructure.text_recheck import shop_invoice
+
+    bill = (
+        "لحوم أبو عفصة\nرقم الفاتورة 160 التاريخ 2026/11/19\nالوردية 1,564\n"
+        "Total Item Name Price Qty\n480.00 برجر 480.00 1\nالاجمالى 1,977.35\n"
+        "خدمة توصيل 20.00\nالصافى 1,997.35\nالمدفوع نقدا 1,997.35\nاسم الطيار"
+    )
+    assert shop_invoice(bill)
+    # A transfer receipt that mentions an amount and a cashier is kept.
+    assert not shop_invoice("تم التحويل بنجاح\nInstaPay\n500.00 EGP\ncashier")
+    assert not shop_invoice("متابعة المعاملة\nالمبلغ الإجمالي 590.59 EGP")

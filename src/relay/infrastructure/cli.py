@@ -179,6 +179,22 @@ def _clear_non_receipt(row: ReceiptCandidateRow) -> bool:
     )
 
 
+def _shop_invoice(row: ReceiptCandidateRow) -> bool:
+    """An untouched Review item that either reader shows is a shop's bill."""
+    from relay.infrastructure import text_recheck
+    from relay.infrastructure.ppocr_reader import VERSION as PPOCR
+
+    if not _machine_only(row):
+        return False
+    machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+    texts = [
+        str(reading.get("text") or "")
+        for reading in (machine.get(text_recheck.VERSION), machine.get(PPOCR))
+        if isinstance(reading, dict)
+    ]
+    return any(text_recheck.shop_invoice(text) for text in texts if text)
+
+
 def _read_by_more_than_model(field: Any) -> bool:
     if not isinstance(field, dict) or not field.get("value"):
         return False
@@ -204,6 +220,11 @@ async def hide_non_receipts(database: Database) -> int:
         for row in rows:
             if _clear_non_receipt(row):
                 row.hidden_reason = "not_a_receipt"
+                hidden += 1
+            elif _shop_invoice(row):
+                # Its own reason: unhide_receipt_like must not bring it back
+                # (a bill prints amounts, so it looks receipt-like).
+                row.hidden_reason = "shop_invoice"
                 hidden += 1
         await session.commit()
     if hidden:
