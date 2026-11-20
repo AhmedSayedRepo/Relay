@@ -55,6 +55,11 @@ def test_risks_and_the_last_silence_are_kept() -> None:
     }
     assert risks(report) == ["folder_lost", "battery_restricted", "battery_low"]
     assert risks({"sms_allowed": False})[0] == "sms_denied"
+    # Unrestricted, but rarely opened: no battery warning.
+    assert risks({"battery_unrestricted": True, "standby_bucket": "rare"}) == []
+    assert risks({"battery_unrestricted": False, "standby_bucket": "rare"}) == [
+        "battery_restricted"
+    ]
     first = stored(report | {"boot_at": NOW.isoformat()}, BEFORE, NOW, None)
     # A quick check-in later keeps the explained silence.
     later = stored({}, NOW, NOW + timedelta(minutes=15), first)

@@ -70,10 +70,13 @@ def risks(report: dict[str, Any] | None) -> list[str]:
         found.append("sms_denied")
     if report.get("folders_ok") is False:
         found.append("folder_lost")
+    # An app set to Unrestricted is exempt from Android's standby buckets: a
+    # "rare" bucket (an app not opened often) alone is not a restriction.
+    unrestricted = report.get("battery_unrestricted") is True
     if (
         report.get("battery_unrestricted") is False
         or report.get("background_restricted") is True
-        or report.get("standby_bucket") in ("rare", "restricted")
+        or (report.get("standby_bucket") == "restricted" and not unrestricted)
     ):
         found.append("battery_restricted")
     percent = report.get("battery_percent")
