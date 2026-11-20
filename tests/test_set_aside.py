@@ -43,7 +43,9 @@ async def _reject(app, candidate_id):
         await session.commit()
 
 
-async def test_a_rejected_receipt_is_listed_and_brought_back(client, auth_headers, app):
+async def test_a_rejected_receipt_is_listed_and_brought_back(
+    client, auth_headers, app
+):
     candidate = await _receipt_with_unused_sms(client, auth_headers, app, "aside")
     # Before a reject, the reviewer is told the bank SMS is still unused.
     warned = await client.get(
