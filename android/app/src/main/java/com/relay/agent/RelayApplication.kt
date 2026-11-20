@@ -18,6 +18,7 @@ import com.relay.agent.data.EncryptedSqliteOutbox
 import com.relay.agent.data.EventUploadScheduler
 import com.relay.agent.data.HttpRelayApi
 import com.relay.agent.data.KeystoreCredentialCipher
+import com.relay.agent.data.PhoneHealthReader
 import com.relay.agent.data.SafTreeImageSource
 import com.relay.agent.data.SyncScheduler
 import java.io.File
@@ -45,7 +46,12 @@ class RelayApplication : Application() {
     }
     val imageSource by lazy { SafTreeImageSource(this) }
     val api by lazy {
-        HttpRelayApi(BuildConfig.RELAY_BASE_URL, BuildConfig.VERSION_NAME, BuildConfig.DEBUG)
+        HttpRelayApi(
+            BuildConfig.RELAY_BASE_URL,
+            BuildConfig.VERSION_NAME,
+            BuildConfig.DEBUG,
+            PhoneHealthReader(this) { store.read().imageSources.map { it.treeUri } }::read
+        )
     }
     private fun smsPermissionGranted(): Boolean = ContextCompat.checkSelfPermission(
         this,

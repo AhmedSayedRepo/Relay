@@ -56,6 +56,9 @@ export const en = {
     alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
     alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
     lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
+    phoneGapLine: "Last silence: {reason}, {time}",
+    phoneGaps: { phone_off: "phone was off or restarted", force_stopped: "app was force-stopped", app_killed: "Android closed the app", no_internet: "no internet" },
+    phoneRisks: { folder_lost: "Can't read the photo folder: choose it again in the app", battery_restricted: "Battery saving limits the app: set it to Unrestricted", battery_low: "Battery almost empty", power_save: "Phone is in power saving mode" },
     finalTransactions: "Final transactions", reviewDemand: "Needs review", duplicateGroups: "Duplicate groups",
     failedProcessing: "Processing issues", pendingProcessing: "Pending jobs", moneyTitle: "Final money by currency",
     moneyIntro: "Currencies remain separate so totals keep their meaning.", currency: "Currency", transactions: "Transactions", total: "Total",
@@ -65,7 +68,7 @@ export const en = {
     autoConfirmed: "Confirmed automatically", manualConfirmed: "Confirmed by people", workloadTitle: "Review workload", workloadIntro: "{count} receipts waiting for a decision.",
     smsTitle: "Bank SMS matching", sms: { VERIFIED: "Matched", WAITING: "Waiting for SMS", UNMATCHED: "No SMS found", AMBIGUOUS: "Unclear (several SMS)" },
     phonesTitle: "Per phone", phonesIntro: "Receipts each phone sent in this range and their confirmed total.", phone: "Phone", received: "Receipts", confirmed: "Confirmed", noPhones: "No receipts from any phone in this range.",
-    reviewMoney: "Money waiting for review", reviewMoneyHint: "Amounts read so far; not in the total until confirmed", duplicatesConfirmed: "Confirmed duplicates", duplicatesConfirmedHint: "Groups of the same payment, counted once", duplicatesPossible: "Possible duplicates", duplicatesPossibleHint: "Waiting receipts that look like another one", smsMatchedHint: "of {count} receipts in range",
+    reviewMoney: "Money waiting for review", reviewMoneyHint: "Amounts read so far; not in the total until confirmed", duplicatesConfirmed: "Confirmed duplicates", duplicatesConfirmedHint: "Groups of the same payment, counted once", duplicatesPossible: "Possible duplicates", duplicatesPossibleHint: "Waiting receipts that look like another one", smsMatchedHint: "of {count} receipts in range", smsMatchedHintRejected: "of {count} receipts in range · {rejected} rejected",
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {

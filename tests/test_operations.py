@@ -173,11 +173,11 @@ async def test_operator_dashboard_transactions_duplicates_and_export(
     assert exported.status_code == 200, exported.text
     assert "attachment; filename=" in exported.headers["Content-Disposition"]
     workbook = load_workbook(BytesIO(exported.content), data_only=False)
-    assert workbook.sheetnames == ["Transactions", "Duplicates", "Summary"]
-    assert workbook["Transactions"].max_row == 2
+    assert workbook.sheetnames == ["Summary", "Transactions", "Duplicates"]
+    assert workbook["Transactions"]["A1"].value == "Received (Cairo)"
+    assert workbook["Transactions"]["A2"].value is not None
+    assert workbook["Transactions"]["A3"].value is None  # one receipt, then totals
     assert workbook["Duplicates"].max_row == 2
-    assert workbook["Transactions"]["S1"].value == "Sent to Folder (UTC)"
-    assert workbook["Transactions"]["S2"].value is not None
 
     # Reports count receipts by when the image reached the receipts folder.
     reported = await client.get(
@@ -299,6 +299,10 @@ def test_excel_export_sanitizes_formula_injection_and_preserves_types() -> None:
     )
     workbook = load_workbook(BytesIO(content), data_only=False)
     sheet = workbook["Transactions"]
-    assert sheet["C2"].value == 1250.5
-    assert sheet["E2"].value == "'=1+1"
-    assert sheet["F2"].value == "'+cmd"
+    assert sheet["D2"].value == 1250.5
+    assert sheet["I2"].value == "'=1+1"
+    assert sheet["J2"].value == "'+cmd"
+    assert sheet["F2"].value == "Confirmed"
+    # UTC 12:35 is 15:35 in Cairo (summer time in September).
+    assert sheet["A2"].value.hour == 15
+    assert workbook["Summary"]["A1"].value == "Relay · Receipts report"

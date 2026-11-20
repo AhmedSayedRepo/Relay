@@ -15,7 +15,7 @@ def operations_service(
     settings = cast(Settings, request.app.state.settings)
     return OperationsService(
         uow,
-        OpenpyxlWorkbookExporter(),
+        OpenpyxlWorkbookExporter(settings.receipt_timezone),
         audit_retention_days=settings.operator_audit_retention_days,
     )
 

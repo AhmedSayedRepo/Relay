@@ -486,6 +486,11 @@ class SqlOperationsRepository:
                 != "null",
             )
         )
+        rejected = await self.db.scalar(
+            select(func.count())
+            .select_from(ReceiptCandidateRow)
+            .where(*receipt_range, ReceiptCandidateRow.review_status == "REJECTED")
+        )
         needs_review = await self.db.scalar(
             select(func.count())
             .select_from(ReceiptCandidateRow)
@@ -620,6 +625,20 @@ class SqlOperationsRepository:
             .order_by(func.count(ReceiptCandidateRow.id).desc(), DeviceRow.name)
             .limit(20)
         )
+        device_rows = device_counts.all()
+        # Each phone's health report (why it went quiet), read separately:
+        # a JSON column cannot be grouped on.
+        from relay.infrastructure.phone_health import summary as health_summary
+
+        healths = dict(
+            (
+                await self.db.execute(
+                    select(DeviceRow.id, DeviceRow.health).where(
+                        DeviceRow.id.in_([row[0] for row in device_rows])
+                    )
+                )
+            ).all()
+        )
         # Money still waiting for review, by the amount read so far (counted
         # once per payment: possible copies of another receipt are left out).
         waiting: dict[str, list[Decimal]] = {}
@@ -677,6 +696,7 @@ class SqlOperationsRepository:
             "final_transaction_count": int(final_count or 0),
             "reviewed_count": int(reviewed_count or 0),
             "needs_review_count": int(needs_review or 0),
+            "rejected_count": int(rejected or 0),
             "duplicate_group_count": int(group_count or 0),
             "duplicate_candidate_count": int(duplicate_count or 0),
             "processing_failure_count": jobs.get("FAILED", 0),
@@ -713,6 +733,7 @@ class SqlOperationsRepository:
                     "sms_verified_count": int(sms_verified or 0),
                     "last_seen_at": _iso(seen),
                     "last_photo_at": _iso(photo),
+                    "health": cast(JsonValue, health_summary(healths.get(device_id))),
                 }
                 for (
                     device_id,
@@ -723,7 +744,7 @@ class SqlOperationsRepository:
                     confirmed,
                     amount,
                     sms_verified,
-                ) in device_counts
+                ) in device_rows
             ],
             "auto_confirmed_count": int(auto_count or 0),
             "manual_confirmed_count": max(

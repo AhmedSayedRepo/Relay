@@ -145,6 +145,13 @@ async def heartbeat(
 ) -> HeartbeatResponse:
     return HeartbeatResponse.model_validate(
         await service.heartbeat(
-            principal, body.app_version, body.current_config_version
+            principal,
+            body.app_version,
+            body.current_config_version,
+            (
+                body.health.model_dump(mode="json", exclude_none=True)
+                if body.health
+                else None
+            ),
         )
     )

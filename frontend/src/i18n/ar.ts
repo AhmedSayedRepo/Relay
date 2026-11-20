@@ -58,6 +58,9 @@ export const ar = {
     alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
     alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
     lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
+    phoneGapLine: "آخر مرة سكت: {reason}، {time}",
+    phoneGaps: { phone_off: "الموبايل كان مقفول أو اتعمله ريستارت", force_stopped: "التطبيق اتقفل بالإجبار", app_killed: "أندرويد قفل التطبيق", no_internet: "مكانش فيه نت" },
+    phoneRisks: { folder_lost: "مش قادر يقرا فولدر الصور: اختاره تاني من التطبيق", battery_restricted: "توفير البطارية مقيّد التطبيق: خليها غير مقيدة", battery_low: "البطارية قربت تخلص", power_save: "الموبايل في وضع توفير الطاقة" },
     finalTransactions: "المعاملات النهائية", reviewDemand: "تحتاج إلى مراجعة", duplicateGroups: "مجموعات التكرار",
     failedProcessing: "مشكلات المعالجة", pendingProcessing: "مهام معلّقة", moneyTitle: "الأموال النهائية حسب العملة",
     moneyIntro: "تبقى العملات منفصلة حتى تحتفظ المجاميع بمعناها.", currency: "العملة", transactions: "المعاملات", total: "الإجمالي",
@@ -67,7 +70,7 @@ export const ar = {
     autoConfirmed: "تأكيد تلقائي", manualConfirmed: "تأكيد يدوي", workloadTitle: "حجم المراجعة", workloadIntro: "{count} إيصالات تنتظر قراراً.",
     smsTitle: "مطابقة رسائل البنك", sms: { VERIFIED: "مطابقة", WAITING: "بانتظار الرسالة", UNMATCHED: "لا توجد رسالة", AMBIGUOUS: "غير واضح (عدة رسائل)" },
     phonesTitle: "حسب الهاتف", phonesIntro: "الإيصالات التي أرسلها كل هاتف في هذه الفترة ومجموعها المؤكد.", phone: "الهاتف", received: "الإيصالات", confirmed: "المؤكدة", noPhones: "لا توجد إيصالات من أي هاتف في هذه الفترة.",
-    reviewMoney: "مبالغ تنتظر المراجعة", reviewMoneyHint: "المبالغ المقروءة حتى الآن؛ لا تدخل في الإجمالي قبل التأكيد", duplicatesConfirmed: "تكرارات مؤكدة", duplicatesConfirmedHint: "مجموعات لنفس الدفعة، تُحسب مرة واحدة", duplicatesPossible: "تكرارات محتملة", duplicatesPossibleHint: "إيصالات تنتظر وتشبه إيصالاً آخر", smsMatchedHint: "من {count} إيصال في الفترة",
+    reviewMoney: "مبالغ تنتظر المراجعة", reviewMoneyHint: "المبالغ المقروءة حتى الآن؛ لا تدخل في الإجمالي قبل التأكيد", duplicatesConfirmed: "تكرارات مؤكدة", duplicatesConfirmedHint: "مجموعات لنفس الدفعة، تُحسب مرة واحدة", duplicatesPossible: "تكرارات محتملة", duplicatesPossibleHint: "إيصالات تنتظر وتشبه إيصالاً آخر", smsMatchedHint: "من {count} إيصال في الفترة", smsMatchedHintRejected: "من {count} إيصال في الفترة · {rejected} مرفوض",
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {

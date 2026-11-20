@@ -70,9 +70,36 @@ class AcknowledgementResponse(BaseModel):
     acknowledged_version: int
 
 
+class ExitReport(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    at: datetime
+    reason: str = Field(max_length=32)
+
+
+class PhoneHealth(BaseModel):
+    """What the app reports about the phone (0.8.1+). Unknown keys from a
+    newer app are dropped, so an old server still accepts it."""
+
+    model_config = ConfigDict(extra="ignore")
+    reported_at: datetime | None = None
+    boot_at: datetime | None = None
+    app_started_at: datetime | None = None
+    battery_unrestricted: bool | None = None
+    background_restricted: bool | None = None
+    standby_bucket: str | None = Field(default=None, max_length=16)
+    power_save: bool | None = None
+    battery_percent: int | None = Field(default=None, ge=-1, le=100)
+    charging: bool | None = None
+    folders_ok: bool | None = None
+    android: int | None = Field(default=None, ge=0, le=1000)
+    maker: str | None = Field(default=None, max_length=40)
+    exits: list[ExitReport] = Field(default_factory=list, max_length=10)
+
+
 class HeartbeatRequest(InputModel):
     app_version: Version
     current_config_version: int = Field(strict=True, ge=0, le=2147483647)
+    health: PhoneHealth | None = None
 
 
 class HeartbeatResponse(BaseModel):

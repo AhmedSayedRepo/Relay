@@ -553,6 +553,7 @@ td { font-variant-numeric: tabular-nums; }
 .seen { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
 .seen::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--line); }
 .seen.fresh::before { background: var(--success); }.seen.stale::before { background: #d08a3c; }
+.health-note { display: block; margin-top: .25rem; color: var(--warning, #9a5b00); font-size: .78rem; line-height: 1.35; white-space: normal; }
 /* Review cards: the whole card opens the receipt; inner links stay clickable. */
 .record-card.clickable { position: relative; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out), transform .2s var(--ease-out); }
 .record-card.clickable:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); transform: translateY(-1px); }

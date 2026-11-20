@@ -5,6 +5,8 @@ import com.relay.agent.domain.Credentials
 import com.relay.agent.domain.GenericEvent
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -65,6 +67,27 @@ class HttpRelayApiTest {
             assertEquals(307, error.statusCode)
         }
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun heartbeatCarriesThePhoneHealthReport() = runTest {
+        val reporting = HttpRelayApi(server.url("/").toString(), "0.8.1", true) {
+            buildJsonObject { put("battery_percent", 40) }
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        reporting.heartbeat("access", 1)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("\"health\":{\"battery_percent\":40}"))
+    }
+
+    @Test
+    fun heartbeatStillSendsWhenHealthFails() = runTest {
+        val failing = HttpRelayApi(server.url("/").toString(), "0.8.1", true) {
+            error("no access")
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        failing.heartbeat("access", 1)
+        assertTrue(!server.takeRequest().body.readUtf8().contains("health"))
     }
 
     @Test
