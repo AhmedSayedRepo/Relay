@@ -4,7 +4,9 @@ evening and not the next day:
 - a receipt phone has not contacted Relay for over an hour in working hours
   (app closed by battery saving, phone off or offline);
 - an incoming bank SMS is over an hour old and no receipt matches it (the
-  photo never reached Relay, or it is waiting in Review).
+  photo never reached Relay, or it is waiting in Review);
+- an old receipt shown again: its reference was already on a receipt from an
+  earlier day, or its printed date is days before it reached the phone.
 
 Shown on the dashboard and emailed, each warning once, by ``check-alerts``.
 """
@@ -25,6 +27,7 @@ from relay.infrastructure.event_models import RawEventRow
 from relay.infrastructure.models import DeviceRow
 from relay.infrastructure.phone_health import describe as health_words
 from relay.infrastructure.phone_health import summary
+from relay.infrastructure.processing_models import ReceiptCandidateRow
 from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
 WORK_STARTS, WORK_ENDS = 9, 23  # receipt hours, local time
@@ -101,7 +104,72 @@ async def current_alerts(
                 "since": _aware(occurred).isoformat(),
             }
         )
+
+    old = await session.execute(
+        select(
+            ReceiptCandidateRow.id,
+            ReceiptCandidateRow.created_at,
+            ReceiptCandidateRow.resolution_result,
+            DeviceRow.name,
+        )
+        .join(DeviceRow, DeviceRow.id == ReceiptCandidateRow.device_id)
+        .where(
+            ReceiptCandidateRow.review_status == "NEEDS_REVIEW",
+            ReceiptCandidateRow.hidden_reason.is_(None),
+            ReceiptCandidateRow.created_at >= midnight,
+            ReceiptCandidateRow.resolution_result["old_receipt"]
+            .as_string()
+            .is_not(None),
+        )
+        .order_by(ReceiptCandidateRow.created_at)
+    )
+    for candidate_id, created, resolution, device in old.all():
+        alerts.append(_old_receipt(candidate_id, created, resolution, device))
     return alerts
+
+
+def _old_receipt(
+    candidate_id: Any, created: datetime, resolution: Any, device: Any
+) -> dict[str, Any]:
+    from relay.domain.review_categories import suggestion
+
+    resolution = resolution if isinstance(resolution, dict) else {}
+    fields = resolution.get("fields")
+    fields = fields if isinstance(fields, dict) else {}
+    tag = resolution.get("old_receipt")
+    tag = tag if isinstance(tag, dict) else {}
+    return {
+        "key": f"old:{candidate_id}",
+        "kind": "old_receipt",
+        "id": str(candidate_id),
+        "device": str(device),
+        "amount": suggestion(fields.get("amount")),
+        "currency": suggestion(fields.get("currency")) or "EGP",
+        "reference": suggestion(fields.get("reference_number")),
+        "since": _aware(created).isoformat(),
+        "reason": tag.get("kind"),
+        "paid_on": tag.get("paid_on"),
+        "first_seen": tag.get("first_seen"),
+    }
+
+
+def _money(alert: dict[str, Any]) -> str:
+    try:
+        return f"{float(alert['amount']):,.2f} {alert['currency']}"
+    except (TypeError, ValueError):
+        return "amount not read"
+
+
+def _old_why(alert: dict[str, Any], zone: ZoneInfo) -> str:
+    if alert.get("reason") == "reference":
+        first = alert.get("first_seen")
+        day = (
+            datetime.fromisoformat(first).astimezone(zone).strftime("%Y-%m-%d")
+            if first
+            else "an earlier day"
+        )
+        return f"same reference as a receipt from {day}"
+    return f"paid on {alert.get('paid_on')}"
 
 
 def _aware(moment: datetime) -> datetime:
@@ -121,6 +189,11 @@ def describe(alert: dict[str, Any], zone: ZoneInfo) -> str:
         return (
             f"{alert['device']}: no contact since {at} ({why}). "
             "Open Relay Receipts, tap Sync now, and set its battery to Unrestricted."
+        )
+    if alert["kind"] == "old_receipt":
+        return (
+            f"Old receipt shown again on {alert['device']} at {at}: {_money(alert)}, "
+            f"{_old_why(alert, zone)}. It was not confirmed; check it in Review."
         )
     return (
         f"Bank SMS {alert['amount']} {alert['currency']} at {at}: no receipt matches "
@@ -195,7 +268,8 @@ def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime)
         )
 
     phones = [alert for alert in alerts if alert["kind"] == "silent_phone"]
-    texts = [alert for alert in alerts if alert["kind"] != "silent_phone"]
+    texts = [alert for alert in alerts if alert["kind"] == "sms_without_receipt"]
+    old = [alert for alert in alerts if alert["kind"] == "old_receipt"]
     sections = []
     if phones:
         sections.append(
@@ -237,6 +311,31 @@ def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime)
             + "</div>"
             + layout.note(
                 "Check that the receipt photo reached the cashier phone and Relay."
+            )
+        )
+    if old:
+        sections.append(
+            layout.section_head(
+                "Old receipts shown again", len(old), dot=layout.TONES["bad"][0]
+            )
+            + "<div style='margin-top:14px'>"
+            + layout.table(
+                ("Amount", "Phone", "Arrived", "Why"),
+                [
+                    (
+                        _money(alert),
+                        str(alert["device"]),
+                        clock(alert),
+                        _old_why(alert, zone),
+                    )
+                    for alert in old
+                ],
+                right=(0,),
+            )
+            + "</div>"
+            + layout.note(
+                "Not confirmed. Open Review: if it is a copy of an old receipt, "
+                "reject it."
             )
         )
     local = moment.astimezone(zone)

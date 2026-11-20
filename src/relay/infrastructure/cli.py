@@ -1009,6 +1009,17 @@ def _same_amount(first: Any, second: Any) -> bool:
         return False
 
 
+OLD_RECEIPT_DAYS = 2  # a printed payment date this many days before arrival
+
+
+def _without_at(value: Any) -> Any:
+    return (
+        {key: item for key, item in value.items() if key != "at"}
+        if isinstance(value, dict)
+        else value
+    )
+
+
 async def _hide_copy(database: Database, candidate_id: UUID, other_id: UUID) -> bool:
     """Hide an untouched receipt as a copy of ``other_id``."""
     async with database.session() as session:
@@ -1061,7 +1072,7 @@ async def auto_confirm(
         shows_a_phone,
     )
 
-    counts = {"sms_day": 0, "waiting": 0, "failed": 0, "copies": 0}
+    counts = {"sms_day": 0, "waiting": 0, "failed": 0, "copies": 0, "old": 0}
     wait = _primary_wait()
     async with database.session() as session:
         reviewer = await session.scalar(
@@ -1148,6 +1159,47 @@ async def auto_confirm(
                 return "sender", other_id
         return None
 
+    first_seen = {
+        candidate_id: aware(folder_at)
+        for candidate_id, _, _, _, _, folder_at, _ in rows
+    }
+
+    def stale(
+        candidate_id: UUID,
+        folder_at: datetime,
+        resolution: dict[str, Any],
+        machine: Any,
+    ) -> dict[str, Any] | None:
+        """An old receipt shown again: its reference was on a receipt that
+        reached a phone on an earlier day (same-day copies are hidden below),
+        or its printed payment date is OLD_RECEIPT_DAYS or more before it
+        reached the phone. Either can be a receipt reused to claim a payment
+        twice, so a person checks it."""
+        reference = facts(resolution, machine)["reference"]
+        day = _local_day(folder_at, settings)
+        if reference:
+            for other_id, other_day, other in known:
+                if (
+                    other_id != candidate_id
+                    and other["reference"] == reference
+                    and other_day < day
+                ):
+                    return {
+                        "kind": "reference",
+                        "with": str(other_id),
+                        "first_seen": first_seen[other_id].isoformat(),
+                    }
+        printed = (model_values(resolution, ("date",), ("text",)) or {}).get("date")
+        try:
+            paid = date.fromisoformat(printed) if printed else None
+        except ValueError:
+            paid = None
+        if paid is None:
+            return None
+        if (date.fromisoformat(day) - paid).days >= OLD_RECEIPT_DAYS:
+            return {"kind": "date", "paid_on": paid.isoformat()}
+        return None
+
     def alone(candidate_id: UUID, day: str, amount: Any) -> bool:
         """No other receipt that day, waiting or confirmed, shows this amount."""
         return not any(
@@ -1186,6 +1238,16 @@ async def auto_confirm(
             # that, Tesseract alone decides (PaddleOCR may be down).
             counts["waiting"] += 1
             continue
+        old = stale(candidate_id, folder_at, resolution, machine)
+        if old is not None:
+            # Never confirmed by itself: it waits in Review with a red warning
+            # (dashboard, email, and the Copies list on Transactions).
+            if _without_at(resolution.get("old_receipt")) != old:
+                await _tag(database, candidate_id, "old_receipt", old)
+            counts["old"] += 1
+            continue
+        if resolution.get("old_receipt") is not None:
+            await _untag(database, candidate_id, "old_receipt")
         unclear = False
         if owner is not None:
             name, phone = owner
@@ -1374,7 +1436,8 @@ async def auto_confirm(
             print(f"Left {candidate_id} for review: {error}")
     print(
         f"Auto-confirmed {counts['sms_day']} by a same-day bank SMS; "
-        f"{counts['waiting']} wait for review; {counts['failed']} failed."
+        f"{counts['waiting']} wait for review; {counts['old']} old receipts "
+        f"shown again; {counts['failed']} failed."
     )
     return counts
 

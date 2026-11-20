@@ -3,6 +3,7 @@ same day backs up a receipt; everything else waits for review."""
 
 from datetime import datetime, timedelta
 from itertools import cycle
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -933,3 +934,87 @@ async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
         assert len(hidden) == 1
         assert kept[0].review_status == "AUTO_ACCEPTED"
         assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
+
+
+async def test_a_receipt_from_an_earlier_day_shown_again_is_a_red_warning(
+    client, auth_headers, app
+):
+    from relay.infrastructure.alerts import current_alerts, render_email
+    from relay.infrastructure.event_models import RawEventRow
+
+    first, _ = await run_receipt(client, auth_headers, app, "old-copy-a")
+    second, _ = await run_receipt(client, auth_headers, app, "old-copy-b")
+    bundle = await _link_sms(client, auth_headers, [first, second], "old-copy-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 650.00 via InstaPay", _now()
+    )
+    # The first photo reached the phone three days ago; the same receipt
+    # (same reference) comes again today.
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        event = await session.get(RawEventRow, row.raw_event_id)
+        event.occurred_at = event.occurred_at - timedelta(days=3)
+        await session.commit()
+    same = {"amount": "650.00", "currency": "EGP", "reference_number": "770011223344"}
+    counts = await _read_and_confirm(app, same)
+    # Not hidden and not confirmed by today's SMS: a person checks it.
+    assert counts["old"] == 1 and counts["sms_day"] == 0 and counts["copies"] == 0
+    async with app.state.database.session() as session:
+        copy_row = await session.get(ReceiptCandidateRow, UUID(second["id"]))
+        assert copy_row.review_status == "NEEDS_REVIEW"
+        assert copy_row.hidden_reason is None
+        tag = copy_row.resolution_result["old_receipt"]
+        assert tag["kind"] == "reference" and tag["with"] == first["id"]
+        alerts = await current_alerts(session, app.state.settings)
+    old = [a for a in alerts if a["kind"] == "old_receipt"]
+    assert len(old) == 1 and old[0]["id"] == second["id"]
+    html = render_email(old, CAIRO, datetime.now(CAIRO))
+    assert "Old receipts shown again" in html
+    listed = await client.get(
+        "/api/v1/transactions?duplicate_status=COPY", headers=auth_headers
+    )
+    items = {i["id"]: i for i in listed.json()["items"]}
+    assert items[second["id"]]["status_reason"] == "old_receipt"
+    assert items[second["id"]]["similar_to"] == first["id"]
+
+
+async def test_a_receipt_paid_days_before_it_arrived_waits(client, auth_headers, app):
+    candidate, _ = await run_receipt(client, auth_headers, app, "old-date")
+    bundle = await _link_sms(client, auth_headers, [candidate], "old-date-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 820.00 via InstaPay", _now()
+    )
+    await model_suggest(
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"amount": "820.00", "currency": "EGP"}),
+        10,
+    )
+    await _text(app)
+    paid = (_now() - timedelta(days=4)).date().isoformat()
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        resolution = dict(row.resolution_result)
+        fields = dict(resolution["fields"])
+        fields["date"] = {
+            **fields["date"],
+            "value": paid,
+            "trust": "MACHINE_ONLY",
+            "candidates": [
+                {
+                    "field": "date",
+                    "value": paid,
+                    "normalized_value": paid,
+                    "source": "text",
+                }
+            ],
+        }
+        row.resolution_result = resolution | {"fields": fields}
+        await session.commit()
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert counts["old"] == 1 and counts["sms_day"] == 0
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        assert row.resolution_result["old_receipt"]["paid_on"] == paid

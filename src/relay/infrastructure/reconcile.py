@@ -146,6 +146,8 @@ async def reconcile(settings: Settings, day: date) -> list[str]:
             why = str(hidden)
         elif not isinstance(read, dict):
             why = "text not read yet"
+        elif resolution.get("old_receipt"):
+            why = "old receipt shown again"
         elif resolution.get("possible_repeat"):
             why = "possible repeat"
         elif resolution.get("recipient_mismatch"):

@@ -56,7 +56,7 @@ export const ar = {
   dashboard: {
     alertsTitle: "محتاج انتباه النهارده", alertsResets: "القايمة بتبدأ فاضية كل يوم الصبح.", alertsNone: "مفيش حاجة محتاجة انتباه النهارده.",
     alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
-    alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
+    alertOldTitle: "إيصال قديم اتبعت تاني", alertOldMeta: "{phone} الساعة {time}", alertOldReference: "نفس رقم المرجع بتاع إيصال من {day}", alertOldDate: "اتدفع يوم {day}", alertOldTip: "ماتأكدش. افتحه: لو نسخة من إيصال قديم، ارفضه.", alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
     lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
     phoneCrash: "التطبيق وقع {time}: {error}",
     phoneGapLine: "آخر مرة سكت: {reason}، {time}",
@@ -87,9 +87,9 @@ export const ar = {
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {
-    arrived: "وصل للموبايل", reasons: { payment_request: "طلب دفع مش تحويل", rejected_by_reviewer: "اترفض من المراجع", transfer_failed: "التحويل فشل", not_recognized: "مش متعرف عليه كإيصال", duplicate: "ممكن يكون مكرر", recipient_unclear: "المستلم مش واضح", other_recipient: "متبعت لمستلم مختلف", repeated_amount: "نفس المبلغ مرتين النهارده من نفس المرسل", reading: "لسه بيتقري", no_sms: "لسه مفيش رسالة بنك بنفس المبلغ النهارده", missing_fields: "فيه بيانات محتاجة مراجعة" }, compareSimilar: "افتح الإيصال المشابه", partyFrom: "من", partyTo: "إلى", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
+    arrived: "وصل للموبايل", reasons: { old_receipt: "إيصال قديم اتبعت تاني", copy: "نسخة من إيصال تاني", payment_request: "طلب دفع مش تحويل", rejected_by_reviewer: "اترفض من المراجع", transfer_failed: "التحويل فشل", not_recognized: "مش متعرف عليه كإيصال", duplicate: "ممكن يكون مكرر", recipient_unclear: "المستلم مش واضح", other_recipient: "متبعت لمستلم مختلف", repeated_amount: "نفس المبلغ مرتين النهارده من نفس المرسل", reading: "لسه بيتقري", no_sms: "لسه مفيش رسالة بنك بنفس المبلغ النهارده", missing_fields: "فيه بيانات محتاجة مراجعة" }, compareSimilar: "افتح الإيصال المشابه", partyFrom: "من", partyTo: "إلى", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
     review: "المراجعة", duplicate: "التكرار", device: "الجهاز / المصدر", noReference: "لا يوجد مرجع",
-    to: "إلى", openEvidence: "فتح أدلة المعاملة", canonical: "المعاملة الأساسية", duplicateItem: "معاملة مكررة", unique: "فريدة",
+    to: "إلى", openEvidence: "فتح أدلة المعاملة", canonical: "المعاملة الأساسية", copies: "النسخ والإيصالات القديمة", duplicateItem: "معاملة مكررة", unique: "فريدة",
   },
   detail: {
     reviewedTitle: "القيم المراجعة / النهائية", reviewedPriority: "تُعتمد القيم التي راجعها المشغّل عند توفرها.",
