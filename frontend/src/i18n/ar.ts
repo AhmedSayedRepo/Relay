@@ -14,12 +14,14 @@ export const ar = {
     switchLanguage: "تغيير اللغة", switchTheme: "تغيير مظهر الألوان",
   },
   navigation: {
+    rejected: "المرفوضة",
     emailSettings: "البريد",
     bankSms: "رسائل البنك",
     dashboard: "لوحة التحكم", transactions: "المعاملات", duplicates: "المعاملات المكررة", review: "المراجعة",
     processing: "المعالجة", reports: "التقارير", devices: "الأجهزة", users: "المستخدمون", account: "الحساب", help: "المساعدة",
   },
   pages: {
+    rejected: ["المرفوضة", "إيصالات اترفضت من شخص أو من Relay، وصور Relay خبّاها على إنها مش إيصالات. رجّع أي إيصال حقيقي للمراجعة."],
     emailSettings: ["إعدادات البريد", "حساب Gmail الذي يرسل منه Relay: روابط استعادة كلمة المرور والتقرير اليومي."],
     bankSms: ["رسائل البنك", "كل رسائل البنك التي استقبلها هاتف الرسائل، وهل أكّدت إيصالاً أم لا."],
     dashboard: ["نظرة عامة على العمليات", "حالة الأموال والمراجعات والتكرارات والمعالجة والجمع في مكان واحد."],
@@ -87,7 +89,7 @@ export const ar = {
     exportExcel: "تصدير إلى Excel", rangeLabel: "الفترة", fromTime: "من الساعة", toTime: "إلى الساعة", confirmedReceipts: "إيصالات مؤكدة", smsMatchedCard: "مطابقة لرسالة بنك", smsMatchedCol: "مطابقة SMS", ofReceipts: "من {count} إيصال في الفترة", yesterday: "أمس", filterHint: "كل الأرقام بالأسفل تستخدم هذه الفترة.",
   },
   transactions: {
-    arrived: "وصل للموبايل", reasons: { old_receipt: "إيصال قديم اتبعت تاني", copy: "نسخة من إيصال تاني", payment_request: "طلب دفع مش تحويل", rejected_by_reviewer: "اترفض من المراجع", transfer_failed: "التحويل فشل", not_recognized: "مش متعرف عليه كإيصال", duplicate: "ممكن يكون مكرر", recipient_unclear: "المستلم مش واضح", other_recipient: "متبعت لمستلم مختلف", repeated_amount: "نفس المبلغ مرتين النهارده من نفس المرسل", reading: "لسه بيتقري", no_sms: "لسه مفيش رسالة بنك بنفس المبلغ النهارده", missing_fields: "فيه بيانات محتاجة مراجعة" }, compareSimilar: "افتح الإيصال المشابه", partyFrom: "من", partyTo: "إلى", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
+    arrived: "وصل للموبايل", reasons: { hidden_not_a_receipt: "مخفي: مش إيصال", hidden_shop_invoice: "مخفي: فاتورة محل", hidden_no_transfer: "مخفي: مفيش تحويل", old_receipt: "إيصال قديم اتبعت تاني", copy: "نسخة من إيصال تاني", payment_request: "طلب دفع مش تحويل", rejected_by_reviewer: "اترفض من المراجع", transfer_failed: "التحويل فشل", not_recognized: "مش متعرف عليه كإيصال", duplicate: "ممكن يكون مكرر", recipient_unclear: "المستلم مش واضح", other_recipient: "متبعت لمستلم مختلف", repeated_amount: "نفس المبلغ مرتين النهارده من نفس المرسل", reading: "لسه بيتقري", no_sms: "لسه مفيش رسالة بنك بنفس المبلغ النهارده", missing_fields: "فيه بيانات محتاجة مراجعة" }, compareSimilar: "افتح الإيصال المشابه", partyFrom: "من", partyTo: "إلى", suggestedValue: "مقترح", paymentRequest: "طلب دفع", otherRecipient: "مستلم مختلف", repeatedAmount: "نفس المبلغ متكرر", relayEntry: "وقت الإدخال في Relay", reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", parties: "المرسل ← المستلم",
     review: "المراجعة", duplicate: "التكرار", device: "الجهاز / المصدر", noReference: "لا يوجد مرجع",
     to: "إلى", openEvidence: "فتح أدلة المعاملة", canonical: "المعاملة الأساسية", copies: "النسخ والإيصالات القديمة", duplicateItem: "معاملة مكررة", unique: "فريدة",
   },
@@ -131,7 +133,7 @@ export const ar = {
     readOnly: "يمكن لدورك عرض الإيصالات دون مراجعتها.",
   },
   exceptions: {
-    confirmAll: "تأكيد الإيصال", rejectReceipt: "رفض الإيصال", confirmAllNeeds: "اختر أو أدخل قيمة أولاً: {fields}", markedUnavailable: "تم تعليمه كغير متاح: غير ظاهر في هذا الإيصال.", enterValue: "إدخال قيمة بدلاً من ذلك", title: "حسم الحقول المعلّقة", candidates: "الأدلة المقترحة", confirm: "تأكيد", unavailable: "غير متاح", corrected: "القيمة المصححة", save: "حفظ التصحيح", region: "عرض منطقة الدليل", resolved: "حقول محسومة — لا تحتاج إلى إجراء", complete: "لم تعد توجد حقول غير محسومة.", missing: "الدليل الصريح غير متوفر.", failed: "تعذر تسجيل القرار بأمان. حدّث الصفحة إذا تغير الإيصال، أو أعد محاولة القرار نفسه.", noNext: "لا يوجد إيصال آخر في هذه القائمة.", count: "{count} حقول معلّقة", safety: "حسم البيانات لا يتحقق من التسوية البنكية أو نجاح التحويل أو أصالة الإيصال.",
+    confirmAll: "تأكيد الإيصال", unusedSmsWarning: "فيه رسالة بنك بمبلغ {amount} الساعة {time} لسه ماستخدمتش. ده الإيصال بتاعها؟ دوس OK علشان ترفضه برضه، أو Cancel علشان تسيبه.", rejectReceipt: "رفض الإيصال", confirmAllNeeds: "اختر أو أدخل قيمة أولاً: {fields}", markedUnavailable: "تم تعليمه كغير متاح: غير ظاهر في هذا الإيصال.", enterValue: "إدخال قيمة بدلاً من ذلك", title: "حسم الحقول المعلّقة", candidates: "الأدلة المقترحة", confirm: "تأكيد", unavailable: "غير متاح", corrected: "القيمة المصححة", save: "حفظ التصحيح", region: "عرض منطقة الدليل", resolved: "حقول محسومة — لا تحتاج إلى إجراء", complete: "لم تعد توجد حقول غير محسومة.", missing: "الدليل الصريح غير متوفر.", failed: "تعذر تسجيل القرار بأمان. حدّث الصفحة إذا تغير الإيصال، أو أعد محاولة القرار نفسه.", noNext: "لا يوجد إيصال آخر في هذه القائمة.", count: "{count} حقول معلّقة", safety: "حسم البيانات لا يتحقق من التسوية البنكية أو نجاح التحويل أو أصالة الإيصال.",
     fields: { reference_number: "المرجع", amount: "المبلغ", currency: "العملة", date: "التاريخ", time: "الوقت", classification: "تصنيف الإيصال", layout: "تخطيط الإيصال", sender_name: "المرسل", sender_handle: "معرّف المرسل", recipient_name: "المستلم", recipient_identifier: "معرّف المستلم", transfer_status: "حالة التحويل الصريحة" },
   },
   review: { openDuplicates: "قارن مجموعات التكرار جنباً إلى جنب", categories: { label: "فئات المراجعة", all: "الكل", ready: "جاهزة للتأكيد", missing: "بيانات ناقصة", duplicate: "تكرار محتمل", done: "منتهية (بيانات ناقصة)", in_progress: "قيد المراجعة", hints: { done: "كل الحقول المتبقية مُعلّمة كغير متاحة. ما زالت تُستخدم في التدريب، لكنها لا تظهر في التقارير النهائية لنقص بيان أساسي.", ready: "لكل حقل قيمة مقترحة واحدة: طابقها مع الصورة ثم أكّد.", missing: "بعض الحقول بلا اقتراح، غالبًا لأن الإيصال يخفي التفاصيل. علّمها غير متاحة أو اكتب القيمة.", duplicate: "إيصال آخر في الانتظار يقترح نفس المرجع. تحقق أنه نفس التحويل قبل التأكيد.", in_progress: "بعض الحقول تم البت فيها؛ أكمل الباقي." } },  needsReview: "تحتاج إلى مراجعة", oldestHint: "ابدأ بأقدم عنصر وقارن الإيصال بالقيم المستخرجة." },
@@ -170,6 +172,9 @@ export const ar = {
     howTitle: "الحصول على كلمة مرور تطبيق من Gmail",
     how: ["افتح myaccount.google.com ثم الأمان.", "فعّل التحقق بخطوتين إن لم يكن مفعّلاً.", "ابحث عن «كلمات مرور التطبيقات» وأنشئ واحدة باسم Relay.", "انسخ الأحرف الستة عشر هنا واضغط حفظ، ثم أرسل رسالة تجريبية."],
     privacy: "تُحفظ كلمة مرور التطبيق مشفّرة على الخادم ولا تظهر مرة أخرى.",
+  },
+  rejected: {
+    why: "السبب", action: "الإجراء", bringBack: "رجّعه للمراجعة", broughtBack: "رجع للمراجعة.", failed: "ماقدرناش نرجّعه.", empty: "مفيش حاجة اترفضت أو اتخبّت في الفترة دي.",
   },
   bankSms: {
     matched: "استُخدمت لإيصال", unused: "لم تُستخدم بعد", noAmount: "بدون مبلغ", unusedMoney: "مبالغ رسائل غير مستخدمة", phone: "الهاتف", allPhones: "كل الهواتف",

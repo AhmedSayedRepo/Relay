@@ -56,8 +56,19 @@ async function nextInQueue(token: string, current: string): Promise<string | nul
 export function ExceptionReview({ receipt, evidence, token, reload, focus }: { receipt: Transaction; evidence: EvidenceFirst; token: string; reload: () => void; focus: (polygon: number[][]) => void }) {
   const { messages: m, locale } = useI18n(); const navigate = useNavigate(); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const pending = useRef<{ signature: string; id: string } | null>(null); const inFlight = useRef(false);
+  // A real receipt rejected by mistake leaves its bank SMS unused: ask first.
+  async function rejectAnyway() {
+    let items: { amount: string; currency: string; at: string }[] = [];
+    try { const found = await api<{ items?: typeof items }>(`/receipts/${receipt.id}/unused-sms`, token); items = Array.isArray(found?.items) ? found.items : []; } catch { return true; }
+    if (items.length === 0) return true;
+    const sms = items[0]; const tag = locale === "ar" ? "ar-EG" : "en-GB";
+    const amount = Number(sms.amount).toLocaleString(tag, { minimumFractionDigits: 2 }) + " " + sms.currency;
+    const time = new Date(sms.at).toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" });
+    return window.confirm(m.exceptions.unusedSmsWarning.replace("{amount}", amount).replace("{time}", time));
+  }
   async function submit(field: string | undefined, action: "CONFIRM" | "CORRECT" | "UNAVAILABLE" | "REJECT", value: string | null) {
     if (inFlight.current || typeof receipt.updated_at !== "string") return;
+    if (action === "REJECT" && !(await rejectAnyway())) return;
     inFlight.current = true; setBusy(true); setMessage("");
     const payload = { expected_updated_at: receipt.updated_at, field, action, value }; const signature = JSON.stringify(payload);
     if (pending.current?.signature !== signature) pending.current = { signature, id: crypto.randomUUID() };

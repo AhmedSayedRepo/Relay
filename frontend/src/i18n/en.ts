@@ -12,12 +12,14 @@ export const en = {
     switchLanguage: "Change language", switchTheme: "Change color theme",
   },
   navigation: {
+    rejected: "Rejected",
     emailSettings: "Email",
     bankSms: "Bank SMS",
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
     processing: "Processing", reports: "Reports", devices: "Devices", users: "Users", account: "Account", help: "Help",
   },
   pages: {
+    rejected: ["Rejected", "Receipts rejected by a person or by Relay, and photos Relay hid as not receipts. Bring back any real receipt to Review."],
     emailSettings: ["Email settings", "The Gmail account Relay sends from: password reset links and the daily report."],
     bankSms: ["Bank SMS", "Every bank SMS the SMS phone received, and whether it confirmed a receipt."],
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
@@ -85,7 +87,7 @@ export const en = {
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {
-    arrived: "Reached phone", reasons: { old_receipt: "Old receipt shown again", copy: "Copy of another receipt", payment_request: "Payment request, not a transfer", rejected_by_reviewer: "Rejected by a reviewer", transfer_failed: "Transfer failed", not_recognized: "Not recognised as a receipt", duplicate: "Possible duplicate", recipient_unclear: "Recipient not readable", other_recipient: "Sent to a different recipient", repeated_amount: "Same amount twice today, same sender", reading: "Still being read", no_sms: "No matching bank SMS today yet", missing_fields: "Some details need checking" }, compareSimilar: "Open the similar receipt", partyFrom: "From", partyTo: "To", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
+    arrived: "Reached phone", reasons: { hidden_not_a_receipt: "Hidden: not a receipt", hidden_shop_invoice: "Hidden: a shop bill", hidden_no_transfer: "Hidden: no transfer shown", old_receipt: "Old receipt shown again", copy: "Copy of another receipt", payment_request: "Payment request, not a transfer", rejected_by_reviewer: "Rejected by a reviewer", transfer_failed: "Transfer failed", not_recognized: "Not recognised as a receipt", duplicate: "Possible duplicate", recipient_unclear: "Recipient not readable", other_recipient: "Sent to a different recipient", repeated_amount: "Same amount twice today, same sender", reading: "Still being read", no_sms: "No matching bank SMS today yet", missing_fields: "Some details need checking" }, compareSimilar: "Open the similar receipt", partyFrom: "From", partyTo: "To", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
     review: "Review", duplicate: "Duplicate", device: "Device / source", noReference: "No reference",
     to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", copies: "Copies & old receipts", duplicateItem: "Duplicate", unique: "Unique",
   },
@@ -129,7 +131,7 @@ export const en = {
     readOnly: "Your role can view receipts but not review them.",
   },
   exceptions: {
-    confirmAll: "Confirm receipt", rejectReceipt: "Reject receipt", confirmAllNeeds: "Pick or enter a value first: {fields}", markedUnavailable: "Marked unavailable: not shown on this receipt.", enterValue: "Enter a value instead", title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",
+    confirmAll: "Confirm receipt", unusedSmsWarning: "A bank SMS for {amount} at {time} is still unused. Is this its receipt? Press OK to reject anyway, or Cancel to keep it.", rejectReceipt: "Reject receipt", confirmAllNeeds: "Pick or enter a value first: {fields}", markedUnavailable: "Marked unavailable: not shown on this receipt.", enterValue: "Enter a value instead", title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",
     fields: { reference_number: "Reference", amount: "Amount", currency: "Currency", date: "Date", time: "Time", classification: "Receipt classification", layout: "Receipt layout", sender_name: "Sender", sender_handle: "Sender handle", recipient_name: "Recipient", recipient_identifier: "Recipient identifier", transfer_status: "Explicit transfer status" },
   },
   review: { openDuplicates: "Compare duplicate groups side by side", categories: { label: "Review categories", all: "All", ready: "Ready to confirm", missing: "Missing details", duplicate: "Possible duplicate", done: "Done (details missing)", in_progress: "In progress", hints: { done: "Every field left was marked unavailable. These still count as training examples; they stay out of final reports because a critical detail is missing.", ready: "Every field has one suggested value: check it against the image and Confirm.", missing: "Some fields have no suggestion, usually because the receipt hides its details. Mark those Unavailable or type the value.", duplicate: "Another waiting receipt suggests the same reference. Check whether it is the same transfer before confirming.", in_progress: "Some fields are already decided; finish the rest." } },  needsReview: "Needs review", oldestHint: "Start with the oldest item and compare the receipt with the extracted values." },
@@ -168,6 +170,9 @@ export const en = {
     howTitle: "Get a Gmail app password",
     how: ["Open myaccount.google.com and go to Security.", "Turn on 2-Step Verification if it is off.", "Search for “App passwords”, create one named Relay.", "Copy the 16 letters here and press Save, then Send a test email."],
     privacy: "The app password is stored encrypted on the server and is never shown again.",
+  },
+  rejected: {
+    why: "Why", action: "Action", bringBack: "Bring back to Review", broughtBack: "Brought back to Review.", failed: "Could not bring it back.", empty: "Nothing was rejected or hidden in this period.",
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",

@@ -250,6 +250,8 @@ def _read_by_more_than_model(field: Any) -> bool:
 
 async def hide_non_receipts(database: Database) -> int:
     """Take food photos, posters and notes out of Review."""
+    from relay.infrastructure.set_aside import kept
+
     hidden = 0
     async with database.session() as session:
         rows = await session.scalars(
@@ -259,6 +261,8 @@ async def hide_non_receipts(database: Database) -> int:
             )
         )
         for row in rows:
+            if kept(row):
+                continue  # a person brought it back from the Rejected page
             if _not_completed(row):
                 # An error screen or the send form: no money moved. Rejected,
                 # with nothing suggested, so no amount is offered.
@@ -351,7 +355,12 @@ def _helper_read(machine: Any) -> dict[str, Any] | None:
 def _paddle_amount(text: str, latin: str | None) -> str | None:
     """PaddleOCR's amount: from its Latin recognizer's lines first (digits
     are its strength; the Arabic one can drop a digit), else from both."""
-    from relay.infrastructure.text_recheck import VERSION, bare_amount, single
+    from relay.infrastructure.text_recheck import (
+        VERSION,
+        bank_app_amount,
+        bare_amount,
+        single,
+    )
 
     if latin:
         amount = _text_amount({VERSION: single(latin)})
@@ -361,7 +370,8 @@ def _paddle_amount(text: str, latin: str | None) -> str | None:
     if amount is not None:
         return amount
     # "571" alone on its line: the red currency beside it was not read.
-    return bare_amount(latin or "") or bare_amount(text)
+    # A bank app's transfer screen: "1,096" with the currency elsewhere.
+    return bare_amount(latin or "") or bare_amount(text) or bank_app_amount(text)
 
 
 def _helper_amount(helper: dict[str, Any] | None) -> str | None:
@@ -1026,13 +1036,20 @@ def _without_at(value: Any) -> Any:
 
 async def _hide_copy(database: Database, candidate_id: UUID, other_id: UUID) -> bool:
     """Hide an untouched receipt as a copy of ``other_id``."""
+    from relay.infrastructure.set_aside import kept
+
     async with database.session() as session:
         row = await session.scalar(
             select(ReceiptCandidateRow)
             .where(ReceiptCandidateRow.id == candidate_id)
             .with_for_update()
         )
-        if row is None or row.hidden_reason is not None or not _machine_only(row):
+        if (
+            row is None
+            or row.hidden_reason is not None
+            or not _machine_only(row)
+            or kept(row)
+        ):
             return False
         resolution = copy.deepcopy(row.resolution_result or {})
         resolution["copy_of"] = str(other_id)

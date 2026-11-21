@@ -1,0 +1,212 @@
+"""Receipts set aside (rejected, or hidden as not a receipt) and bringing them
+back to Review; and the bank SMS still waiting that a receipt may belong to.
+
+A person (or a reader) can reject a real receipt. These checks catch that:
+before a reject (``unused_sms_for``), the same evening (``rejected_with_sms``
+in the warnings), and afterwards on the Rejected page (``reopen``).
+"""
+
+from __future__ import annotations
+
+import copy
+from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal, InvalidOperation
+from typing import Any
+from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from relay.application.errors import Conflict, NotFound
+from relay.domain.processing import ReviewStatus
+from relay.infrastructure.event_models import RawEventRow
+from relay.infrastructure.processing_models import (
+    ReceiptCandidateRow,
+    ReceiptReviewAuditRow,
+)
+from relay.infrastructure.sms_verification_models import SmsVerificationRow
+
+KEPT = "kept_by"  # resolution key: a person brought it back; readers leave it
+
+
+def _decimal(value: Any) -> Decimal | None:
+    try:
+        return Decimal(str(value).replace(",", ""))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def receipt_amounts(row: ReceiptCandidateRow) -> set[Decimal]:
+    """Every amount the receipt shows: suggested, confirmed, or read by
+    classic PaddleOCR or Tesseract."""
+    from relay.infrastructure.cli import _helper_amount, _helper_read, _text_amount
+
+    found: set[Decimal] = set()
+    resolution = row.resolution_result
+    fields = resolution.get("fields") if isinstance(resolution, dict) else None
+    field = fields.get("amount") if isinstance(fields, dict) else None
+    values: list[Any] = []
+    if isinstance(field, dict):
+        listed = field.get("candidates")
+        values = [field.get("value")] + [
+            item.get("normalized_value") or item.get("value")
+            for item in (listed if isinstance(listed, list) else [])
+            if isinstance(item, dict)
+        ]
+    machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+    values += [_helper_amount(_helper_read(machine)), _text_amount(machine)]
+    for value in values:
+        amount = _decimal(value) if value is not None else None
+        if amount is not None and amount > 0:
+            found.add(amount)
+    return found
+
+
+async def unused_sms(
+    session: AsyncSession, day: date, zone: ZoneInfo
+) -> list[dict[str, Any]]:
+    """Incoming bank SMS that day (local time) that confirmed no receipt."""
+    from relay.domain.sms_verification import SmsDirection, parse_bank_sms
+
+    start = datetime.combine(day, time.min, zone).astimezone(UTC)
+    matched = select(SmsVerificationRow.sms_event_id).where(
+        SmsVerificationRow.sms_event_id.is_not(None)
+    )
+    rows = await session.execute(
+        select(RawEventRow.id, RawEventRow.occurred_at, RawEventRow.payload).where(
+            RawEventRow.collector == "sms",
+            RawEventRow.occurred_at >= start,
+            RawEventRow.occurred_at < start + timedelta(days=1),
+            RawEventRow.id.not_in(matched),
+        )
+    )
+    found = []
+    for event_id, occurred, payload in rows.all():
+        body = payload.get("body") if isinstance(payload, dict) else None
+        parsed = parse_bank_sms(body) if isinstance(body, str) else None
+        if parsed is None or parsed.direction != SmsDirection.IN:
+            continue
+        moment = occurred if occurred.tzinfo else occurred.replace(tzinfo=UTC)
+        found.append(
+            {
+                "event_id": str(event_id),
+                "at": moment.isoformat(),
+                "amount": f"{parsed.amount:.2f}",
+                "currency": parsed.currency,
+            }
+        )
+    return sorted(found, key=lambda item: str(item["at"]))
+
+
+async def _folder_day(
+    session: AsyncSession, row: ReceiptCandidateRow, zone: ZoneInfo
+) -> date:
+    occurred = await session.scalar(
+        select(RawEventRow.occurred_at).where(RawEventRow.id == row.raw_event_id)
+    )
+    moment = occurred or row.created_at
+    moment = moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+    return moment.astimezone(zone).date()
+
+
+async def unused_sms_for(
+    session: AsyncSession, candidate_id: UUID, zone: ZoneInfo
+) -> list[dict[str, Any]]:
+    """Unused bank SMS from the day the receipt reached the phone with an
+    amount the receipt shows: rejecting it would leave that money uncounted."""
+    row = await session.get(ReceiptCandidateRow, candidate_id)
+    if row is None:
+        raise NotFound("Receipt candidate not found.")
+    amounts = receipt_amounts(row)
+    if not amounts:
+        return []
+    day = await _folder_day(session, row, zone)
+    return [
+        sms
+        for sms in await unused_sms(session, day, zone)
+        if Decimal(sms["amount"]) in amounts
+    ]
+
+
+async def rejected_with_sms(
+    session: AsyncSession, day: date, zone: ZoneInfo
+) -> list[dict[str, Any]]:
+    """Receipts rejected that day whose amount an unused bank SMS shows."""
+    waiting = await unused_sms(session, day, zone)
+    if not waiting:
+        return []
+    start = datetime.combine(day, time.min, zone).astimezone(UTC)
+    rows = (
+        await session.execute(
+            select(ReceiptCandidateRow, RawEventRow.occurred_at)
+            .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
+            .where(
+                ReceiptCandidateRow.review_status == ReviewStatus.REJECTED.value,
+                RawEventRow.occurred_at >= start,
+                RawEventRow.occurred_at < start + timedelta(days=1),
+            )
+        )
+    ).all()
+    found = []
+    for row, occurred in rows:
+        amounts = receipt_amounts(row)
+        sms = next((s for s in waiting if Decimal(s["amount"]) in amounts), None)
+        if sms is None:
+            continue
+        moment = occurred if occurred.tzinfo else occurred.replace(tzinfo=UTC)
+        found.append({"id": str(row.id), "arrived": moment.isoformat(), "sms": sms})
+    return found
+
+
+async def reopen(session: AsyncSession, candidate_id: UUID, actor_id: UUID) -> None:
+    """Bring a rejected or hidden receipt back to Review, every field to be
+    decided again. Recorded in the review audit; readers will not reject or
+    hide it again by themselves."""
+    from relay.infrastructure.cli import _reopen
+
+    row = await session.scalar(
+        select(ReceiptCandidateRow)
+        .where(ReceiptCandidateRow.id == candidate_id)
+        .with_for_update()
+    )
+    if row is None:
+        raise NotFound("Receipt candidate not found.")
+    rejected = row.review_status == ReviewStatus.REJECTED.value
+    if not rejected and row.hidden_reason is None:
+        raise Conflict("Only a rejected or hidden receipt can be brought back.")
+    now = datetime.now(UTC)
+    before = {
+        "review_status": row.review_status,
+        "hidden_reason": row.hidden_reason,
+        "resolution_result": copy.deepcopy(row.resolution_result),
+    }
+    row.hidden_reason = None
+    if rejected:
+        resolution = _reopen(row, "operator", now)
+    else:
+        resolution = copy.deepcopy(row.resolution_result or {})
+    resolution.pop("rejected_reason", None)
+    resolution[KEPT] = {"user": str(actor_id), "at": now.isoformat()}
+    row.resolution_result = resolution
+    row.reviewed_result = None
+    row.updated_at = now
+    session.add(
+        ReceiptReviewAuditRow(
+            id=uuid4(),
+            candidate_id=row.id,
+            reviewer_id=actor_id,
+            action="REOPEN",
+            before_result=before,
+            after_result={"review_status": row.review_status, "hidden_reason": None},
+            created_at=now,
+            expires_at=row.expires_at,
+        )
+    )
+    await session.commit()
+
+
+def kept(row: ReceiptCandidateRow) -> bool:
+    """A person brought this receipt back: no reader rejects or hides it."""
+    resolution = row.resolution_result
+    return isinstance(resolution, dict) and isinstance(resolution.get(KEPT), dict)

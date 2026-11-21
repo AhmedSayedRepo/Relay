@@ -19,6 +19,7 @@ const paths: Record<string, ReactNode> = {
   transactions: <><path d="M4 8h13l-3.5-3.5" /><path d="M20 16H7l3.5 3.5" /></>,
   duplicates: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
   review: <><circle cx="12" cy="12" r="8.5" /><path d="m8.5 12.2 2.4 2.4 4.8-5" /></>,
+  rejected: <><circle cx="12" cy="12" r="8.5" /><path d="M9 9l6 6" /><path d="M15 9l-6 6" /></>,
   processing: <><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M19.5 4.5v4h-4" /></>,
   reports: <><path d="M5 20V10" /><path d="M10 20V4" /><path d="M15 20v-7" /><path d="M20 20V8" /></>,
   devices: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></>,
