@@ -216,6 +216,16 @@ export function Transactions({ token }: { token: string }) {
   </section>;
 }
 
+/** What the bank SMS that day says about a set-aside receipt's amount. */
+function SmsMatch({ match }: { match?: { at: string | null; used_by: string | null } }) {
+  const { locale, messages: m } = useI18n(); const r = m.rejected;
+  if (!match) return null;
+  if (!match.at) return <small className="sms-note">{r.smsNone}</small>;
+  const time = cairoClock(match.at, locale);
+  if (!match.used_by) return <small className="sms-note free">{formatMessage(r.smsFree, { time })}</small>;
+  return <small className="sms-note used">{formatMessage(r.smsUsed, { time })} <Link to={"/transactions/" + match.used_by}>{r.openUsed}</Link></small>;
+}
+
 /** Receipts set aside: rejected (by a person or by Relay) or hidden as not a
  * receipt, each with a button to bring it back to Review. */
 export function SetAside({ token }: { token: string }) {
@@ -238,7 +248,7 @@ export function SetAside({ token }: { token: string }) {
       <td data-label={m.transactions.arrived}><Link to={"/transactions/" + item.id}><Timestamp value={item.folder_at || item.created_at} locale={locale} /></Link></td>
       <td data-label={m.transactions.device}>{item.device_name}</td>
       <td data-label={m.transactions.amount}>{item.amount || item.suggested_amount ? <Amount amount={String(item.amount || item.suggested_amount)} currency={item.currency || "EGP"} locale={locale} /> : dash}</td>
-      <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span></td>
+      <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span><SmsMatch match={item.sms_match as { at: string | null; used_by: string | null } | undefined} /></td>
       <td data-label={r.action}>{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : dash}</td>
     </tr>)}</tbody></table></div>}
     {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}

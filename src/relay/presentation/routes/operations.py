@@ -1,6 +1,6 @@
 from dataclasses import asdict, replace
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -101,6 +101,7 @@ async def alerts(
 async def transactions(
     service: Service,
     request: Request,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
     date_from: date | None = None,
     date_to: date | None = None,
     time_from: time | None = None,
@@ -135,12 +136,21 @@ async def transactions(
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
 ) -> OperationPage:
     values = locals().copy()
-    for name in ("service", "request", "time_from", "time_to"):
+    for name in ("service", "request", "uow", "time_from", "time_to"):
         values.pop(name)
     # Same day basis as the dashboard: when the image reached the folder.
     values["window"] = _folder_window(request, date_from, date_to, time_from, time_to)
     query = _transaction_query(**values)
     rows, total = await service.transactions(query)
+    if review_status == "SET_ASIDE":
+        from relay.infrastructure.set_aside import sms_notes
+
+        settings = cast(Settings, request.app.state.settings)
+        await sms_notes(
+            uow.session,
+            cast(list[dict[str, Any]], rows),
+            ZoneInfo(settings.receipt_timezone),
+        )
     return OperationPage(items=rows, total=total, limit=limit, offset=offset)
 
 

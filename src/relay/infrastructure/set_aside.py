@@ -63,40 +63,85 @@ def receipt_amounts(row: ReceiptCandidateRow) -> set[Decimal]:
     return found
 
 
-async def unused_sms(
+async def day_sms(
     session: AsyncSession, day: date, zone: ZoneInfo
 ) -> list[dict[str, Any]]:
-    """Incoming bank SMS that day (local time) that confirmed no receipt."""
+    """Incoming bank SMS that day (local time), each with the receipt it
+    confirmed (``used_by``), or None while unused."""
     from relay.domain.sms_verification import SmsDirection, parse_bank_sms
 
     start = datetime.combine(day, time.min, zone).astimezone(UTC)
-    matched = select(SmsVerificationRow.sms_event_id).where(
-        SmsVerificationRow.sms_event_id.is_not(None)
-    )
     rows = await session.execute(
         select(RawEventRow.id, RawEventRow.occurred_at, RawEventRow.payload).where(
             RawEventRow.collector == "sms",
             RawEventRow.occurred_at >= start,
             RawEventRow.occurred_at < start + timedelta(days=1),
-            RawEventRow.id.not_in(matched),
         )
     )
+    events = rows.all()
+    used = dict(
+        (
+            await session.execute(
+                select(
+                    SmsVerificationRow.sms_event_id, SmsVerificationRow.candidate_id
+                ).where(SmsVerificationRow.sms_event_id.in_([row[0] for row in events]))
+            )
+        ).all()
+    )
     found = []
-    for event_id, occurred, payload in rows.all():
+    for event_id, occurred, payload in events:
         body = payload.get("body") if isinstance(payload, dict) else None
         parsed = parse_bank_sms(body) if isinstance(body, str) else None
         if parsed is None or parsed.direction != SmsDirection.IN:
             continue
         moment = occurred if occurred.tzinfo else occurred.replace(tzinfo=UTC)
+        owner = used.get(event_id)
         found.append(
             {
                 "event_id": str(event_id),
                 "at": moment.isoformat(),
                 "amount": f"{parsed.amount:.2f}",
                 "currency": parsed.currency,
+                "used_by": str(owner) if owner else None,
             }
         )
     return sorted(found, key=lambda item: str(item["at"]))
+
+
+async def unused_sms(
+    session: AsyncSession, day: date, zone: ZoneInfo
+) -> list[dict[str, Any]]:
+    """Incoming bank SMS that day (local time) that confirmed no receipt."""
+    return [sms for sms in await day_sms(session, day, zone) if not sms["used_by"]]
+
+
+async def sms_notes(
+    session: AsyncSession, items: list[dict[str, Any]], zone: ZoneInfo
+) -> None:
+    """For the Rejected page, where the photo is not shown: the bank SMS that
+    day with the receipt's amount. Prefers an unused one (the receipt may be
+    real); otherwise one already used by another receipt (likely a copy).
+    ``sms_match`` stays empty when no SMS that day has this amount."""
+    by_day: dict[date, list[tuple[dict[str, Any], Decimal]]] = {}
+    for item in items:
+        amount = _decimal(item.get("amount") or item.get("suggested_amount"))
+        when = item.get("folder_at") or item.get("created_at")
+        if amount is None or not when:
+            continue
+        day = datetime.fromisoformat(str(when)).astimezone(zone).date()
+        by_day.setdefault(day, []).append((item, amount))
+    for day, entries in by_day.items():
+        sms = await day_sms(session, day, zone)
+        for item, amount in entries:
+            same = [one for one in sms if Decimal(one["amount"]) == amount]
+            pick = next((one for one in same if not one["used_by"]), None) or (
+                same[0] if same else None
+            )
+            item["sms_match"] = (
+                {"at": pick["at"], "used_by": pick["used_by"]}
+                if pick
+                else {"at": None, "used_by": None}
+            )
 
 
 async def _folder_day(

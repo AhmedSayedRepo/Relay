@@ -58,6 +58,9 @@ async def test_a_rejected_receipt_is_listed_and_brought_back(client, auth_header
     items = {item["id"]: item for item in listed.json()["items"]}
     assert items[candidate["id"]]["status_reason"] == "rejected_by_reviewer"
     assert items[candidate["id"]]["suggested_amount"] == "1096.00"
+    # The page says a bank SMS that day has this amount and is unused.
+    match = items[candidate["id"]]["sms_match"]
+    assert match["at"] and match["used_by"] is None
     # The same evening, the warnings list it.
     from relay.infrastructure.alerts import current_alerts, render_email
     from tests.test_auto_confirm import CAIRO
