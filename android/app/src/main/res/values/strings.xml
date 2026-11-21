@@ -120,4 +120,6 @@
     <string name="keep_connected_channel">Relay connection</string>
     <string name="keep_connected_title">Relay is connected</string>
     <string name="keep_connected_text">Receipts and bank SMS are sent to Relay automatically.</string>
+    <string name="instapay_on">InstaPay notifications are read too, as a second check next to the bank SMS.</string>
+    <string name="instapay_allow">Also read InstaPay notifications</string>
 </resources>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError, downloadExport, query } from "./api";
 import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
 import { Bidi, ReceiptJourney, StatusBadge } from "./components/Product";
@@ -234,7 +234,7 @@ function ReceiptFlags({ item }: { item: Transaction }) {
   if (!text) return null;
   const tone = item.review_status === "REJECTED" || item.status_reason === "old_receipt" ? "danger" : "warning";
   return <span className="reason-line"><span className={"reason-tag " + tone}>{text}</span>
-    {item.similar_to && <Link className="similar-link" to={"/transactions/" + item.similar_to}>{m.transactions.compareSimilar}</Link>}</span>;
+    {item.similar_to && <Link className="similar-link" to={"/compare/" + item.id}>{m.transactions.compareSimilar}</Link>}</span>;
 }
 
 export function Transactions({ token }: { token: string }) {
@@ -302,6 +302,38 @@ export function SetAside({ token }: { token: string }) {
   </section>;
 }
 
+/** A possible copy beside the receipt it may copy: both photos and details,
+ * with differences marked, and one click to reject it or keep it. */
+export function CompareReceipts({ token }: { token: string }) {
+  const { id = "" } = useParams(); const { locale, messages: m } = useI18n(); const c = m.compare; const role = useRole(); const navigate = useNavigate();
+  const { data: mine, error, loading } = useApi<Transaction>("/transactions/" + encodeURIComponent(id), token);
+  const otherId = typeof mine?.similar_to === "string" ? mine.similar_to : "";
+  const { data: fetched } = useApi<Transaction>("/transactions/" + encodeURIComponent(otherId || id), token);
+  const other = otherId && fetched?.id === otherId ? fetched : null;
+  const [message, setMessage] = useState("");
+  async function act(path: string, body?: object) {
+    setMessage("");
+    try { await api(path, token, { method: "POST", ...(body ? { body: JSON.stringify(body) } : {}) }); navigate("/review?category=duplicate"); }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : c.failed); }
+  }
+  const rows: [string, (item: Transaction) => Json | undefined][] = [
+    [m.transactions.amount, (item) => item.amount ?? suggested(item, "amount")],
+    [m.transactions.reference, (item) => item.reference_original ?? suggested(item, "reference_number")],
+    [m.transactions.arrived, (item) => item.folder_at ?? item.created_at],
+    [m.transactions.device, (item) => item.device_name],
+    [c.sender, (item) => item.suggested_sender],
+    [c.status, (item) => item.review_status],
+    [c.sms, (item) => item.sms_verification]
+  ];
+  const side = (item: Transaction | null | undefined, title: string) => <article className="panel compare-side"><h2>{title}</h2>{item ? <><ProtectedImage key={item.id} path={item.image_url} token={token} alt={title} /><dl className="compare-facts">{rows.map(([label, read]) => { const value = read(item); const theirs = item === mine ? (other ? read(other) : undefined) : (mine ? read(mine) : undefined); const differs = value !== undefined && theirs !== undefined && String(value) !== String(theirs); return <div key={label} className={differs ? "differs" : undefined}><dt>{label}</dt><dd>{value === null || value === undefined || value === "" ? dash : label === m.transactions.arrived ? <Timestamp value={String(value)} locale={locale} /> : <Bidi>{String(value)}</Bidi>}</dd></div>; })}</dl><Link to={"/transactions/" + item.id}>{c.openDetail}</Link></> : <p className="muted">{c.noOther}</p>}</article>;
+  return <section><PageHeading title={c.title} description={c.description} help={contextHelp.review} />
+    <Status loading={loading} error={error} />
+    {mine && <><div className="compare-grid">{side(other, c.first)}{side(mine, c.copy)}</div>
+      {message && <p className="status" role="status">{message}</p>}
+      {can(role, "action.reject_copies") && mine.review_status === "NEEDS_REVIEW" && <div className="compare-actions"><button type="button" className="danger-button" onClick={() => void act("/receipts/reject-copies", { ids: [mine.id] })}>{c.rejectCopy}</button><button type="button" className="quiet-button" onClick={() => void act("/receipts/" + encodeURIComponent(mine.id) + "/not-a-copy")}>{c.notCopy}</button></div>}</>}
+  </section>;
+}
+
 export function TransactionDetail({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const { id = "" } = useParams(); const role = useRole();
   const { data, error, loading, reload } = useApi<Transaction & Record<string, Json>>("/transactions/" + id, token);
@@ -335,13 +367,20 @@ export function ReviewQueue({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const range = useDayRange(); const [search, setSearch] = usePersisted("review.search", ""); const [direction, setDirection] = usePersisted("review.direction", "desc"); const [offset, setOffset] = usePersisted("review.offset", 0); const limit = 25;
   const [params] = useSearchParams(); const [category, setCategory] = useState(params.get("category") || "");
   const filters = { ...range.params, search: search || undefined };
-  const { data, error, loading } = useApi<Page<Transaction>>("/review-queue" + query({ ...filters, category: category || undefined, sort_direction: direction, limit, offset }), token, true);
+  const { data, error, loading, reload } = useApi<Page<Transaction>>("/review-queue" + query({ ...filters, category: category || undefined, sort_direction: direction, limit, offset }), token, true);
   const { data: counts } = useApi<Record<string, number>>("/review-queue/categories" + query(filters), token, true);
   const tabs: [string, string][] = [["", m.review.categories.all], ["ready", m.review.categories.ready], ["missing", m.review.categories.missing], ["duplicate", m.review.categories.duplicate], ["in_progress", m.review.categories.in_progress], ["done", m.review.categories.done]];
   const total = counts ? Object.entries(counts).reduce((sum, [key, value]) => key === "done" ? sum : sum + (Number(value) || 0), 0) : undefined;
+  const role = useRole(); const [picked, setPicked] = useState<string[]>([]); const [notice, setNotice] = useState("");
+  const copies = category === "duplicate" && can(role, "action.reject_copies");
+  async function rejectCopies() {
+    if (picked.length === 0 || !window.confirm(formatMessage(m.compare.rejectSelectedConfirm, { count: picked.length }))) return;
+    try { const result = await api<{ rejected: number }>("/receipts/reject-copies", token, { method: "POST", body: JSON.stringify({ ids: picked }) }); setNotice(formatMessage(m.compare.rejected, { count: result.rejected })); setPicked([]); reload(); }
+    catch (caught) { setNotice(caught instanceof Error ? caught.message : m.compare.failed); }
+  }
   return <section><PageHeading title={m.pages.review[0]} description={m.pages.review[1]} help={contextHelp.review} /><p className="queue-guidance">{m.review.oldestHint}</p>
     <div className="category-tabs" role="tablist" aria-label={m.review.categories.label}>{tabs.map(([key, label]) => { const count = key ? counts?.[key] : total; return <button key={key || "all"} type="button" role="tab" aria-selected={category === key} className={category === key ? "active" : ""} onClick={() => { setCategory(key); setOffset(0); }}>{label}{count !== undefined && <span className="count">{count}</span>}</button>; })}</div>
-    {category && <p className="hint">{(m.review.categories.hints as Record<string, string>)[category]}{category === "duplicate" && <> <Link to="/duplicates">{m.review.openDuplicates}</Link></>}</p>}<div className="filter-bar"><label className="grow">{m.filters.search}<input value={search} maxLength={64} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} /></label><DayRange range={range} changed={() => setOffset(0)} /><label>{m.filters.order}<select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="desc">{m.filters.newest}</option><option value="asc">{m.filters.oldest}</option></select></label></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noReview} />{data && data.total > 0 && <div className="card-list">{data.items.map((item) => <article className="record-card review-row clickable" key={item.id}><div><h2><Link className="card-link" to={"/transactions/" + item.id}><Bidi>{item.reference_original || suggested(item, "reference_number") || m.review.needsReview}</Bidi></Link></h2><p className="subhead">{m.transactions.arrived} <Timestamp value={item.folder_at ?? item.created_at} locale={locale} /> · {item.device_name}</p><p><Amount amount={item.amount ?? suggested(item, "amount")} currency={item.currency ?? suggested(item, "currency") ?? "EGP"} locale={locale} />{!item.amount && suggested(item, "amount") && <span className="muted"> · {m.transactions.suggestedValue}</span>} <ReceiptFlags item={item} /></p></div><ExceptionSummary receipt={item} /></article>)}</div>}{data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}</section>;
+    {category && <p className="hint">{(m.review.categories.hints as Record<string, string>)[category]}{category === "duplicate" && <> <Link to="/duplicates">{m.review.openDuplicates}</Link></>}</p>}<div className="filter-bar"><label className="grow">{m.filters.search}<input value={search} maxLength={64} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} /></label><DayRange range={range} changed={() => setOffset(0)} /><label>{m.filters.order}<select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="desc">{m.filters.newest}</option><option value="asc">{m.filters.oldest}</option></select></label></div>{copies && data && data.total > 0 && <div className="bulk-bar"><label className="check-all"><input type="checkbox" checked={data.items.length > 0 && data.items.every((item) => picked.includes(item.id))} onChange={(event) => setPicked(event.target.checked ? data.items.map((item) => item.id) : [])} /> {m.compare.selectAll}</label><button type="button" className="danger-button" disabled={picked.length === 0} onClick={() => void rejectCopies()}>{formatMessage(m.compare.rejectSelected, { count: picked.length })}</button></div>}{notice && <p className="status" role="status">{notice}</p>}<Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noReview} />{data && data.total > 0 && <div className="card-list">{data.items.map((item) => <article className="record-card review-row clickable" key={item.id}>{copies && <input type="checkbox" className="card-check" aria-label={m.compare.select} checked={picked.includes(item.id)} onChange={() => setPicked((now) => now.includes(item.id) ? now.filter((one) => one !== item.id) : [...now, item.id])} />}<div><h2><Link className="card-link" to={"/transactions/" + item.id}><Bidi>{item.reference_original || suggested(item, "reference_number") || m.review.needsReview}</Bidi></Link></h2><p className="subhead">{m.transactions.arrived} <Timestamp value={item.folder_at ?? item.created_at} locale={locale} /> · {item.device_name}</p><p><Amount amount={item.amount ?? suggested(item, "amount")} currency={item.currency ?? suggested(item, "currency") ?? "EGP"} locale={locale} />{!item.amount && suggested(item, "amount") && <span className="muted"> · {m.transactions.suggestedValue}</span>} <ReceiptFlags item={item} /></p></div><ExceptionSummary receipt={item} /></article>)}</div>}{data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}</section>;
 }
 
 export function ProcessingQueue({ token }: { token: string }) {

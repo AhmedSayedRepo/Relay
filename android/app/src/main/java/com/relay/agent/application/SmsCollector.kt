@@ -29,7 +29,26 @@ class SmsCollector(
         return collect(message, UUID.nameUUIDFromBytes(key.toByteArray()).toString())
     }
 
-    suspend fun collect(message: IncomingSms, eventId: String? = null): CollectionOutcome {
+    /**
+     * An InstaPay app notification ("You have received 820.00 EGP from ..."):
+     * a second source next to the bank SMS, for when the bank sends no SMS.
+     * Named after its content, so a notification shown again is sent once.
+     */
+    suspend fun collectInstaPay(text: String, postedAtMillis: Long): CollectionOutcome {
+        val installation = store.read().installationId
+        val key = "$installation|instapay|$postedAtMillis|$text"
+        return collect(
+            IncomingSms(INSTAPAY_SENDER, text, postedAtMillis),
+            UUID.nameUUIDFromBytes(key.toByteArray()).toString(),
+            INSTAPAY_RULE
+        )
+    }
+
+    suspend fun collect(
+        message: IncomingSms,
+        eventId: String? = null,
+        fixedRule: String? = null
+    ): CollectionOutcome {
         val state = store.read()
         val configuration = state.configuration
         if (
@@ -46,8 +65,9 @@ class SmsCollector(
             log("sms.invalid")
             return CollectionOutcome.INVALID
         }
-        val rule = configuration.sms.rules.firstOrNull { it.matches(message.sender, message.body) }
-        if (rule == null) {
+        val ruleId = fixedRule
+            ?: configuration.sms.rules.firstOrNull { it.matches(message.sender, message.body) }?.id
+        if (ruleId == null) {
             log("sms.filtered rule_count=${configuration.sms.rules.size}")
             return CollectionOutcome.FILTERED
         }
@@ -62,7 +82,7 @@ class SmsCollector(
             capturedAt,
             message.sender,
             message.body,
-            rule.id
+            ruleId
         )
         val result = try {
             outbox.enqueue(value)
@@ -88,5 +108,7 @@ class SmsCollector(
 
     companion object {
         private const val TAG = "RelayCollection"
+        const val INSTAPAY_SENDER = "InstaPay"
+        const val INSTAPAY_RULE = "instapay-app"
     }
 }

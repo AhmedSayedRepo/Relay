@@ -1,5 +1,6 @@
 package com.relay.agent.data
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -73,6 +74,8 @@ class KeepConnectedService : Service() {
         }
     }
 
+    // The manifest declares specialUse; lint misses it once the full build adds a listener.
+    @SuppressLint("ForegroundServiceType")
     private fun showNotification(): Boolean {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
