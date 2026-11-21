@@ -147,6 +147,12 @@ def parse_submission(raw: JsonValue, now: datetime) -> EventSubmission:
     )
 
 
+# InstaPay app notifications read by Relay Bank SMS: a built-in rule, so they
+# are accepted wherever bank SMS are collected, whatever the SMS rules say.
+INSTAPAY_RULE = "instapay-app"
+INSTAPAY_SENDER = "InstaPay"
+
+
 def sms_rule_matches(
     settings: dict[str, JsonValue], rule_id: str, sender: str, body: str
 ) -> bool:
@@ -156,6 +162,8 @@ def sms_rule_matches(
     sms = collectors.get("sms")
     if not isinstance(sms, dict) or sms.get("enabled") is not True:
         return False
+    if rule_id == INSTAPAY_RULE:
+        return sender == INSTAPAY_SENDER
     rules = sms.get("rules")
     if not isinstance(rules, list):
         return False

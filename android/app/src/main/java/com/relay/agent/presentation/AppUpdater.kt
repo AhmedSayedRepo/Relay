@@ -34,8 +34,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-private const val LATEST_RELEASE =
-    "https://api.github.com/repos/AhmedSayedRepo/relay-releases/releases/latest"
+// Recent releases, not only the latest: a release made without the bank app
+// has no Relay Bank SMS file, and that app must still find its newest one.
+private const val RECENT_RELEASES =
+    "https://api.github.com/repos/AhmedSayedRepo/relay-releases/releases?per_page=15"
 
 private const val RELEASE_DOWNLOADS =
     "https://github.com/AhmedSayedRepo/relay-releases/releases/download/"
@@ -75,18 +77,26 @@ fun parseRelease(body: String, assetName: String): AppRelease? {
     return if (url != null && trusted) AppRelease(version, url) else null
 }
 
+/** The newest release in [body] (a list of releases) that has [assetName]. */
+fun newestRelease(body: String, assetName: String): AppRelease? =
+    Json.parseToJsonElement(body).jsonArray
+        .mapNotNull { runCatching { parseRelease(it.toString(), assetName) }.getOrNull() }
+        .fold(null as AppRelease?) { best, next ->
+            if (best == null || isNewer(best.version, next.version)) next else best
+        }
+
 private val http = OkHttpClient()
 
 private suspend fun latestRelease(): AppRelease? = withContext(Dispatchers.IO) {
     runCatching {
         val request = Request.Builder()
-            .url(LATEST_RELEASE)
+            .url(RECENT_RELEASES)
             .header("Accept", "application/vnd.github+json")
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return@use null
             val body = response.body?.string().orEmpty()
-            parseRelease(body, updateAssetName(BuildConfig.SMS_CAPTURE))
+            newestRelease(body, updateAssetName(BuildConfig.SMS_CAPTURE))
         }
     }.getOrNull()
 }

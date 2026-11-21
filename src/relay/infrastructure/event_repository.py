@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,6 +88,37 @@ class SqlEventRepository:
             if existing_hash == event.content_hash
             else AddEventResult.CONFLICT
         )
+
+    async def nearby_sms(
+        self, device_id: UUID, start: datetime, end: datetime
+    ) -> list[tuple[UUID, str, str]]:
+        """Bank SMS and InstaPay notifications from one phone in a window:
+        (event id, sender, text)."""
+        rows = await self.session.execute(
+            select(RawEventRow.id, RawEventRow.payload).where(
+                RawEventRow.device_id == device_id,
+                RawEventRow.collector == "sms",
+                RawEventRow.occurred_at >= start,
+                RawEventRow.occurred_at <= end,
+            )
+        )
+        return [
+            (event_id, str(payload.get("sender")), str(payload.get("body")))
+            for event_id, payload in rows.all()
+            if isinstance(payload, dict)
+        ]
+
+    async def replace_sms(self, old_id: UUID, new_id: UUID) -> None:
+        """The bank SMS takes the place of the InstaPay notification for the
+        same transfer: a receipt it confirmed stays confirmed, by the SMS."""
+        from relay.infrastructure.sms_verification_models import SmsVerificationRow
+
+        await self.session.execute(
+            update(SmsVerificationRow)
+            .where(SmsVerificationRow.sms_event_id == old_id)
+            .values(sms_event_id=new_id)
+        )
+        await self.session.execute(delete(RawEventRow).where(RawEventRow.id == old_id))
 
     async def same_sms_seen(
         self, occurred_at: datetime, sender: str, body: str
