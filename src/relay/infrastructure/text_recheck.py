@@ -178,6 +178,28 @@ def hero_amount(text: str) -> str | None:
     return next(iter(seen)) if len(seen) == 1 else None
 
 
+_BARE = re.compile(r"^\s*(\d{1,3}(?:,\d{3})+|\d{2,6})(?:\.(\d{2}))?\s*$")
+_YEAR = re.compile(r"\b(20\d\d)\b")
+
+
+def bare_amount(text: str) -> str | None:
+    """The big amount read without its currency: PaddleOCR sometimes drops
+    the red "EGP" beside it, leaving a line that is only "571". Taken when
+    exactly one such line (20 or more) is shown; phones and references are
+    longer, and a year printed in the date does not count."""
+    text = text.translate(_DIGITS)
+    years = {int(year) for year in _YEAR.findall(text)}
+    found: set[str] = set()
+    for line in text.splitlines():
+        match = _BARE.match(line)
+        if match is None:
+            continue
+        value = Decimal(match.group(1).replace(",", "") + "." + (match.group(2) or "0"))
+        if value >= 20 and not (value == int(value) and int(value) in years):
+            found.add(f"{value:.2f}")
+    return found.pop() if len(found) == 1 else None
+
+
 def amounts(text: str) -> set[str]:
     # OCR sometimes reads the decimal point of a small amount as ":" ("0:62 EGP").
     text = _COLON_CENTS.sub(r"\1.\2", text)
