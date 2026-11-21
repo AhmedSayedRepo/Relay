@@ -25,6 +25,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.8.7" to ReleaseNote(
+            en = listOf(
+                "Relay Bank SMS can also read InstaPay notifications as a second check.",
+                "Relay Bank SMS now shows when a new version is ready."
+            ),
+            ar = listOf(
+                "تطبيق رسايل البنك بقى يقدر يقرا إشعارات انستاباي كتأكيد تاني.",
+                "تطبيق رسايل البنك بقى بيعرّفك لما يكون فيه نسخة جديدة."
+            )
+        ),
         "0.8.6" to ReleaseNote(
             en = listOf(
                 "Bank SMS missed while the app was stopped are picked up automatically.",

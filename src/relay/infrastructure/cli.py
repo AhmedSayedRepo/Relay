@@ -1034,33 +1034,6 @@ def _without_at(value: Any) -> Any:
     )
 
 
-async def _hide_copy(database: Database, candidate_id: UUID, other_id: UUID) -> bool:
-    """Hide an untouched receipt as a copy of ``other_id``."""
-    from relay.infrastructure.set_aside import kept
-
-    async with database.session() as session:
-        row = await session.scalar(
-            select(ReceiptCandidateRow)
-            .where(ReceiptCandidateRow.id == candidate_id)
-            .with_for_update()
-        )
-        if (
-            row is None
-            or row.hidden_reason is not None
-            or not _machine_only(row)
-            or kept(row)
-        ):
-            return False
-        resolution = copy.deepcopy(row.resolution_result or {})
-        resolution["copy_of"] = str(other_id)
-        resolution.pop("possible_repeat", None)
-        row.resolution_result = resolution
-        row.hidden_reason = "same_receipt"
-        row.updated_at = datetime.now(UTC)
-        await session.commit()
-        return True
-
-
 def _local_day(moment: datetime, settings: Settings) -> str:
     zone = ZoneInfo(settings.receipt_timezone)
     return aware(moment).astimezone(zone).date().isoformat()
@@ -1338,26 +1311,28 @@ async def auto_confirm(
         if scaled is not None:
             core = core | {"amount": scaled}
         day = _local_day(folder_at, settings)
-        repeat = repeated(candidate_id, day, facts(resolution, machine))
+        repeat = (
+            None
+            if isinstance(resolution.get("repeat_cleared"), dict)
+            else repeated(candidate_id, day, facts(resolution, machine))
+        )
         previous = resolution.get("possible_repeat")
-        if repeat is not None:
-            kind, other_id = repeat
+        if repeat is not None and repeat[0] == "reference":
+            other_id = repeat[1]
             other_arrived = arrived.get(other_id)
             earlier = other_arrived is not None and (
                 (other_arrived, str(other_id)) < (created_at, str(candidate_id))
             )
-            if kind == "reference" and (
-                status_of.get(other_id) == ReviewStatus.AUTO_ACCEPTED.value or earlier
+            if not earlier and status_of.get(other_id) != (
+                ReviewStatus.AUTO_ACCEPTED.value
             ):
-                # Same reference and amount as a receipt already confirmed or
-                # sent earlier: the same photo again (forwarded, or in two
-                # folders). A reference is one transfer, so it is hidden as a
-                # copy instead of waiting in Review.
-                if await _hide_copy(database, candidate_id, other_id):
-                    counts["copies"] += 1
-                continue
+                # The first of the pair goes on as usual; the later one (the
+                # copy) waits in Review, shown side by side with this one.
+                repeat = None
+        if repeat is not None:
+            kind, other_id = repeat
             tag = {"day": day, "kind": kind, "with": str(other_id)}
-            if previous != tag:
+            if _without_at(previous) != tag:
                 await _tag(database, candidate_id, "possible_repeat", tag)
             counts["waiting"] += 1
             continue
@@ -1759,6 +1734,8 @@ async def run(
 async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
     """Keep the receipt model loaded and, every minute, read new receipts,
     match bank SMS and auto-confirm. One pass at a time."""
+    from relay.infrastructure.copies import unhide_copies
+
     storage = FilesystemObjectStorage(settings.object_storage_root)
     model_dir = Path(os.environ.get("RELAY_MODEL_DIR", "/model"))
     reader: Any = None
@@ -1793,6 +1770,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 )
                 await helper_reopen(database)
                 await hide_non_receipts(database)
+                await unhide_copies(database)
                 await helper_suggest(database)
                 async with database.session() as session:
                     await build_sms_verification_service(
