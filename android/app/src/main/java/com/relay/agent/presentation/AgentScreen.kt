@@ -85,8 +85,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.relay.agent.BuildConfig
 import com.relay.agent.R
+import com.relay.agent.data.InstaPayNotificationListener
 import com.relay.agent.domain.AgentStatus
 import com.relay.agent.domain.ConnectionState
 import com.relay.agent.domain.EnrollmentState
@@ -106,6 +108,8 @@ data class AgentActions(
     val discardSms: () -> Unit = {},
     /** Relay Bank SMS: send missed bank SMS from the phone's inbox. */
     val catchUpSms: () -> Unit = {},
+    /** Relay Bank SMS: open Android's notification access for InstaPay. */
+    val allowInstaPay: () -> Unit = {},
     val setImageConsent: (Boolean) -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val removeFolder: () -> Unit = {},
@@ -474,6 +478,28 @@ private fun syncLine(status: AgentStatus, now: Instant): String = when (status.c
 }
 
 /** Battery saving holds Relay back: one tap opens Android's own question. */
+/** InstaPay notifications as a second source: on, or a button to allow it. */
+@Composable
+private fun InstaPayAccess(allow: () -> Unit) {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(InstaPayNotificationListener.allowed(context)) }
+    LifecycleResumeEffect(Unit) {
+        allowed = InstaPayNotificationListener.allowed(context)
+        onPauseOrDispose { }
+    }
+    if (allowed) {
+        Text(
+            stringResource(R.string.instapay_on),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    } else {
+        OutlinedButton(onClick = allow) {
+            Text(stringResource(R.string.instapay_allow))
+        }
+    }
+}
+
 @Composable
 private fun BatteryCard(allow: () -> Unit) {
     Surface(
@@ -592,6 +618,7 @@ private fun Collectors(status: AgentStatus, actions: AgentActions, now: Instant)
                             OutlinedButton(onClick = actions.catchUpSms) {
                                 Text(stringResource(R.string.catch_up_sms))
                             }
+                            InstaPayAccess(actions.allowInstaPay)
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
