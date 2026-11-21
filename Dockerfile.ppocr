@@ -10,8 +10,13 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 # rapidocr[rtl] adds python-bidi, which the Arabic engine needs to read.
-RUN pip install "rapidocr[rtl]>=3.3,<4" "onnxruntime>=1.18,<2" \
-    && python -c "import bidi; from relay.infrastructure.ppocr_reader import self_test; self_test()"
+# The Arabic model downloads from modelscope.cn, which sometimes drops the
+# connection: try a few times before failing the build.
+RUN pip install "rapidocr[rtl]==3.10.0" "onnxruntime>=1.18,<2" \
+    && for try in 1 2 3 4 5; do \
+         python -c "import bidi; from relay.infrastructure.ppocr_reader import self_test; self_test()" && break; \
+         [ "$try" = 5 ] && exit 1; echo "model download failed, retrying ($try)"; sleep 15; \
+       done
 
 USER relay
 ENV HOME=/tmp
