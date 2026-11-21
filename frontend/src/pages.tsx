@@ -185,12 +185,20 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
   };
   async function closeShift() {
     const open = openShift; if (!open) return;
-    const note = window.prompt(formatMessage(s.closePrompt, { number: open.number })); if (note === null) return;
-    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note || null }) }); setNotice(formatMessage(s.closed, { number: open.number })); reload(); }
+    const note = window.prompt(formatMessage(s.closePrompt, { number: number(open.number) })); if (note === null) return;
+    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note || null }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); reload(); }
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
   }
-  return <>{shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at).map((shift) => { const b = bounds(shift); const on = b.every((value, index) => value === current[index]); return <button key={shift.id} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>{formatMessage(s.label, { number: shift.number })} · {cairoClock(shift.opened_at, locale)}–{shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now}</button>; })}
-    {allowClose && can(role, "action.close_shift") && openShift && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: openShift.number })}</button>}
+  const number = (value: number) => new Intl.NumberFormat(locale).format(value);
+  const listed = shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at);
+  return <>{listed.length > 0 && <span className="shift-group" role="group" aria-label={s.title}><span className="shift-title">{s.title}</span>{listed.map((shift) => {
+    // A shift that covers the whole day is the same as "Today": only "Today" lights up.
+    const b = bounds(shift); const on = b.every((value, index) => value === current[index]) && !(b[2] === "00:00" && b[3] === "23:59");
+    const span = formatMessage(s.range, { start: cairoClock(shift.opened_at, locale), end: shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now });
+    return <button key={shift.id} type="button" className={"chip shift-chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>
+      {!shift.closed_at && <span className="live-dot" role="img" aria-label={s.open} title={s.open} />}<b>{formatMessage(s.label, { number: number(shift.number) })}</b><small>{span}</small></button>;
+  })}</span>}
+    {allowClose && can(role, "action.close_shift") && openShift && <button type="button" className="close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: number(openShift.number) })}</button>}
     {notice && <span className="status" role="status">{notice}</span>}</>;
 }
 

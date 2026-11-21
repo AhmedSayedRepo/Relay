@@ -571,8 +571,6 @@ td { font-variant-numeric: tabular-nums; }
 .decide-all { align-items: center; padding-block-end: 1rem; border-block-end: 1px solid var(--line); }
 .decide-all > button { min-width: 9rem; }
 .decide-all > .hint { flex-basis: 100%; margin: 0; }
-.chip.close-shift { border-color: var(--danger); color: var(--danger); background: transparent; }
-.chip.close-shift:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .quick-range .status { margin: 0 .5rem; font-size: .85rem; }
 
 /* Per-user permissions */
@@ -592,3 +590,17 @@ td { font-variant-numeric: tabular-nums; }
 .check-all { display: inline-flex; align-items: center; gap: .4rem; margin-inline-end: auto; }
 .bulk-bar { gap: .75rem; align-items: center; }
 .card-check { margin-inline-end: .75rem; align-self: flex-start; margin-top: .35rem; }
+
+/* Shift chips: day chips | shifts group | close button at the far end */
+.quick-range { align-items: center; }
+.shift-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .45rem; padding-inline-start: .75rem; margin-inline-start: .3rem; border-inline-start: 1px solid var(--line); }
+.shift-title { font-size: .78rem; font-weight: 700; color: var(--ink-soft); letter-spacing: .02em; }
+.chip.shift-chip { display: inline-flex; align-items: center; gap: .45rem; }
+.chip.shift-chip small { font-weight: 500; font-size: .8rem; color: var(--ink-soft); }
+.chip.shift-chip.active small { color: inherit; opacity: .85; }
+.live-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 0 var(--success-soft); flex: none; }
+@media (prefers-reduced-motion: no-preference) { .live-dot { animation: live-pulse 2.2s ease-out infinite; } }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 .45rem transparent; } }
+.close-shift { margin-inline-start: auto; padding: .4rem .95rem; border-radius: 999px; border: 1px solid var(--danger); background: transparent; color: var(--danger); font-weight: 700; cursor: pointer; transition: background-color .18s ease, color .18s ease; }
+.close-shift:hover { background: var(--danger); color: #fff; }
+.close-shift:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
