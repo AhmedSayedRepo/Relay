@@ -1028,3 +1028,17 @@ def test_paddleocr_amount_read_without_its_currency() -> None:
     assert _paddle_amount(read, read) == "571.00"
     # A year, a phone or a reference alone on a line is not an amount.
     assert _paddle_amount("2026\n20 Nov 2026\n01003405232", None) is None
+
+
+async def test_recipient_shown_from_paddleocr_first(client, auth_headers, app):
+    await run_receipt(client, auth_headers, app, "parties-paddle")
+    await _text(app, text="GISSSEE", sender=None)
+    await _ppocr(
+        app,
+        "fagrsayed62@instapay\nإلى انستاباي\nYOUSSEF M***** Y******\n01003405232\n"
+        "POWERED BY",
+    )
+    listed = await client.get("/api/v1/transactions", headers=auth_headers)
+    item = listed.json()["items"][0]
+    assert item["suggested_recipient"] == "YOUSSEF · 01003405232"
+    assert item["suggested_sender"] == "fagrsayed62@instapay"
