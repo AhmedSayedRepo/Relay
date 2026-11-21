@@ -174,7 +174,7 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
   const { locale, messages: m } = useI18n(); const s = m.shifts; const role = useRole();
   const { data, reload } = useApi<{ items: Shift[]; open: Shift }>("/shifts" + query({ day }), token, true);
   const [notice, setNotice] = useState("");
-  const items = Array.isArray(data?.items) ? data.items : []; const openShift = data && typeof data.open === "object" && data.open ? data.open : null;
+  const items: Shift[] = data && Array.isArray(data.items) ? data.items : []; const openShift: Shift | null = data && typeof data.open === "object" && data.open ? data.open : null;
   const shown = [...items, ...(openShift && !items.some((item) => item.id === openShift.id) ? [openShift] : [])];
   const bounds = (shift: Shift): [string, string, string, string] => {
     const [from, timeFrom] = cairoParts(new Date(shift.opened_at));
