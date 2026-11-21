@@ -88,9 +88,15 @@ def _similar_to(value: ReceiptCandidateRow) -> str | None:
     if value.duplicate_of_candidate_id is not None:
         return str(value.duplicate_of_candidate_id)
     resolution = value.resolution_result
-    repeat = resolution.get("possible_repeat") if isinstance(resolution, dict) else None
-    other = repeat.get("with") if isinstance(repeat, dict) else None
-    return str(other) if other else None
+    resolution = resolution if isinstance(resolution, dict) else {}
+    for key in ("old_receipt", "possible_repeat"):
+        tag = resolution.get(key)
+        other = tag.get("with") if isinstance(tag, dict) else None
+        if other:
+            return str(other)
+    if value.hidden_reason == "same_receipt" and resolution.get("copy_of"):
+        return str(resolution["copy_of"])
+    return None
 
 
 def _with_unchecked(counts: dict[str, int], unchecked: int) -> dict[str, int]:
@@ -107,6 +113,8 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
     machine = value.machine_result if isinstance(value.machine_result, dict) else {}
     read = machine.get(TEXT_READING)
     read = read if isinstance(read, dict) else {}
+    if value.hidden_reason == "same_receipt":
+        return "copy"
     if value.review_status == "REJECTED":
         if resolution.get("rejected_reason") == "payment_request":
             return "payment_request"
@@ -119,6 +127,8 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         return "not_recognized"
     if value.review_status != "NEEDS_REVIEW":
         return None
+    if isinstance(resolution.get("old_receipt"), dict):
+        return "old_receipt"
     repeat = resolution.get("possible_repeat")
     repeat_kind = repeat.get("kind") if isinstance(repeat, dict) else None
     if value.duplicate_of_candidate_id is not None or repeat_kind == "reference":
@@ -212,9 +222,22 @@ class SqlOperationsRepository:
         )
 
     @staticmethod
-    def _receipt_range(window: DateWindow) -> tuple[Any, ...]:
+    def _receipt_range(window: DateWindow, copies: bool = False) -> tuple[Any, ...]:
         # Images that turned out not to be receipts are never counted or listed.
-        visible = ReceiptCandidateRow.hidden_reason.is_(None)
+        # The Copies list shows hidden copies and old receipts shown again.
+        visible = (
+            or_(
+                ReceiptCandidateRow.hidden_reason == "same_receipt",
+                and_(
+                    ReceiptCandidateRow.hidden_reason.is_(None),
+                    ReceiptCandidateRow.resolution_result["old_receipt"]
+                    .as_string()
+                    .is_not(None),
+                ),
+            )
+            if copies
+            else ReceiptCandidateRow.hidden_reason.is_(None)
+        )
         if window.folder_time:
             folder = select(RawEventRow.id).where(
                 RawEventRow.occurred_at >= window.start,
@@ -234,7 +257,9 @@ class SqlOperationsRepository:
     def _apply_transaction_filters(
         self, statement: Any, query: TransactionQuery
     ) -> Any:
-        statement = statement.where(*self._receipt_range(query.window))
+        statement = statement.where(
+            *self._receipt_range(query.window, query.duplicate_status == "COPY")
+        )
         if query.search:
             escaped = self._escape_like(query.search.casefold())
             pattern = f"%{escaped}%"
