@@ -1,5 +1,6 @@
 """Operator accounts: admins add, change and remove users."""
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -41,6 +42,7 @@ class UserAdminService:
         role: Role | None = None,
         is_active: bool | None = None,
         password: str | None = None,
+        permissions: Mapping[str, bool] | None = None,
     ) -> User:
         target = await self._get(user_id)
         if target.id == actor.id and (
@@ -58,7 +60,9 @@ class UserAdminService:
             await self.uow.users.set_password(
                 target.id, await self.passwords.hash(password)
             )
-        await self.uow.users.update(target.id, role=role, is_active=is_active)
+        await self.uow.users.update(
+            target.id, role=role, is_active=is_active, permissions=permissions
+        )
         await self.uow.commit()
         return await self._get(user_id)
 

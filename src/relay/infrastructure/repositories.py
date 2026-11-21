@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.errors import Conflict
 from relay.domain.devices import Device, DeviceStatus
+from relay.domain.permissions import clean
 from relay.domain.users import Role, User
 from relay.infrastructure.agent_models import ConfigurationRow
 from relay.infrastructure.agent_repository import SqlAgentRepository
@@ -33,6 +35,7 @@ def to_user(row: UserRow) -> User:
         row.is_active,
         aware(row.created_at),
         Role(row.role) if row.role in Role.__members__ else Role.VIEWER,
+        clean(row.permissions),
     )
 
 
@@ -99,11 +102,18 @@ class SqlUserRepository:
         return [to_user(row) for row in rows]
 
     async def update(
-        self, user_id: UUID, *, role: Role | None = None, is_active: bool | None = None
+        self,
+        user_id: UUID,
+        *,
+        role: Role | None = None,
+        is_active: bool | None = None,
+        permissions: Mapping[str, bool] | None = None,
     ) -> None:
         values: dict[str, object] = {}
         if role is not None:
             values["role"] = role.value
+        if permissions is not None:
+            values["permissions"] = clean(permissions)
         if is_active is not None:
             values["is_active"] = is_active
         if values:
