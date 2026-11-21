@@ -172,7 +172,7 @@ export const en = {
     privacy: "The app password is stored encrypted on the server and is never shown again.",
   },
   rejected: {
-    smsFree: "A bank SMS with this amount at {time} is still unused: it may be real.", smsUsed: "A bank SMS with this amount at {time} already confirmed another receipt: likely a copy.", openUsed: "Open that receipt", smsNone: "No bank SMS with this amount that day.", why: "Why", action: "Action", bringBack: "Bring back to Review", broughtBack: "Brought back to Review.", failed: "Could not bring it back.", empty: "Nothing was rejected or hidden in this period.",
+    delete: "Delete", deleteSelected: "Delete selected ({count})", deleteConfirm: "Delete {count} receipt(s) for good? The photos and readings are removed and cannot be restored.", deleted: "{count} deleted.", select: "Select", selectAll: "Select all on this page", smsFree: "A bank SMS with this amount at {time} is still unused: it may be real.", smsUsed: "A bank SMS with this amount at {time} already confirmed another receipt: likely a copy.", openUsed: "Open that receipt", smsNone: "No bank SMS with this amount that day.", why: "Why", action: "Action", bringBack: "Bring back to Review", broughtBack: "Brought back to Review.", failed: "Could not bring it back.", empty: "Nothing was rejected or hidden in this period.",
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",

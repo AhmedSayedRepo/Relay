@@ -5,6 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from pydantic import BaseModel, Field
 
 from relay.application.operations import date_window
 from relay.domain.agent import JsonValue
@@ -165,6 +166,34 @@ async def reopen_receipt(
 
     await reopen(uow.session, candidate_id, user.id)
     return Response(status_code=204)
+
+
+class DeleteReceipts(BaseModel):
+    ids: Annotated[list[UUID], Field(min_length=1, max_length=100)]
+
+
+@router.post("/receipts/delete")
+async def delete_receipts(
+    body: DeleteReceipts,
+    user: AuthenticatedUser,
+    request: Request,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> dict[str, JsonValue]:
+    """Delete rejected or hidden receipts for good, with their photos
+    (admins only; each one recorded in the operator audit)."""
+    from relay.infrastructure.set_aside import delete_set_aside
+
+    settings = cast(Settings, request.app.state.settings)
+    deleted, files = await delete_set_aside(
+        uow.session, body.ids, user.id, settings.operator_audit_retention_days
+    )
+    storage = request.app.state.object_storage
+    for key in files:
+        try:
+            storage.delete(key)
+        except OSError:
+            pass  # the nightly cleanup removes files left behind
+    return {"deleted": deleted, "skipped": len(set(body.ids)) - deleted}
 
 
 @router.get("/receipts/{candidate_id}/unused-sms")

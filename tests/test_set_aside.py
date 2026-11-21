@@ -93,6 +93,38 @@ async def test_a_rejected_receipt_is_listed_and_brought_back(client, auth_header
     assert again.status_code == 409
 
 
+async def test_rejected_receipts_are_deleted_for_good(client, auth_headers, app):
+    from relay.infrastructure.binary_models import BinaryObjectRow
+    from relay.infrastructure.operation_models import OperatorAuditRow
+
+    kept, _ = await run_receipt(client, auth_headers, app, "delete-keep")
+    gone, _ = await run_receipt(client, auth_headers, app, "delete-gone")
+    await _reject(app, gone["id"])
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(gone["id"]))
+        photo = row.object_id
+    # A receipt still in Review is skipped; the rejected one is deleted.
+    result = await client.post(
+        "/api/v1/receipts/delete",
+        headers=auth_headers,
+        json={"ids": [gone["id"], kept["id"]]},
+    )
+    assert result.status_code == 200, result.text
+    assert result.json() == {"deleted": 1, "skipped": 1}
+    async with app.state.database.session() as session:
+        assert await session.get(ReceiptCandidateRow, UUID(gone["id"])) is None
+        assert await session.get(BinaryObjectRow, photo) is None
+        assert await session.get(ReceiptCandidateRow, UUID(kept["id"])) is not None
+        audit = (
+            await session.scalars(
+                select(OperatorAuditRow).where(
+                    OperatorAuditRow.action == "RECEIPT_DELETE"
+                )
+            )
+        ).all()
+        assert [entry.context["candidate_id"] for entry in audit] == [gone["id"]]
+
+
 def test_bank_app_transfer_amount_without_currency() -> None:
     posted = (
         "1.,096 action AccountDel Transaction has been posted to benefici "

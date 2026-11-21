@@ -15,15 +15,23 @@ from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.errors import Conflict, NotFound
 from relay.domain.processing import ReviewStatus
+from relay.infrastructure.binary_models import BinaryObjectRow, UploadSessionRow
 from relay.infrastructure.event_models import RawEventRow
+from relay.infrastructure.operation_models import OperatorAuditRow
 from relay.infrastructure.processing_models import (
+    OcrResultRow,
+    ProcessingAttemptRow,
+    ProcessingJobRow,
     ReceiptCandidateRow,
+    ReceiptEvidenceRow,
+    ReceiptExceptionCommandRow,
     ReceiptReviewAuditRow,
+    ReceiptReviewedFieldRow,
 )
 from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
@@ -255,3 +263,93 @@ def kept(row: ReceiptCandidateRow) -> bool:
     """A person brought this receipt back: no reader rejects or hides it."""
     resolution = row.resolution_result
     return isinstance(resolution, dict) and isinstance(resolution.get(KEPT), dict)
+
+
+async def delete_set_aside(
+    session: AsyncSession,
+    ids: list[UUID],
+    actor_id: UUID,
+    audit_days: int,
+) -> tuple[int, list[str]]:
+    """Delete rejected or hidden receipts for good: the receipt, its readings
+    and, when no other receipt uses it, its photo. Each deletion is kept in
+    the operator audit (who, when, which receipt, why it was set aside).
+    Returns how many were deleted and the photo storage keys to remove once
+    the deletion is committed. Receipts still in Review or accepted are
+    skipped."""
+    from relay.infrastructure.operations_repository import _status_reason
+
+    now = datetime.now(UTC)
+    deleted = 0
+    files: list[str] = []
+    for candidate_id in dict.fromkeys(ids):
+        row = await session.get(ReceiptCandidateRow, candidate_id)
+        if row is None:
+            continue
+        if row.review_status != ReviewStatus.REJECTED.value and not row.hidden_reason:
+            continue
+        resolution = (
+            row.resolution_result if isinstance(row.resolution_result, dict) else {}
+        )
+        fields = resolution.get("fields")
+        field = fields.get("amount") if isinstance(fields, dict) else None
+        context = {
+            "candidate_id": str(row.id),
+            "reason": _status_reason(row),
+            "review_status": row.review_status,
+            "hidden_reason": row.hidden_reason,
+            "amount": field.get("value") if isinstance(field, dict) else None,
+            "device_id": str(row.device_id),
+            "received_at": row.created_at.isoformat(),
+        }
+        await session.execute(
+            update(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.duplicate_of_candidate_id == row.id)
+            .values(duplicate_of_candidate_id=None)
+        )
+        for model in (
+            SmsVerificationRow,
+            ReceiptReviewAuditRow,
+            ReceiptReviewedFieldRow,
+            ReceiptExceptionCommandRow,
+            ReceiptEvidenceRow,
+        ):
+            await session.execute(delete(model).where(model.candidate_id == row.id))
+        object_id, job_id = row.object_id, row.job_id
+        await session.delete(row)
+        await session.flush()
+        for child in (OcrResultRow, ProcessingAttemptRow):
+            await session.execute(delete(child).where(child.job_id == job_id))
+        await session.execute(
+            delete(ProcessingJobRow).where(ProcessingJobRow.id == job_id)
+        )
+        others = await session.scalar(
+            select(func.count())
+            .select_from(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.object_id == object_id)
+        )
+        photo = await session.get(BinaryObjectRow, object_id)
+        if not others and photo is not None:
+            files.append(photo.storage_key)
+            await session.execute(
+                delete(RawEventRow).where(RawEventRow.object_id == object_id)
+            )
+            await session.execute(
+                delete(UploadSessionRow).where(UploadSessionRow.object_id == object_id)
+            )
+            await session.delete(photo)
+        session.add(
+            OperatorAuditRow(
+                id=uuid4(),
+                actor_id=actor_id,
+                action="RECEIPT_DELETE",
+                candidate_id=None,
+                job_id=None,
+                context=context,
+                created_at=now,
+                expires_at=now + timedelta(days=audit_days),
+            )
+        )
+        deleted += 1
+    await session.commit()
+    return deleted, files
