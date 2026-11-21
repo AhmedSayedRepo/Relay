@@ -60,7 +60,10 @@ def _repeats(row: dict[str, JsonValue]) -> bool:
     resolution = row.get("resolution_result")
     return bool(row.get("duplicate_of_candidate_id")) or (
         isinstance(resolution, dict)
-        and isinstance(resolution.get("possible_repeat"), dict)
+        and (
+            isinstance(resolution.get("possible_repeat"), dict)
+            or isinstance(resolution.get("old_receipt"), dict)
+        )
     )
 
 

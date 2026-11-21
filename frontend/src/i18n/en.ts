@@ -54,7 +54,7 @@ export const en = {
   dashboard: {
     alertsTitle: "Needs attention today", alertsResets: "Starts empty every morning.", alertsNone: "Nothing needs attention today.",
     alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
-    alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
+    alertOldTitle: "Old receipt shown again", alertOldMeta: "{phone} at {time}", alertOldReference: "Same reference as a receipt from {day}", alertOldDate: "Paid on {day}", alertOldTip: "Not confirmed. Open it: if it is a copy of an old receipt, reject it.", alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
     lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
     phoneCrash: "App crashed {time}: {error}",
     phoneGapLine: "Last silence: {reason}, {time}",
@@ -85,9 +85,9 @@ export const en = {
     exportExcel: "Export to Excel", rangeLabel: "Range", fromTime: "From time", toTime: "To time", confirmedReceipts: "Confirmed receipts", smsMatchedCard: "Matched to a bank SMS", smsMatchedCol: "SMS matched", ofReceipts: "of {count} receipts in range", yesterday: "Yesterday", filterHint: "Every number below uses this range.",
   },
   transactions: {
-    arrived: "Reached phone", reasons: { payment_request: "Payment request, not a transfer", rejected_by_reviewer: "Rejected by a reviewer", transfer_failed: "Transfer failed", not_recognized: "Not recognised as a receipt", duplicate: "Possible duplicate", recipient_unclear: "Recipient not readable", other_recipient: "Sent to a different recipient", repeated_amount: "Same amount twice today, same sender", reading: "Still being read", no_sms: "No matching bank SMS today yet", missing_fields: "Some details need checking" }, compareSimilar: "Open the similar receipt", partyFrom: "From", partyTo: "To", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
+    arrived: "Reached phone", reasons: { old_receipt: "Old receipt shown again", copy: "Copy of another receipt", payment_request: "Payment request, not a transfer", rejected_by_reviewer: "Rejected by a reviewer", transfer_failed: "Transfer failed", not_recognized: "Not recognised as a receipt", duplicate: "Possible duplicate", recipient_unclear: "Recipient not readable", other_recipient: "Sent to a different recipient", repeated_amount: "Same amount twice today, same sender", reading: "Still being read", no_sms: "No matching bank SMS today yet", missing_fields: "Some details need checking" }, compareSimilar: "Open the similar receipt", partyFrom: "From", partyTo: "To", suggestedValue: "suggested", paymentRequest: "Payment request", otherRecipient: "Different recipient", repeatedAmount: "Same amount repeated", relayEntry: "Relay entry", reference: "Reference / serial", amount: "Amount", parties: "Sender → recipient",
     review: "Review", duplicate: "Duplicate", device: "Device / source", noReference: "No reference",
-    to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", duplicateItem: "Duplicate", unique: "Unique",
+    to: "to", openEvidence: "Open transaction evidence", canonical: "Canonical", copies: "Copies & old receipts", duplicateItem: "Duplicate", unique: "Unique",
   },
   detail: {
     reviewedTitle: "Reviewed / final values", reviewedPriority: "Operator-reviewed values take priority when present.",
@@ -171,7 +171,7 @@ export const en = {
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",
-    status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", openReceipt: "Open receipt",
+    status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", reasons: { waiting: "A receipt with this amount waits in Review", rejected: "A receipt with this amount was rejected", hidden: "A photo with this amount was hidden (copy or not a receipt)", receipt_used: "Its receipt was already confirmed by another SMS", no_receipt: "No receipt that day shows this amount (not sent, or the amount was misread)" }, openReceipt: "Open receipt",
     empty: "No bank SMS in this range.", hint: "Times are when the SMS reached the phone (Cairo time). Message text stays private.",
   },
   sms: {

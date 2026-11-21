@@ -66,10 +66,17 @@ def test_risks_and_the_last_silence_are_kept() -> None:
     assert later["gap"]["reason"] == "phone_off"
     assert "phone was off" in describe(summary(later))
     assert describe(None).startswith("no health report")
-    crashed = summary(
-        {"last_crash": {"at": NOW.isoformat(), "error": "NPE | Sync.run:12"}}
-    )
+    crash = {"at": NOW.isoformat(), "error": "NPE | Sync.run:12"}
+    crashed = summary({"last_crash": crash}, NOW + timedelta(hours=1))
     assert crashed is not None and "Sync.run:12" in describe(crashed)
+    # Hidden after a day, or once the app was updated after the crash.
+    day_later = summary({"last_crash": crash}, NOW + timedelta(hours=25))
+    assert day_later is not None and day_later["last_crash"] is None
+    update = {"at": (NOW + timedelta(minutes=5)).isoformat(), "reason": "updated"}
+    updated = summary(
+        {"last_crash": crash, "exits": [update]}, NOW + timedelta(hours=1)
+    )
+    assert updated is not None and updated["last_crash"] is None
 
 
 @pytest.mark.asyncio
