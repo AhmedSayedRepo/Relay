@@ -574,3 +574,10 @@ td { font-variant-numeric: tabular-nums; }
 .chip.close-shift { border-color: var(--danger); color: var(--danger); background: transparent; }
 .chip.close-shift:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .quick-range .status { margin: 0 .5rem; font-size: .85rem; }
+
+/* Per-user permissions */
+.permission-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); margin-block: 0.75rem; }
+.permission-group { border: 1px solid var(--line, rgba(127, 127, 127, 0.25)); border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0; }
+.permission-group legend { font-weight: 600; padding-inline: 0.35rem; }
+.permission-group .check-row { display: flex; align-items: center; gap: 0.5rem; padding-block: 0.3rem; cursor: pointer; }
+.permission-group[disabled] .check-row { cursor: default; opacity: 0.7; }

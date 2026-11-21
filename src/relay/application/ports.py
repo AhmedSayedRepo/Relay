@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
 from uuid import UUID
@@ -15,7 +16,12 @@ class UserRepository(Protocol):
     async def list_active(self) -> list[User]: ...
     async def list_all(self) -> list[User]: ...
     async def update(
-        self, user_id: UUID, *, role: Role | None = None, is_active: bool | None = None
+        self,
+        user_id: UUID,
+        *,
+        role: Role | None = None,
+        is_active: bool | None = None,
+        permissions: Mapping[str, bool] | None = None,
     ) -> None: ...
     async def active_admin_count(self) -> int: ...
     async def delete(self, user_id: UUID) -> bool: ...

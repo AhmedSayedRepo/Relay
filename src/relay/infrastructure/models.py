@@ -33,6 +33,12 @@ class UserRow(Base):
     role: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default=text("'ADMIN'")
     )
+    # Per-user grants/denials on top of the role defaults: {"page.users": true}.
+    permissions: Mapped[dict[str, bool]] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        server_default=text("'{}'"),
+    )
     # Users with review history are kept (decisions point at them) but hidden.
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

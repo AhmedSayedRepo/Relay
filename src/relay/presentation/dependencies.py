@@ -48,8 +48,8 @@ async def current_user(
     user = await service.current_user(credentials.credentials)
     root = str(request.scope.get("root_path") or "")
     path = request.url.path.removeprefix(root) if root else request.url.path
-    if not allowed(user.role, request.method, path):
-        raise Forbidden("Your role does not allow this action.")
+    if not allowed(user.role, request.method, path, user.permissions):
+        raise Forbidden("You do not have permission for this.")
     return user
 
 

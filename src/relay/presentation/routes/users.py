@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 from relay.application.users import UserAdminService
+from relay.domain.permissions import ACTIONS, PAGES, ROLE_DEFAULTS
 from relay.domain.users import Role
 from relay.infrastructure.repositories import SqlUnitOfWork
 from relay.infrastructure.security import Argon2Passwords
@@ -45,6 +46,13 @@ class UserUpdateRequest(InputModel):
     role: Role | None = None
     is_active: bool | None = None
     password: SecretStr | None = Field(default=None, min_length=12, max_length=1024)
+    permissions: dict[str, bool] | None = None
+
+
+class PermissionListResponse(BaseModel):
+    pages: list[str]
+    actions: list[str]
+    defaults: dict[str, list[str]]
 
 
 class UserDeleteResponse(BaseModel):
@@ -55,6 +63,16 @@ class UserDeleteResponse(BaseModel):
 async def list_users(service: Service) -> UserListResponse:
     return UserListResponse(
         items=[UserResponse.model_validate(user) for user in await service.list()]
+    )
+
+
+@router.get("/permissions", response_model=PermissionListResponse)
+async def permission_list() -> PermissionListResponse:
+    """Every page and action an admin can grant or deny, with role defaults."""
+    return PermissionListResponse(
+        pages=list(PAGES),
+        actions=list(ACTIONS),
+        defaults={role.value: sorted(keys) for role, keys in ROLE_DEFAULTS.items()},
     )
 
 
@@ -76,6 +94,7 @@ async def update_user(
         role=body.role,
         is_active=body.is_active,
         password=body.password.get_secret_value() if body.password else None,
+        permissions=body.permissions,
     )
     return UserResponse.model_validate(user)
 

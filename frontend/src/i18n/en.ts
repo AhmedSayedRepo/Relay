@@ -129,6 +129,13 @@ export const en = {
     added: "User added.", saved: "Saved.", deleted: "User deleted.", failed: "The change could not be saved.",
     newPasswordFor: "New password for {email} (at least 12 characters):", confirmDelete: "Delete {email}? Their past review decisions stay in the history.",
     readOnly: "Your role can view receipts but not review them.",
+    noAccess: "You do not have access to this page. Ask an admin.",
+    permissions: "Permissions", savePermissions: "Save permissions", resetPermissions: "Back to role defaults", pagesTitle: "Pages", actionsTitle: "Actions",
+    adminAll: "Admins always have every page and action.", changed: "changed from the role default",
+    keys: {
+      "page.dashboard": "Dashboard", "page.review": "Review", "page.transactions": "Transactions", "page.rejected": "Rejected", "page.bank_sms": "Bank SMS", "page.devices": "Devices", "page.users": "Users", "page.email_settings": "Email settings",
+      "action.review": "Review receipts (confirm, reject, SMS match)", "action.bring_back": "Bring back rejected receipts", "action.reject_copies": "Reject or keep duplicate copies", "action.delete_receipts": "Delete receipts", "action.close_shift": "Close shift", "action.retry_processing": "Retry reading a receipt", "action.run_sms_check": "Run the SMS check now", "action.manage_devices": "Add, rename or remove phones", "action.manage_users": "Manage users", "action.email_settings": "Change email settings",
+    } as Record<string, string>,
   },
   exceptions: {
     confirmAll: "Confirm receipt", unusedSmsWarning: "A bank SMS for {amount} at {time} is still unused. Is this its receipt? Press OK to reject anyway, or Cancel to keep it.", rejectReceipt: "Reject receipt", confirmAllNeeds: "Pick or enter a value first: {fields}", markedUnavailable: "Marked unavailable: not shown on this receipt.", enterValue: "Enter a value instead", title: "Resolve blocking fields", candidates: "Suggested evidence", confirm: "Confirm", unavailable: "Unavailable", corrected: "Corrected", save: "Save correction", region: "Show evidence region", resolved: "Resolved fields — no action needed", complete: "No unresolved fields remain.", missing: "Explicit evidence is missing.", failed: "The decision could not be recorded safely. Refresh if the receipt changed, or retry the same decision.", noNext: "No other receipt is available in this queue.", count: "{count} blocking fields", safety: "Finalization resolves data only. It does not verify bank settlement, transfer success, or receipt authenticity.",

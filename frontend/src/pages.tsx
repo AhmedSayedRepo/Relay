@@ -12,7 +12,7 @@ import { cairoDate, defaultDates, useApi } from "./hooks";
 import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
 import type { DashboardData, DuplicateGroup, Job, Json, Page, PhoneHealth, Transaction } from "./types";
-import { canReview, isAdmin, useRole } from "./role";
+import { can, canReview, useRole } from "./role";
 import { usePersisted } from "./filters";
 
 const dash = "—";
@@ -110,7 +110,7 @@ function Workload({ queue, waiting, sms, unused, role }: { queue: (readonly [key
   const { messages: m } = useI18n(); const d = m.dashboard; const total = queue.reduce((sum, [, value]) => sum + value, 0);
   const row = (key: keyof typeof QUEUE_TONES, value: number) => {
     const body = <><span className={"dot " + QUEUE_TONES[key]} aria-hidden="true" /><span className="label">{m.review.categories[key]}</span><Bidi className="value">{value}</Bidi></>;
-    return <li key={key} className={value ? "" : "zero"} title={d.tips.queue[key]}>{canReview(role) ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
+    return <li key={key} className={value ? "" : "zero"} title={d.tips.queue[key]}>{can(role, "page.review") ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
   };
   return <article className="panel workload-panel">
     <div className="panel-head"><h2>{d.workloadTitle}</h2><span className="count-pill"><Bidi>{waiting}</Bidi></span></div>
@@ -145,12 +145,12 @@ export function Dashboard({ token }: { token: string }) {
       <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
+        <MetricCard to={can(role, "page.bank_sms") ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
         <MetricCard to="/transactions" label={d.confirmedTotal} tip={d.tips.confirmedTotal} value={<MoneyValue totals={data.totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.final_transaction_count) })} · {d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
-        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.notConfirmed} tip={d.tips.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} label={d.smsMatchedCard} tip={d.tips.smsMatched} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
+        <MetricCard to={can(role, "page.review") ? "/review" : ""} tone="review" label={d.notConfirmed} tip={d.tips.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
+        <MetricCard to={can(role, "page.bank_sms") ? "/bank-sms" : ""} label={d.smsMatchedCard} tip={d.tips.smsMatched} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
         <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} tip={d.tips.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
-        <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} tip={d.tips.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
+        <MetricCard to={can(role, "page.review") ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} tip={d.tips.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
       <div className="two-column">
       <Workload queue={queue} waiting={waiting} sms={sms} unused={n(data.bank_sms_unused_count)} role={role} /><Alerts token={token} /></div>
@@ -189,7 +189,7 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
   }
   return <>{shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at).map((shift) => { const b = bounds(shift); const on = b.every((value, index) => value === current[index]); return <button key={shift.id} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>{formatMessage(s.label, { number: shift.number })} · {cairoClock(shift.opened_at, locale)}–{shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now}</button>; })}
-    {allowClose && canReview(role) && openShift && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: openShift.number })}</button>}
+    {allowClose && can(role, "action.close_shift") && openShift && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: openShift.number })}</button>}
     {notice && <span className="status" role="status">{notice}</span>}</>;
 }
 
@@ -267,7 +267,7 @@ export function SetAside({ token }: { token: string }) {
   const [picked, setPicked] = useState<string[]>([]);
   const { data, error, loading, reload } = useApi<Page<Transaction>>("/transactions" + query({ ...range.params, review_status: "SET_ASIDE", sort_by: "folder_at", sort_direction: "desc", limit, offset }), token, true);
   const reasons = m.transactions.reasons as Record<string, string>;
-  const admin = isAdmin(role); const shown = data?.items.map((item) => item.id) ?? [];
+  const admin = can(role, "action.delete_receipts"); const shown = data?.items.map((item) => item.id) ?? [];
   const toggle = (id: string) => setPicked((now) => now.includes(id) ? now.filter((one) => one !== id) : [...now, id]);
   async function bringBack(id: string) {
     setBusy(id); setMessage("");
@@ -295,7 +295,7 @@ export function SetAside({ token }: { token: string }) {
       <td data-label={m.transactions.device}>{item.device_name}</td>
       <td data-label={m.transactions.amount}>{item.amount || item.suggested_amount ? <Amount amount={String(item.amount || item.suggested_amount)} currency={item.currency || "EGP"} locale={locale} /> : dash}</td>
       <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span><SmsMatch match={item.sms_match as { at: string | null; used_by: string | null } | undefined} /></td>
-      <td data-label={r.action}><div className="row-actions">{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : null}{admin && <button type="button" className="danger-link" disabled={busy === "delete"} onClick={() => void remove([item.id])}>{r.delete}</button>}{!canReview(role) && !admin && dash}</div></td>
+      <td data-label={r.action}><div className="row-actions">{can(role, "action.bring_back") ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : null}{admin && <button type="button" className="danger-link" disabled={busy === "delete"} onClick={() => void remove([item.id])}>{r.delete}</button>}{!canReview(role) && !admin && dash}</div></td>
     </tr>)}</tbody></table></div>}
     {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={(next) => { setOffset(next); setPicked([]); }} />}
   </section>;
