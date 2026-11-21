@@ -909,7 +909,7 @@ def test_paddleocr_amount_comes_from_its_latin_reader_first() -> None:
     assert _paddle_amount("تم التحويل بنجاح\n577 EGP\nمبلغ التحويل", None) == "577.00"
 
 
-async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
+async def test_the_same_receipt_sent_again_waits_in_review_beside_the_first(
     client, auth_headers, app
 ):
     first, _ = await run_receipt(client, auth_headers, app, "day-copy-a")
@@ -921,19 +921,49 @@ async def test_the_same_receipt_sent_again_is_hidden_as_a_copy(
     # One transfer, photographed twice (forwarded, or in two folders).
     same = {"amount": "577.00", "currency": "EGP", "reference_number": "820492013227"}
     counts = await _read_and_confirm(app, same)
-    assert counts["copies"] == 1
-    # With the copy out of the way, the first one is confirmed.
-    again = await auto_confirm(
-        app.state.database, app.state.object_storage, app.state.settings
-    )
-    assert again["sms_day"] == 1
+    # The first one is confirmed; the copy waits in Review beside it.
+    assert counts["sms_day"] == 1 and counts["copies"] == 0
     async with app.state.database.session() as session:
-        rows = (await session.scalars(select(ReceiptCandidateRow))).all()
-        hidden = [row for row in rows if row.hidden_reason == "same_receipt"]
-        kept = [row for row in rows if row.hidden_reason is None]
-        assert len(hidden) == 1
-        assert kept[0].review_status == "AUTO_ACCEPTED"
-        assert hidden[0].resolution_result["copy_of"] == str(kept[0].id)
+        one = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        two = await session.get(ReceiptCandidateRow, UUID(second["id"]))
+        assert one.review_status == "AUTO_ACCEPTED"
+        assert two.review_status == "NEEDS_REVIEW" and two.hidden_reason is None
+        assert two.resolution_result["possible_repeat"]["with"] == first["id"]
+    listed = await client.get(
+        "/api/v1/review-queue?category=duplicate", headers=auth_headers
+    )
+    item = next(i for i in listed.json()["items"] if i["id"] == second["id"])
+    assert item["status_reason"] == "duplicate" and item["similar_to"] == first["id"]
+    # Rejected as a copy in one click.
+    rejected = await client.post(
+        "/api/v1/receipts/reject-copies",
+        headers=auth_headers,
+        json={"ids": [second["id"], first["id"]]},
+    )
+    assert rejected.json() == {"rejected": 1, "skipped": 1}
+    detail = await client.get(
+        f"/api/v1/transactions/{second['id']}", headers=auth_headers
+    )
+    assert detail.json()["status_reason"] == "copy"
+
+
+async def test_a_copy_marked_as_a_different_payment_is_checked_again(
+    client, auth_headers, app
+):
+    first, _ = await run_receipt(client, auth_headers, app, "pair-a")
+    second, _ = await run_receipt(client, auth_headers, app, "pair-b")
+    await _link_sms(client, auth_headers, [first, second], "pair-phone")
+    same = {"amount": "250.00", "currency": "EGP", "reference_number": "120492013227"}
+    await _read_and_confirm(app, same)
+    marked = await client.post(
+        f"/api/v1/receipts/{second['id']}/not-a-copy", headers=auth_headers
+    )
+    assert marked.status_code == 204, marked.text
+    await auto_confirm(app.state.database, app.state.object_storage, app.state.settings)
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(second["id"]))
+        assert "possible_repeat" not in row.resolution_result
+        assert row.resolution_result["repeat_cleared"]["user"]
 
 
 async def test_a_receipt_from_an_earlier_day_shown_again_is_a_red_warning(

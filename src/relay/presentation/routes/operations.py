@@ -168,6 +168,36 @@ async def reopen_receipt(
     return Response(status_code=204)
 
 
+class ReceiptIds(BaseModel):
+    ids: Annotated[list[UUID], Field(min_length=1, max_length=100)]
+
+
+@router.post("/receipts/reject-copies")
+async def reject_copies_route(
+    body: ReceiptIds,
+    user: AuthenticatedUser,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> dict[str, JsonValue]:
+    """Reject receipts waiting in Review as copies of another receipt."""
+    from relay.infrastructure.copies import reject_copies
+
+    done = await reject_copies(uow.session, body.ids, user.id)
+    return {"rejected": done, "skipped": len(set(body.ids)) - done}
+
+
+@router.post("/receipts/{candidate_id}/not-a-copy", status_code=204)
+async def not_a_copy_route(
+    candidate_id: UUID,
+    user: AuthenticatedUser,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> Response:
+    """A different payment after all: checked like any other receipt."""
+    from relay.infrastructure.copies import not_a_copy
+
+    await not_a_copy(uow.session, candidate_id, user.id)
+    return Response(status_code=204)
+
+
 class DeleteReceipts(BaseModel):
     ids: Annotated[list[UUID], Field(min_length=1, max_length=100)]
 

@@ -94,7 +94,7 @@ def _similar_to(value: ReceiptCandidateRow) -> str | None:
         other = tag.get("with") if isinstance(tag, dict) else None
         if other:
             return str(other)
-    if value.hidden_reason == "same_receipt" and resolution.get("copy_of"):
+    if resolution.get("copy_of"):
         return str(resolution["copy_of"])
     return None
 
@@ -119,6 +119,8 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         # not_a_receipt, shop_invoice, no_transfer: hidden by a reader.
         return "hidden_" + value.hidden_reason
     if value.review_status == "REJECTED":
+        if resolution.get("rejected_reason") == "copy":
+            return "copy"
         if resolution.get("rejected_reason") == "payment_request":
             return "payment_request"
         if resolution.get("rejected_reason") == "not_completed":
