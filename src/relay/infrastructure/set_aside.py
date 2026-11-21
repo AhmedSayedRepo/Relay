@@ -87,15 +87,14 @@ async def day_sms(
         )
     )
     events = rows.all()
-    used = dict(
-        (
-            await session.execute(
-                select(
-                    SmsVerificationRow.sms_event_id, SmsVerificationRow.candidate_id
-                ).where(SmsVerificationRow.sms_event_id.in_([row[0] for row in events]))
-            )
-        ).all()
+    links = await session.execute(
+        select(SmsVerificationRow.sms_event_id, SmsVerificationRow.candidate_id).where(
+            SmsVerificationRow.sms_event_id.in_([row[0] for row in events])
+        )
     )
+    used: dict[UUID, UUID] = {
+        event: candidate for event, candidate in links.all() if event is not None
+    }
     found = []
     for event_id, occurred, payload in events:
         body = payload.get("body") if isinstance(payload, dict) else None
@@ -295,7 +294,7 @@ async def delete_set_aside(
         field = fields.get("amount") if isinstance(fields, dict) else None
         context = {
             "candidate_id": str(row.id),
-            "reason": _status_reason(row),
+            "reason": _status_reason(row, None),
             "review_status": row.review_status,
             "hidden_reason": row.hidden_reason,
             "amount": field.get("value") if isinstance(field, dict) else None,
