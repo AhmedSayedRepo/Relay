@@ -1072,3 +1072,25 @@ async def test_recipient_shown_from_paddleocr_first(client, auth_headers, app):
     item = listed.json()["items"][0]
     assert item["suggested_recipient"] == "YOUSSEF · 01003405232"
     assert item["suggested_sender"] == "fagrsayed62@instapay"
+
+
+async def test_a_copy_hidden_before_comes_back_flagged_as_a_repeat(
+    client, auth_headers, app
+):
+    from relay.infrastructure.copies import unhide_copies
+
+    first, _ = await run_receipt(client, auth_headers, app, "old-copy-a")
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        row.review_status = "NEEDS_REVIEW"
+        row.hidden_reason = "same_receipt"
+        row.resolution_result = {"copy_of": "first-id"}
+        await session.commit()
+    assert await unhide_copies(app.state.database) == 1
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        assert row.hidden_reason is None
+        assert row.resolution_result["possible_repeat"] == {
+            "kind": "reference",
+            "with": "first-id",
+        }

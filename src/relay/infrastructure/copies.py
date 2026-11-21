@@ -9,7 +9,7 @@ import copy
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relay.application.errors import Conflict, NotFound
@@ -22,18 +22,29 @@ from relay.infrastructure.processing_models import (
 
 
 async def unhide_copies(database: Database) -> int:
-    """Copies used to be hidden; they now wait in Review beside the first."""
+    """Copies used to be hidden; they now wait in Review beside the first,
+    flagged as a repeat of it so they show under "possible duplicate"."""
+    done = 0
     async with database.session() as session:
-        result = await session.execute(
-            update(ReceiptCandidateRow)
+        rows = await session.scalars(
+            select(ReceiptCandidateRow)
             .where(
-                ReceiptCandidateRow.hidden_reason == "same_receipt",
                 ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value,
+                ReceiptCandidateRow.hidden_reason == "same_receipt",
             )
-            .values(hidden_reason=None)
+            .with_for_update()
         )
+        for row in rows:
+            resolution = copy.deepcopy(row.resolution_result or {})
+            other = resolution.get("copy_of")
+            if other and not isinstance(resolution.get("possible_repeat"), dict):
+                resolution["possible_repeat"] = {"kind": "reference", "with": other}
+                row.resolution_result = resolution
+            row.hidden_reason = None
+            row.updated_at = datetime.now(UTC)
+            done += 1
         await session.commit()
-        return int(getattr(result, "rowcount", 0) or 0)
+    return done
 
 
 async def reject_copies(session: AsyncSession, ids: list[UUID], actor_id: UUID) -> int:
@@ -93,6 +104,7 @@ async def not_a_copy(session: AsyncSession, candidate_id: UUID, actor_id: UUID) 
         raise Conflict("Only a receipt waiting in Review can be marked.")
     resolution = copy.deepcopy(row.resolution_result or {})
     resolution.pop("possible_repeat", None)
+    resolution.pop("copy_of", None)
     resolution["repeat_cleared"] = {
         "user": str(actor_id),
         "at": datetime.now(UTC).isoformat(),
