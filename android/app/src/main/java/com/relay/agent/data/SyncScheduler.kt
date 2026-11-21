@@ -111,6 +111,8 @@ class ConfigurationSyncWorker(context: Context, parameters: WorkerParameters) :
         val outcome = app.controller.sync()
         return when (outcome) {
             SyncOutcome.SUCCESS -> {
+                // Bank SMS that arrived while Android had the app stopped.
+                runCatching { app.catchUpSmsSinceLastCheck() }
                 val upload = app.controller.upload()
                 app.imageCollector.collect()
                 val imageUpload = app.imageUploader.upload()
