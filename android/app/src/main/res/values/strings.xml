@@ -117,4 +117,7 @@
     <string name="whats_new_ok">Got it</string>
     <string name="folder_help_title">Which folder should I choose?</string>
     <string name="folder_help_body">WhatsApp: Android → media → com.whatsapp → WhatsApp → Media → WhatsApp Images.\nBluetooth: Download → Bluetooth (on some phones a top-level Bluetooth folder).\nIf the phone shows \"Can\'t use this folder\", choose the folder inside it.</string>
+    <string name="keep_connected_channel">Relay connection</string>
+    <string name="keep_connected_title">Relay is connected</string>
+    <string name="keep_connected_text">Receipts and bank SMS are sent to Relay automatically.</string>
 </resources>

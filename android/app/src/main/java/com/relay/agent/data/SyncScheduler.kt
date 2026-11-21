@@ -17,6 +17,7 @@ import com.relay.agent.application.RetryPolicy
 import com.relay.agent.domain.AgentStore
 import com.relay.agent.domain.SyncOutcome
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.sync.withLock
 
 class SyncScheduler(context: Context, private val store: AgentStore) {
     private val workManager = WorkManager.getInstance(context)
@@ -108,6 +109,10 @@ class ConfigurationSyncWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
         val app = RelayApplication.from(applicationContext)
+        return app.cycleLock.withLock { cycle(app) }
+    }
+
+    private suspend fun cycle(app: RelayApplication): Result {
         val outcome = app.controller.sync()
         return when (outcome) {
             SyncOutcome.SUCCESS -> {

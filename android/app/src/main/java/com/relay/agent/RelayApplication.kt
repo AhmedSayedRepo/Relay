@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 class RelayApplication : Application() {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -78,6 +79,9 @@ class RelayApplication : Application() {
     }
     val scheduler by lazy { SyncScheduler(this, store) }
     val uploadScheduler by lazy { EventUploadScheduler(this) }
+
+    /** One sync at a time: the 15-minute job and the keep-connected loop. */
+    val cycleLock = Mutex()
     val smsCollector by lazy { SmsCollector(store, outbox, ::smsPermissionGranted) }
 
     fun readSmsGranted(): Boolean = ContextCompat.checkSelfPermission(

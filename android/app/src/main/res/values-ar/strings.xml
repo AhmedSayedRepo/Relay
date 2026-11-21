@@ -112,4 +112,7 @@
     <string name="whats_new_ok">تمام</string>
     <string name="folder_help_title">أختار أنهي مجلد؟</string>
     <string name="folder_help_body">واتساب: Android ← media ← com.whatsapp ← WhatsApp ← Media ← WhatsApp Images.\nبلوتوث: Download ← Bluetooth (وفي بعض الموبايلات مجلد Bluetooth لوحده برّه).\nلو الموبايل قال «مينفعش تستخدم المجلد ده»، اختار المجلد اللي جوّاه.</string>
+    <string name="keep_connected_channel">اتصال Relay</string>
+    <string name="keep_connected_title">Relay متصل</string>
+    <string name="keep_connected_text">الإيصالات ورسايل البنك بتتبعت لـ Relay لوحدها.</string>
 </resources>
