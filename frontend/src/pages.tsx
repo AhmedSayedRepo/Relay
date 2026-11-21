@@ -174,7 +174,8 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
   const { locale, messages: m } = useI18n(); const s = m.shifts; const role = useRole();
   const { data, reload } = useApi<{ items: Shift[]; open: Shift }>("/shifts" + query({ day }), token, true);
   const [notice, setNotice] = useState("");
-  const shown = data ? [...data.items, ...(data.items.some((item) => item.id === data.open.id) ? [] : [data.open])] : [];
+  const items = Array.isArray(data?.items) ? data.items : []; const openShift = data && typeof data.open === "object" && data.open ? data.open : null;
+  const shown = [...items, ...(openShift && !items.some((item) => item.id === openShift.id) ? [openShift] : [])];
   const bounds = (shift: Shift): [string, string, string, string] => {
     const [from, timeFrom] = cairoParts(new Date(shift.opened_at));
     if (!shift.closed_at) return [from, cairoDate(), timeFrom, "23:59"];
@@ -182,13 +183,13 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
     return [from, to, timeFrom, timeTo];
   };
   async function closeShift() {
-    const open = data?.open; if (!open) return;
+    const open = openShift; if (!open) return;
     const note = window.prompt(formatMessage(s.closePrompt, { number: open.number })); if (note === null) return;
     try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note || null }) }); setNotice(formatMessage(s.closed, { number: open.number })); reload(); }
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
   }
   return <>{shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at).map((shift) => { const b = bounds(shift); const on = b.every((value, index) => value === current[index]); return <button key={shift.id} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>{formatMessage(s.label, { number: shift.number })} · {cairoClock(shift.opened_at, locale)}–{shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now}</button>; })}
-    {allowClose && canReview(role) && data && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: data.open.number })}</button>}
+    {allowClose && canReview(role) && openShift && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: openShift.number })}</button>}
     {notice && <span className="status" role="status">{notice}</span>}</>;
 }
 
