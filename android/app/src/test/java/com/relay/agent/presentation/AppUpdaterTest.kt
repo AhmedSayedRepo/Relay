@@ -39,9 +39,10 @@ class AppUpdaterTest {
     @Test
     fun bankAppFindsItsNewestReleaseEvenWhenTheLatestHasNoBankFile() {
         val base = "https://github.com/AhmedSayedRepo/relay-releases/releases/download"
-        fun release(tag: String, file: String) =
-            """{"tag_name": "$tag", "assets": [""" +
-                """{"name": "$file", "browser_download_url": "$base/$tag/$file"}]}"""
+        fun release(tag: String, file: String): String {
+            val asset = """{"name": "$file", "browser_download_url": "$base/$tag/$file"}"""
+            return """{"tag_name": "$tag", "assets": [$asset]}"""
+        }
         val body = listOf(
             release("agent-v0.8.4", "relay-receipts.apk"),
             release("agent-v0.8.3-bank", "relay-bank-sms.apk"),
