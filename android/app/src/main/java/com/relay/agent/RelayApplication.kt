@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.relay.agent.application.AgentController
 import com.relay.agent.application.ImageCollector
@@ -98,6 +99,26 @@ class RelayApplication : Application() {
         if (captured > 0) uploadScheduler.enqueue()
         return captured
     }
+
+    /**
+     * Runs on its own at every sync and app start: bank SMS that reached the
+     * inbox since the last check, while the app was stopped by Android and
+     * missed them. The same SMS sent twice is recognised and kept once.
+     */
+    suspend fun catchUpSmsSinceLastCheck(): Int {
+        if (!readSmsGranted()) return 0
+        val prefs = getSharedPreferences(CATCH_UP_PREFS, MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val floor = now - CATCH_UP_DAYS * DAY_MILLIS
+        val last = prefs.getLong(LAST_CHECK, floor)
+        val since = maxOf(floor, last - OVERLAP_MILLIS)
+        val captured = SmsInbox(this).since(since).count {
+            smsCollector.collectMissed(it) == CollectionOutcome.CAPTURED
+        }
+        prefs.edit { putLong(LAST_CHECK, now) }
+        if (captured > 0) uploadScheduler.enqueue()
+        return captured
+    }
     val imageCollector by lazy { ImageCollector(store, imageSource, binaryOutbox) }
     val imageUploader by lazy { ImageUploader(store, api, binaryOutbox) }
 
@@ -107,11 +128,16 @@ class RelayApplication : Application() {
         applicationScope.launch {
             controller.initialize()
             scheduler.schedule()
+            runCatching { catchUpSmsSinceLastCheck() }
         }
     }
 
     companion object {
         const val CATCH_UP_DAYS = 3L
+        private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+        private const val OVERLAP_MILLIS = 10L * 60 * 1000
+        private const val CATCH_UP_PREFS = "relay.sms_catch_up"
+        private const val LAST_CHECK = "last_check_millis"
 
         fun from(context: Context): RelayApplication =
             context.applicationContext as RelayApplication
