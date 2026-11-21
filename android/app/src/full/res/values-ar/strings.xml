@@ -2,4 +2,5 @@
 <!-- The two builds install with different names so they are easy to tell apart. -->
 <resources>
     <string name="app_name">Relay Bank SMS</string>
+    <string name="instapay_listener_label">Relay: مدفوعات انستاباي</string>
 </resources>
