@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from relay.application.sms_verification import SmsVerificationService
 from relay.application.sms_verification_ports import (
     BankSms,
+    DayReceipt,
     SmsEvent,
     SmsVerificationUnitOfWork,
     StoredVerification,
@@ -32,6 +33,27 @@ from relay.infrastructure.sms_verification_models import (
     SmsSourceLinkRow,
     SmsVerificationRow,
 )
+
+
+def _amounts(resolution: object) -> frozenset[Decimal]:
+    """Every amount the receipt shows: confirmed, or suggested by a reader."""
+    fields = resolution.get("fields") if isinstance(resolution, dict) else None
+    field = fields.get("amount") if isinstance(fields, dict) else None
+    if not isinstance(field, dict):
+        return frozenset()
+    listed = field.get("candidates")
+    values = [field.get("value")] + [
+        item.get("normalized_value") or item.get("value")
+        for item in (listed if isinstance(listed, list) else [])
+        if isinstance(item, dict)
+    ]
+    found: set[Decimal] = set()
+    for value in values:
+        try:
+            found.add(Decimal(str(value).replace(",", "")))
+        except (InvalidOperation, ValueError):
+            continue
+    return frozenset(found)
 
 
 def build_sms_verification_service(
@@ -284,6 +306,32 @@ class SqlSmsVerificationRepository:
                 )
             )
         return found
+
+    async def day_receipts(self, since: datetime, until: datetime) -> list[DayReceipt]:
+        rows = await self.session.execute(
+            select(
+                ReceiptCandidateRow.id,
+                RawEventRow.occurred_at,
+                ReceiptCandidateRow.review_status,
+                ReceiptCandidateRow.hidden_reason,
+                ReceiptCandidateRow.resolution_result,
+            )
+            .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
+            .where(
+                RawEventRow.occurred_at >= since,
+                RawEventRow.occurred_at < until,
+            )
+            .limit(5000)
+        )
+        return [
+            DayReceipt(
+                candidate_id,
+                aware(occurred),
+                "HIDDEN" if hidden else str(status),
+                _amounts(resolution),
+            )
+            for candidate_id, occurred, status, hidden, resolution in rows
+        ]
 
     async def get(self, candidate_id: UUID) -> StoredVerification | None:
         row = await self.session.get(SmsVerificationRow, candidate_id)

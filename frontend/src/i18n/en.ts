@@ -176,7 +176,7 @@ export const en = {
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",
-    status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", openReceipt: "Open receipt",
+    status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", reasons: { waiting: "A receipt with this amount waits in Review", rejected: "A receipt with this amount was rejected", hidden: "A photo with this amount was hidden (copy or not a receipt)", receipt_used: "Its receipt was already confirmed by another SMS", no_receipt: "No receipt that day shows this amount (not sent, or the amount was misread)" }, openReceipt: "Open receipt",
     empty: "No bank SMS in this range.", hint: "Times are when the SMS reached the phone (Cairo time). Message text stays private.",
   },
   sms: {
