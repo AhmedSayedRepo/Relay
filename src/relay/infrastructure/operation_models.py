@@ -15,7 +15,8 @@ class OperatorAuditRow(Base):
     __tablename__ = "operator_audit"
     __table_args__ = (
         CheckConstraint(
-            "action IN ('DUPLICATE_RESOLUTION','PROCESSING_RETRY','EXPORT')",
+            "action IN ('DUPLICATE_RESOLUTION','PROCESSING_RETRY','EXPORT',"
+            "'RECEIPT_DELETE')",
             name="operator_audit_action",
         ),
         CheckConstraint(
@@ -23,7 +24,8 @@ class OperatorAuditRow(Base):
             "AND job_id IS NULL) OR "
             "(action = 'PROCESSING_RETRY' AND job_id IS NOT NULL "
             "AND candidate_id IS NULL) OR "
-            "(action = 'EXPORT' AND candidate_id IS NULL AND job_id IS NULL)",
+            "(action IN ('EXPORT','RECEIPT_DELETE') "
+            "AND candidate_id IS NULL AND job_id IS NULL)",
             name="operator_audit_target",
         ),
         Index("ix_operator_audit_actor", "actor_id", "created_at"),

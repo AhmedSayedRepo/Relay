@@ -216,32 +216,56 @@ export function Transactions({ token }: { token: string }) {
   </section>;
 }
 
+/** What the bank SMS that day says about a set-aside receipt's amount. */
+function SmsMatch({ match }: { match?: { at: string | null; used_by: string | null } }) {
+  const { locale, messages: m } = useI18n(); const r = m.rejected;
+  if (!match) return null;
+  if (!match.at) return <small className="sms-note">{r.smsNone}</small>;
+  const time = cairoClock(match.at, locale);
+  if (!match.used_by) return <small className="sms-note free">{formatMessage(r.smsFree, { time })}</small>;
+  return <small className="sms-note used">{formatMessage(r.smsUsed, { time })} <Link to={"/transactions/" + match.used_by}>{r.openUsed}</Link></small>;
+}
+
 /** Receipts set aside: rejected (by a person or by Relay) or hidden as not a
  * receipt, each with a button to bring it back to Review. */
 export function SetAside({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const r = m.rejected; const role = useRole(); const range = useDayRange();
   const [offset, setOffset] = usePersisted("rejected.offset", 0); const limit = 25;
   const [busy, setBusy] = useState(""); const [message, setMessage] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
   const { data, error, loading, reload } = useApi<Page<Transaction>>("/transactions" + query({ ...range.params, review_status: "SET_ASIDE", sort_by: "folder_at", sort_direction: "desc", limit, offset }), token, true);
   const reasons = m.transactions.reasons as Record<string, string>;
+  const admin = isAdmin(role); const shown = data?.items.map((item) => item.id) ?? [];
+  const toggle = (id: string) => setPicked((now) => now.includes(id) ? now.filter((one) => one !== id) : [...now, id]);
   async function bringBack(id: string) {
     setBusy(id); setMessage("");
     try { await api("/receipts/" + encodeURIComponent(id) + "/reopen", token, { method: "POST" }); setMessage(r.broughtBack); reload(); }
     catch (caught) { setMessage(caught instanceof Error ? caught.message : r.failed); }
     finally { setBusy(""); }
   }
+  async function remove(ids: string[]) {
+    if (ids.length === 0 || !window.confirm(formatMessage(r.deleteConfirm, { count: ids.length }))) return;
+    setBusy("delete"); setMessage("");
+    try {
+      const result = await api<{ deleted: number; skipped: number }>("/receipts/delete", token, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+      setMessage(formatMessage(r.deleted, { count: result.deleted })); setPicked([]); reload();
+    } catch (caught) { setMessage(caught instanceof Error ? caught.message : r.failed); }
+    finally { setBusy(""); }
+  }
   return <section><PageHeading title={m.pages.rejected[0]} description={m.pages.rejected[1]} help={contextHelp.transactions} />
-    <div className="filter-bar"><DayRange range={range} changed={() => setOffset(0)} /></div>
+    <div className="filter-bar"><DayRange range={range} changed={() => { setOffset(0); setPicked([]); }} /></div>
+    {admin && data && data.total > 0 && <div className="bulk-bar"><button type="button" className="danger-button" disabled={picked.length === 0 || busy === "delete"} onClick={() => void remove(picked)}>{formatMessage(r.deleteSelected, { count: picked.length })}</button></div>}
     {message && <p className="status" role="status">{message}</p>}
     <Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={r.empty} />
-    {data && data.total > 0 && <div className="table-wrap"><table className="responsive-table"><thead><tr><th>{m.transactions.arrived}</th><th>{m.transactions.device}</th><th>{m.transactions.amount}</th><th>{r.why}</th><th>{r.action}</th></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}>
+    {data && data.total > 0 && <div className="table-wrap"><table className="responsive-table"><thead><tr>{admin && <th><input type="checkbox" aria-label={r.selectAll} checked={shown.length > 0 && shown.every((id) => picked.includes(id))} onChange={(event) => setPicked(event.target.checked ? shown : [])} /></th>}<th>{m.transactions.arrived}</th><th>{m.transactions.device}</th><th>{m.transactions.amount}</th><th>{r.why}</th><th>{r.action}</th></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}>
+      {admin && <td data-label={r.select}><input type="checkbox" aria-label={r.select} checked={picked.includes(item.id)} onChange={() => toggle(item.id)} /></td>}
       <td data-label={m.transactions.arrived}><Link to={"/transactions/" + item.id}><Timestamp value={item.folder_at || item.created_at} locale={locale} /></Link></td>
       <td data-label={m.transactions.device}>{item.device_name}</td>
       <td data-label={m.transactions.amount}>{item.amount || item.suggested_amount ? <Amount amount={String(item.amount || item.suggested_amount)} currency={item.currency || "EGP"} locale={locale} /> : dash}</td>
-      <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span></td>
-      <td data-label={r.action}>{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : dash}</td>
+      <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span><SmsMatch match={item.sms_match as { at: string | null; used_by: string | null } | undefined} /></td>
+      <td data-label={r.action}><div className="row-actions">{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : null}{admin && <button type="button" className="danger-link" disabled={busy === "delete"} onClick={() => void remove([item.id])}>{r.delete}</button>}{!canReview(role) && !admin && dash}</div></td>
     </tr>)}</tbody></table></div>}
-    {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={setOffset} />}
+    {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={(next) => { setOffset(next); setPicked([]); }} />}
   </section>;
 }
 

@@ -217,6 +217,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--surface-soft) 65%, transpa
 .status-dot { width: .42rem; height: .42rem; border-radius: 50%; background: currentColor; }
 .badge.warning { color: var(--warning); background: var(--warning-soft); }.badge.danger { color: var(--danger); background: var(--danger-soft); }.badge.success { color: var(--success); background: var(--success-soft); }
 .sms-why { display: grid; gap: .15rem; } .sms-why small { color: var(--ink-soft); font-size: .78rem; }
+.sms-note { display: block; margin-top: .3rem; font-size: .78rem; color: var(--ink-soft); line-height: 1.4; } .sms-note.free { color: var(--success, #1f7a55); } .sms-note.used { color: var(--warning-ink, #8a5a12); }
 .pager { display: flex; justify-content: flex-end; align-items: center; gap: .55rem; margin-block-start: 1rem; }.pager > span { margin-inline-end: auto; color: var(--ink-soft); }
 .card-list { display: grid; gap: .75rem; }
 .record-card { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.05rem 1.15rem; }
@@ -338,6 +339,7 @@ pre { max-height: 24rem; overflow: auto; padding: 1rem; color: #dcebea; backgrou
 .device-actions > .hint { margin: 0; }
 .confirm-row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
 .danger-button { background: var(--danger); }
+.bulk-bar { display: flex; justify-content: flex-end; margin: .5rem 0; } .row-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; } .danger-link { background: none; border: 0; color: var(--danger); padding: .25rem .4rem; cursor: pointer; } .danger-link:hover { text-decoration: underline; } .danger-link:disabled { opacity: .5; cursor: default; }
 .danger-button:hover { background: color-mix(in srgb, var(--danger) 82%, #000); }
 :root[data-theme="dark"] .danger-button { color: #2a0d09; }
 .link-dialog { inset-inline: max(2vw, calc((100vw - 52rem) / 2)); inset-block: auto; inset-block-start: 8vh; max-height: 84vh; }

@@ -58,6 +58,9 @@ async def test_a_rejected_receipt_is_listed_and_brought_back(client, auth_header
     items = {item["id"]: item for item in listed.json()["items"]}
     assert items[candidate["id"]]["status_reason"] == "rejected_by_reviewer"
     assert items[candidate["id"]]["suggested_amount"] == "1096.00"
+    # The page says a bank SMS that day has this amount and is unused.
+    match = items[candidate["id"]]["sms_match"]
+    assert match["at"] and match["used_by"] is None
     # The same evening, the warnings list it.
     from relay.infrastructure.alerts import current_alerts, render_email
     from tests.test_auto_confirm import CAIRO
@@ -88,6 +91,38 @@ async def test_a_rejected_receipt_is_listed_and_brought_back(client, auth_header
         f"/api/v1/receipts/{candidate['id']}/reopen", headers=auth_headers
     )
     assert again.status_code == 409
+
+
+async def test_rejected_receipts_are_deleted_for_good(client, auth_headers, app):
+    from relay.infrastructure.binary_models import BinaryObjectRow
+    from relay.infrastructure.operation_models import OperatorAuditRow
+
+    kept, _ = await run_receipt(client, auth_headers, app, "delete-keep")
+    gone, _ = await run_receipt(client, auth_headers, app, "delete-gone")
+    await _reject(app, gone["id"])
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(gone["id"]))
+        photo = row.object_id
+    # A receipt still in Review is skipped; the rejected one is deleted.
+    result = await client.post(
+        "/api/v1/receipts/delete",
+        headers=auth_headers,
+        json={"ids": [gone["id"], kept["id"]]},
+    )
+    assert result.status_code == 200, result.text
+    assert result.json() == {"deleted": 1, "skipped": 1}
+    async with app.state.database.session() as session:
+        assert await session.get(ReceiptCandidateRow, UUID(gone["id"])) is None
+        assert await session.get(BinaryObjectRow, photo) is None
+        assert await session.get(ReceiptCandidateRow, UUID(kept["id"])) is not None
+        audit = (
+            await session.scalars(
+                select(OperatorAuditRow).where(
+                    OperatorAuditRow.action == "RECEIPT_DELETE"
+                )
+            )
+        ).all()
+        assert [entry.context["candidate_id"] for entry in audit] == [gone["id"]]
 
 
 def test_bank_app_transfer_amount_without_currency() -> None:
