@@ -131,6 +131,13 @@ export const ar = {
     added: "تمت إضافة المستخدم.", saved: "تم الحفظ.", deleted: "تم حذف المستخدم.", failed: "تعذر حفظ التغيير.",
     newPasswordFor: "كلمة مرور جديدة لـ {email} (12 حرفاً على الأقل):", confirmDelete: "حذف {email}؟ تبقى قرارات المراجعة السابقة في السجل.",
     readOnly: "يمكن لدورك عرض الإيصالات دون مراجعتها.",
+    noAccess: "مالكش صلاحية على الصفحة دي. اطلبها من الأدمن.",
+    permissions: "الصلاحيات", savePermissions: "احفظ الصلاحيات", resetPermissions: "رجّع صلاحيات الدور الأساسية", pagesTitle: "الصفحات", actionsTitle: "الإجراءات",
+    adminAll: "الأدمن عنده كل الصفحات والإجراءات دايمًا.", changed: "متغيّرة عن صلاحيات الدور",
+    keys: {
+      "page.dashboard": "لوحة التحكم", "page.review": "المراجعة", "page.transactions": "المعاملات", "page.rejected": "المرفوضة", "page.bank_sms": "رسائل البنك", "page.devices": "الأجهزة", "page.users": "المستخدمين", "page.email_settings": "إعدادات الإيميل",
+      "action.review": "مراجعة الإيصالات (تأكيد، رفض، مطابقة الرسالة)", "action.bring_back": "رجوع الإيصالات المرفوضة", "action.reject_copies": "رفض أو إبقاء النسخ المكررة", "action.delete_receipts": "حذف الإيصالات", "action.close_shift": "قفل الشيفت", "action.retry_processing": "إعادة قراءة إيصال", "action.run_sms_check": "تشغيل فحص الرسائل دلوقتي", "action.manage_devices": "إضافة أو تسمية أو حذف الموبايلات", "action.manage_users": "إدارة المستخدمين", "action.email_settings": "تغيير إعدادات الإيميل",
+    } as Record<string, string>,
   },
   exceptions: {
     confirmAll: "تأكيد الإيصال", unusedSmsWarning: "فيه رسالة بنك بمبلغ {amount} الساعة {time} لسه ماستخدمتش. ده الإيصال بتاعها؟ دوس OK علشان ترفضه برضه، أو Cancel علشان تسيبه.", rejectReceipt: "رفض الإيصال", confirmAllNeeds: "اختر أو أدخل قيمة أولاً: {fields}", markedUnavailable: "تم تعليمه كغير متاح: غير ظاهر في هذا الإيصال.", enterValue: "إدخال قيمة بدلاً من ذلك", title: "حسم الحقول المعلّقة", candidates: "الأدلة المقترحة", confirm: "تأكيد", unavailable: "غير متاح", corrected: "القيمة المصححة", save: "حفظ التصحيح", region: "عرض منطقة الدليل", resolved: "حقول محسومة — لا تحتاج إلى إجراء", complete: "لم تعد توجد حقول غير محسومة.", missing: "الدليل الصريح غير متوفر.", failed: "تعذر تسجيل القرار بأمان. حدّث الصفحة إذا تغير الإيصال، أو أعد محاولة القرار نفسه.", noNext: "لا يوجد إيصال آخر في هذه القائمة.", count: "{count} حقول معلّقة", safety: "حسم البيانات لا يتحقق من التسوية البنكية أو نجاح التحويل أو أصالة الإيصال.",
@@ -172,6 +179,9 @@ export const ar = {
     howTitle: "الحصول على كلمة مرور تطبيق من Gmail",
     how: ["افتح myaccount.google.com ثم الأمان.", "فعّل التحقق بخطوتين إن لم يكن مفعّلاً.", "ابحث عن «كلمات مرور التطبيقات» وأنشئ واحدة باسم Relay.", "انسخ الأحرف الستة عشر هنا واضغط حفظ، ثم أرسل رسالة تجريبية."],
     privacy: "تُحفظ كلمة مرور التطبيق مشفّرة على الخادم ولا تظهر مرة أخرى.",
+  },
+  shifts: {
+    label: "وردية {number}", now: "دلوقتي", close: "اقفل وردية {number}", closePrompt: "تقفل وردية {number} دلوقتي؟ هتبدأ وردية جديدة على طول. اكتب ملاحظة (اختياري):", closed: "وردية {number} اتقفلت. التقرير جاي على الإيميل.", failed: "ماقدرناش نقفل الوردية.",
   },
   compare: {
     title: "قارن بالإيصال الأول", description: "النسخة المحتملة جنب الإيصال اللي ممكن تكون نسخة منه. الاختلافات متعلّمة.", first: "الإيصال الأول", copy: "نسخة محتملة", sender: "المرسل", status: "الحالة", sms: "رسالة البنك", openDetail: "افتح التفاصيل", noOther: "الإيصال الأول مبقاش موجود في Relay.", rejectCopy: "نسخة: ارفضها", notCopy: "دفعة مختلفة: سيبها", failed: "ماظبطتش. جرّب تاني.", select: "اختار", selectAll: "اختار كل اللي في الصفحة", rejectSelected: "ارفض المحدد كنسخ ({count})", rejectSelectedConfirm: "ترفض {count} إيصال على إنهم نسخ من إيصالات تانية؟", rejected: "اترفض {count} كنسخ.",

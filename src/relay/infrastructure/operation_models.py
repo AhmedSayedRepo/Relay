@@ -1,10 +1,19 @@
 """Durable audit records for Sprint 6 operator actions."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relay.infrastructure.database import Base
@@ -49,3 +58,24 @@ class OperatorAuditRow(Base):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+
+
+class ShiftRow(Base):
+    """A cashier shift: open until someone closes it; closing opens the next.
+    Numbered per day (Shift 1, 2, 3 ...) by the day it opened."""
+
+    __tablename__ = "shifts"
+    __table_args__ = (
+        UniqueConstraint("day", "number", name="uq_shifts_day_number"),
+        Index("ix_shifts_opened", "opened_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(String(500))

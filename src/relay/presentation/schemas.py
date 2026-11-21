@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_validator
 
 from relay.domain.devices import DeviceStatus
+from relay.domain.permissions import granted
 from relay.domain.users import Role
 
 
@@ -32,6 +33,14 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     role: Role
+    # Admin-set changes to the role defaults, and the permissions in effect.
+    permissions: dict[str, bool] = {}
+    granted: list[str] = []
+
+    @model_validator(mode="after")
+    def _granted(self) -> Self:
+        self.granted = sorted(granted(self.role, self.permissions))
+        return self
 
 
 Name = Annotated[str, Field(min_length=1, max_length=120)]

@@ -12,7 +12,7 @@ import { cairoDate, defaultDates, useApi } from "./hooks";
 import { formatMessage, useI18n, type Locale } from "./i18n";
 import type { Messages } from "./i18n/en";
 import type { DashboardData, DuplicateGroup, Job, Json, Page, PhoneHealth, Transaction } from "./types";
-import { canReview, isAdmin, useRole } from "./role";
+import { can, canReview, useRole } from "./role";
 import { usePersisted } from "./filters";
 
 const dash = "—";
@@ -110,7 +110,7 @@ function Workload({ queue, waiting, sms, unused, role }: { queue: (readonly [key
   const { messages: m } = useI18n(); const d = m.dashboard; const total = queue.reduce((sum, [, value]) => sum + value, 0);
   const row = (key: keyof typeof QUEUE_TONES, value: number) => {
     const body = <><span className={"dot " + QUEUE_TONES[key]} aria-hidden="true" /><span className="label">{m.review.categories[key]}</span><Bidi className="value">{value}</Bidi></>;
-    return <li key={key} className={value ? "" : "zero"} title={d.tips.queue[key]}>{canReview(role) ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
+    return <li key={key} className={value ? "" : "zero"} title={d.tips.queue[key]}>{can(role, "page.review") ? <Link to={"/review?category=" + key}>{body}</Link> : <div>{body}</div>}</li>;
   };
   return <article className="panel workload-panel">
     <div className="panel-head"><h2>{d.workloadTitle}</h2><span className="count-pill"><Bidi>{waiting}</Bidi></span></div>
@@ -140,17 +140,17 @@ export function Dashboard({ token }: { token: string }) {
   const quick: [string, string, string][] = [[d.today, cairoDate(), cairoDate()], [d.yesterday, cairoDate(1), cairoDate(1)]];
   async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query(range), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
-    <div className="panel dash-filters"><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, from, to]) => <button key={label} type="button" className={"chip" + (dateFrom === from && dateTo === to && timeFrom === "00:00" && timeTo === "23:59" ? " active" : "")} aria-pressed={dateFrom === from && dateTo === to} onClick={() => pick(from, to)}>{label}</button>)}</div>
+    <div className="panel dash-filters"><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, from, to]) => <button key={label} type="button" className={"chip" + (dateFrom === from && dateTo === to && timeFrom === "00:00" && timeTo === "23:59" ? " active" : "")} aria-pressed={dateFrom === from && dateTo === to} onClick={() => pick(from, to)}>{label}</button>)}<ShiftChips token={token} day={dateFrom} current={[dateFrom, dateTo, timeFrom, timeTo]} apply={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} allowClose /></div>
       <div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /><label>{d.fromTime}<input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} /></label><label>{d.toTime}<input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} /></label><button type="button" className="with-icon" onClick={() => void download()}><Icon name="download" size={18} />{d.exportExcel}</button></div>
       <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
+        <MetricCard to={can(role, "page.bank_sms") ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
         <MetricCard to="/transactions" label={d.confirmedTotal} tip={d.tips.confirmedTotal} value={<MoneyValue totals={data.totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.final_transaction_count) })} · {d.autoConfirmed} <Bidi>{n(data.auto_confirmed_count)}</Bidi> · {d.manualConfirmed} <Bidi>{n(data.manual_confirmed_count)}</Bidi></>} />
-        <MetricCard to={canReview(role) ? "/review" : ""} tone="review" label={d.notConfirmed} tip={d.tips.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
-        <MetricCard to={isAdmin(role) ? "/bank-sms" : ""} label={d.smsMatchedCard} tip={d.tips.smsMatched} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
+        <MetricCard to={can(role, "page.review") ? "/review" : ""} tone="review" label={d.notConfirmed} tip={d.tips.notConfirmed} value={<MoneyValue totals={data.review_totals_by_currency} locale={locale} />} hint={<>{formatMessage(d.receiptsCount, { count: n(data.needs_review_count) })}{canReview(role) ? <> · {d.openReview}</> : null}</>} />
+        <MetricCard to={can(role, "page.bank_sms") ? "/bank-sms" : ""} label={d.smsMatchedCard} tip={d.tips.smsMatched} value={<Bidi>{n(sms.VERIFIED)}</Bidi>} hint={formatMessage(n(data.rejected_count) ? d.smsMatchedHintRejected : d.smsMatchedHint, { count: received, rejected: n(data.rejected_count) })} />
         <MetricCard to="/duplicates" tone="duplicate" label={d.duplicatesConfirmed} tip={d.tips.duplicatesConfirmed} value={<Bidi>{data.duplicate_group_count}</Bidi>} hint={d.duplicatesConfirmedHint} />
-        <MetricCard to={canReview(role) ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} tip={d.tips.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
+        <MetricCard to={can(role, "page.review") ? "/review?category=duplicate" : ""} tone="duplicate" label={d.duplicatesPossible} tip={d.tips.duplicatesPossible} value={<Bidi>{n(workload?.duplicate)}</Bidi>} hint={d.duplicatesPossibleHint} />
       </div>
       <div className="two-column">
       <Workload queue={queue} waiting={waiting} sms={sms} unused={n(data.bank_sms_unused_count)} role={role} /><Alerts token={token} /></div>
@@ -161,18 +161,51 @@ export function Dashboard({ token }: { token: string }) {
 }
 
 /** Shared day filter (Dashboard, Transactions, Review): when images reached the folder, Cairo time. */
+type Shift = { id: string; day: string; number: number; opened_at: string; closed_at: string | null; note: string | null; open: boolean };
+/** Cairo date (YYYY-MM-DD) and time (HH:MM) of a moment. */
+function cairoParts(moment: Date): [string, string] {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(moment);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return [`${get("year")}-${get("month")}-${get("day")}`, `${get("hour")}:${get("minute")}`];
+}
+
+/** The day's shifts as quick filters; on the dashboard also "Close shift". */
+function ShiftChips({ token, day, current, apply, allowClose = false }: { token: string; day: string; current: [string, string, string, string]; apply: (from: string, to: string, timeFrom: string, timeTo: string) => void; allowClose?: boolean }) {
+  const { locale, messages: m } = useI18n(); const s = m.shifts; const role = useRole();
+  const { data, reload } = useApi<{ items: Shift[]; open: Shift }>("/shifts" + query({ day }), token, true);
+  const [notice, setNotice] = useState("");
+  const valid = (shift: unknown): shift is Shift => typeof shift === "object" && shift !== null && typeof (shift as Shift).opened_at === "string" && !Number.isNaN(Date.parse((shift as Shift).opened_at)) && ((shift as Shift).closed_at === null || !Number.isNaN(Date.parse(String((shift as Shift).closed_at))));
+  const items: Shift[] = data && Array.isArray(data.items) ? data.items.filter(valid) : []; const openShift: Shift | null = data && valid(data.open) ? data.open : null;
+  const shown = [...items, ...(openShift && !items.some((item) => item.id === openShift.id) ? [openShift] : [])];
+  const bounds = (shift: Shift): [string, string, string, string] => {
+    const [from, timeFrom] = cairoParts(new Date(shift.opened_at));
+    if (!shift.closed_at) return [from, cairoDate(), timeFrom, "23:59"];
+    const [to, timeTo] = cairoParts(new Date(new Date(shift.closed_at).getTime() - 60000));
+    return [from, to, timeFrom, timeTo];
+  };
+  async function closeShift() {
+    const open = openShift; if (!open) return;
+    const note = window.prompt(formatMessage(s.closePrompt, { number: open.number })); if (note === null) return;
+    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note || null }) }); setNotice(formatMessage(s.closed, { number: open.number })); reload(); }
+    catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
+  }
+  return <>{shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at).map((shift) => { const b = bounds(shift); const on = b.every((value, index) => value === current[index]); return <button key={shift.id} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>{formatMessage(s.label, { number: shift.number })} · {cairoClock(shift.opened_at, locale)}–{shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now}</button>; })}
+    {allowClose && can(role, "action.close_shift") && openShift && <button type="button" className="chip close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: openShift.number })}</button>}
+    {notice && <span className="status" role="status">{notice}</span>}</>;
+}
+
 function useDayRange() {
   const [dateFrom, setDateFrom] = usePersisted("day.dateFrom", () => cairoDate()); const [dateTo, setDateTo] = usePersisted("day.dateTo", () => cairoDate());
   const [timeFrom, setTimeFrom] = usePersisted("day.timeFrom", "00:00"); const [timeTo, setTimeTo] = usePersisted("day.timeTo", "23:59");
   return { dateFrom, dateTo, timeFrom, timeTo, setDateFrom, setDateTo, setTimeFrom, setTimeTo, params: { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined } };
 }
 
-function DayRange({ range, changed }: { range: ReturnType<typeof useDayRange>; changed: () => void }) {
+function DayRange({ range, changed, token }: { range: ReturnType<typeof useDayRange>; changed: () => void; token?: string }) {
   const { messages: m } = useI18n(); const d = m.dashboard;
   const quick: [string, string][] = [[d.today, cairoDate()], [d.yesterday, cairoDate(1)]];
   const pick = (day: string) => { range.setDateFrom(day); range.setDateTo(day); range.setTimeFrom("00:00"); range.setTimeTo("23:59"); changed(); };
   const set = (apply: () => void) => { apply(); changed(); };
-  return <><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, day]) => { const on = range.dateFrom === day && range.dateTo === day && range.timeFrom === "00:00" && range.timeTo === "23:59"; return <button key={label} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} onClick={() => pick(day)}>{label}</button>; })}</div>
+  return <><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, day]) => { const on = range.dateFrom === day && range.dateTo === day && range.timeFrom === "00:00" && range.timeTo === "23:59"; return <button key={label} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} onClick={() => pick(day)}>{label}</button>; })}{token && <ShiftChips token={token} day={range.dateFrom} current={[range.dateFrom, range.dateTo, range.timeFrom, range.timeTo]} apply={(from, to, timeFrom, timeTo) => { range.setDateFrom(from); range.setDateTo(to); range.setTimeFrom(timeFrom); range.setTimeTo(timeTo); changed(); }} />}</div>
     <DateFields dateFrom={range.dateFrom} dateTo={range.dateTo} setDateFrom={(value) => set(() => range.setDateFrom(value))} setDateTo={(value) => set(() => range.setDateTo(value))} /><label>{d.fromTime}<input type="time" value={range.timeFrom} onChange={(e) => set(() => range.setTimeFrom(e.target.value))} /></label><label>{d.toTime}<input type="time" value={range.timeTo} onChange={(e) => set(() => range.setTimeTo(e.target.value))} /></label></>;
 }
 
@@ -235,7 +268,7 @@ export function SetAside({ token }: { token: string }) {
   const [picked, setPicked] = useState<string[]>([]);
   const { data, error, loading, reload } = useApi<Page<Transaction>>("/transactions" + query({ ...range.params, review_status: "SET_ASIDE", sort_by: "folder_at", sort_direction: "desc", limit, offset }), token, true);
   const reasons = m.transactions.reasons as Record<string, string>;
-  const admin = isAdmin(role); const shown = data?.items.map((item) => item.id) ?? [];
+  const admin = can(role, "action.delete_receipts"); const shown = data?.items.map((item) => item.id) ?? [];
   const toggle = (id: string) => setPicked((now) => now.includes(id) ? now.filter((one) => one !== id) : [...now, id]);
   async function bringBack(id: string) {
     setBusy(id); setMessage("");
@@ -263,7 +296,7 @@ export function SetAside({ token }: { token: string }) {
       <td data-label={m.transactions.device}>{item.device_name}</td>
       <td data-label={m.transactions.amount}>{item.amount || item.suggested_amount ? <Amount amount={String(item.amount || item.suggested_amount)} currency={item.currency || "EGP"} locale={locale} /> : dash}</td>
       <td data-label={r.why}><span className="reason-tag danger">{item.status_reason ? reasons[item.status_reason] ?? item.status_reason : dash}</span><SmsMatch match={item.sms_match as { at: string | null; used_by: string | null } | undefined} /></td>
-      <td data-label={r.action}><div className="row-actions">{canReview(role) ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : null}{admin && <button type="button" className="danger-link" disabled={busy === "delete"} onClick={() => void remove([item.id])}>{r.delete}</button>}{!canReview(role) && !admin && dash}</div></td>
+      <td data-label={r.action}><div className="row-actions">{can(role, "action.bring_back") ? <button type="button" className="quiet-button" disabled={busy === item.id} onClick={() => void bringBack(item.id)}>{r.bringBack}</button> : null}{admin && <button type="button" className="danger-link" disabled={busy === "delete"} onClick={() => void remove([item.id])}>{r.delete}</button>}{!canReview(role) && !admin && dash}</div></td>
     </tr>)}</tbody></table></div>}
     {data && <Pager total={data.total} limit={limit} offset={offset} setOffset={(next) => { setOffset(next); setPicked([]); }} />}
   </section>;
@@ -297,7 +330,7 @@ export function CompareReceipts({ token }: { token: string }) {
     <Status loading={loading} error={error} />
     {mine && <><div className="compare-grid">{side(other, c.first)}{side(mine, c.copy)}</div>
       {message && <p className="status" role="status">{message}</p>}
-      {canReview(role) && mine.review_status === "NEEDS_REVIEW" && <div className="compare-actions"><button type="button" className="danger-button" onClick={() => void act("/receipts/reject-copies", { ids: [mine.id] })}>{c.rejectCopy}</button><button type="button" className="quiet-button" onClick={() => void act("/receipts/" + encodeURIComponent(mine.id) + "/not-a-copy")}>{c.notCopy}</button></div>}</>}
+      {can(role, "action.reject_copies") && mine.review_status === "NEEDS_REVIEW" && <div className="compare-actions"><button type="button" className="danger-button" onClick={() => void act("/receipts/reject-copies", { ids: [mine.id] })}>{c.rejectCopy}</button><button type="button" className="quiet-button" onClick={() => void act("/receipts/" + encodeURIComponent(mine.id) + "/not-a-copy")}>{c.notCopy}</button></div>}</>}
   </section>;
 }
 
@@ -339,7 +372,7 @@ export function ReviewQueue({ token }: { token: string }) {
   const tabs: [string, string][] = [["", m.review.categories.all], ["ready", m.review.categories.ready], ["missing", m.review.categories.missing], ["duplicate", m.review.categories.duplicate], ["in_progress", m.review.categories.in_progress], ["done", m.review.categories.done]];
   const total = counts ? Object.entries(counts).reduce((sum, [key, value]) => key === "done" ? sum : sum + (Number(value) || 0), 0) : undefined;
   const role = useRole(); const [picked, setPicked] = useState<string[]>([]); const [notice, setNotice] = useState("");
-  const copies = category === "duplicate" && canReview(role);
+  const copies = category === "duplicate" && can(role, "action.reject_copies");
   async function rejectCopies() {
     if (picked.length === 0 || !window.confirm(formatMessage(m.compare.rejectSelectedConfirm, { count: picked.length }))) return;
     try { const result = await api<{ rejected: number }>("/receipts/reject-copies", token, { method: "POST", body: JSON.stringify({ ids: picked }) }); setNotice(formatMessage(m.compare.rejected, { count: result.rejected })); setPicked([]); reload(); }

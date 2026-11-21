@@ -5,7 +5,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from relay.application.operations import OperationsService, date_window
-from relay.domain.operations import TransactionQuery
+from relay.domain.operations import DateWindow, TransactionQuery
 from relay.domain.users import Role
 from relay.infrastructure.config import Settings
 from relay.infrastructure.database import Database
@@ -37,8 +37,13 @@ def _number(value: Any) -> int:
         return 0
 
 
-def render(day: date, summary: dict[str, Any], sms: dict[str, Any]) -> tuple[str, str]:
-    """Plain-text and HTML bodies for one day's report."""
+def render(
+    day: date,
+    summary: dict[str, Any],
+    sms: dict[str, Any],
+    shift: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Plain-text and HTML bodies for one day's report, or one shift's."""
     sms_status = summary.get("sms_by_status") or {}
     bank = sms.get("counts") or {}
     facts = [
@@ -70,7 +75,11 @@ def render(day: date, summary: dict[str, Any], sms: dict[str, Any]) -> tuple[str
         for item in summary.get("transactions_by_device") or []
         if isinstance(item, dict)
     ]
-    title = f"Relay daily report: {day.isoformat()}"
+    title = (
+        f"Relay shift report: {day.isoformat()} shift {shift['number']}"
+        if shift
+        else f"Relay daily report: {day.isoformat()}"
+    )
 
     lines = [title, ""]
     for heading, rows in (
@@ -91,7 +100,7 @@ def render(day: date, summary: dict[str, Any], sms: dict[str, Any]) -> tuple[str
         lines.append("  No receipts today.")
     lines += ["", "The full list is in the attached Excel file."]
 
-    html = _html(day, summary, sms, matching, activity, phones)
+    html = _html(day, summary, sms, matching, activity, phones, shift)
     return "\n".join(lines), html
 
 
@@ -102,6 +111,7 @@ def _html(
     matching: list[tuple[str, Any]],
     activity: list[tuple[str, Any]],
     phones: list[dict[str, Any]],
+    shift: dict[str, Any] | None = None,
 ) -> str:
     """The QA-Studio-style HTML body (see email_layout)."""
     from relay.infrastructure import email_layout as layout
@@ -174,11 +184,19 @@ def _html(
         + "</div>",
     ]
     return layout.page(
-        kind="Daily report",
+        kind="Shift report" if shift else "Daily report",
         stamp=day.isoformat(),
-        badge=("DAILY SUMMARY", "brand"),
+        badge=(
+            (f"SHIFT {shift['number']}", "brand")
+            if shift
+            else ("DAILY SUMMARY", "brand")
+        ),
         title=f"{day:%A %d %B %Y}",
-        subtitle="12:00 AM to 11:59 PM, by when receipts reached each phone",
+        subtitle=(
+            f"{shift['span']}, by when receipts reached each phone"
+            if shift
+            else "12:00 AM to 11:59 PM, by when receipts reached each phone"
+        ),
         strip=strip,
         sections=sections,
         footer="The full list is attached as Excel.",
@@ -195,12 +213,34 @@ async def send_daily_report(
         return False
     day = local.date()
     window = date_window(day, day, zone=zone, folder_time=True)
+    return await send_window_report(settings, day, window)
+
+
+async def send_shift_report(settings: Settings, shift: dict[str, Any]) -> bool:
+    """Send a closed shift's report: its counts and Excel list."""
+    zone = ZoneInfo(settings.receipt_timezone)
+    start = datetime.fromisoformat(str(shift["opened_at"]))
+    end = datetime.fromisoformat(str(shift["closed_at"]))
+    if end <= start:
+        return False  # an empty shift: nothing to report
+    span = f"{start.astimezone(zone):%I:%M %p} to {end.astimezone(zone):%I:%M %p}"
+    window = DateWindow(start, end, folder_time=True)
+    day = date.fromisoformat(str(shift["day"]))
+    return await send_window_report(settings, day, window, shift | {"span": span})
+
+
+async def send_window_report(
+    settings: Settings,
+    day: date,
+    window: DateWindow,
+    shift: dict[str, Any] | None = None,
+) -> bool:
     database = Database(settings)
     try:
         async with database.session() as session:
             config = await mail_config(session, settings)
             if config is None or not config.report_email:
-                print("Daily report email is not configured; nothing sent.")
+                print("Report email is not configured; nothing sent.")
                 return False
             recipient: str = config.report_email
             mailer = SmtpMailer(config)
@@ -225,13 +265,13 @@ async def send_daily_report(
                 )
     finally:
         await database.close()
-    text, html = render(day, dict(summary), dict(sms))
-    attachment = (f"relay-{day.isoformat()}.xlsx", workbook) if workbook else None
-    await mailer.send_report(
-        recipient,
-        f"Relay daily report: {day.isoformat()}",
-        text,
-        html,
-        attachment,
+    text, html = render(day, dict(summary), dict(sms), shift)
+    name = f"relay-{day.isoformat()}" + (f"-shift-{shift['number']}" if shift else "")
+    attachment = (f"{name}.xlsx", workbook) if workbook else None
+    subject = (
+        f"Relay shift report: {day.isoformat()} shift {shift['number']}"
+        if shift
+        else f"Relay daily report: {day.isoformat()}"
     )
+    await mailer.send_report(recipient, subject, text, html, attachment)
     return True

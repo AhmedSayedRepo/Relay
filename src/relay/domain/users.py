@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -18,3 +19,5 @@ class User:
     is_active: bool
     created_at: datetime
     role: Role = Role.ADMIN
+    # Admin-set grants (True) and denials (False) on top of the role defaults.
+    permissions: Mapping[str, bool] = field(default_factory=dict)

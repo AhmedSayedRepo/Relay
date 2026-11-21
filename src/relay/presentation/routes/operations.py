@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from relay.application.operations import date_window
@@ -166,6 +166,55 @@ async def reopen_receipt(
 
     await reopen(uow.session, candidate_id, user.id)
     return Response(status_code=204)
+
+
+@router.get("/shifts")
+async def shifts(
+    request: Request,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+    day: date | None = None,
+) -> dict[str, JsonValue]:
+    """A day's shifts (today by default); the open one included."""
+    from relay.infrastructure.shifts import as_dict, current, of_day
+
+    zone = ZoneInfo(cast(Settings, request.app.state.settings).receipt_timezone)
+    chosen = day or datetime.now(UTC).astimezone(zone).date()
+    rows = await of_day(uow.session, chosen, zone)
+    open_shift = await current(uow.session, zone)
+    return {
+        "day": chosen.isoformat(),
+        "items": [as_dict(row) for row in rows],
+        "open": cast(JsonValue, as_dict(open_shift)),
+    }
+
+
+class CloseShift(BaseModel):
+    note: Annotated[str | None, Field(max_length=500)] = None
+
+
+@router.post("/shifts/close")
+async def close_shift(
+    body: CloseShift,
+    user: AuthenticatedUser,
+    request: Request,
+    background: BackgroundTasks,
+    uow: Annotated[SqlUnitOfWork, Depends(unit_of_work)],
+) -> dict[str, JsonValue]:
+    """Close the open shift now and open the next; the closed shift's report
+    is emailed with its Excel list."""
+    from relay.infrastructure.daily_report import send_shift_report
+    from relay.infrastructure.shifts import as_dict, close
+
+    settings = cast(Settings, request.app.state.settings)
+    closed, opened = await close(
+        uow.session, user.id, body.note, ZoneInfo(settings.receipt_timezone)
+    )
+    report = as_dict(closed)
+    background.add_task(send_shift_report, settings, report)
+    return {
+        "closed": cast(JsonValue, report),
+        "opened": cast(JsonValue, as_dict(opened)),
+    }
 
 
 class ReceiptIds(BaseModel):
