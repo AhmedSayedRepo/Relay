@@ -34,11 +34,18 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.relay.agent.BuildConfig
 import com.relay.agent.R
 import com.relay.agent.RelayApplication
+import com.relay.agent.data.KeepConnectedService
 import com.relay.agent.presentation.theme.RelayTheme
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Allowed while the app is on screen: keeps it connected afterwards.
+        KeepConnectedService.start(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

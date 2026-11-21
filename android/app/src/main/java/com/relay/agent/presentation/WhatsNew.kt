@@ -26,8 +26,14 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
         "0.8.6" to ReleaseNote(
-            en = listOf("Bank SMS missed while the app was stopped are picked up automatically."),
-            ar = listOf("رسايل البنك اللي فاتت والتطبيق مقفول بقت بتتجاب لوحدها.")
+            en = listOf(
+                "Bank SMS missed while the app was stopped are picked up automatically.",
+                "Stays connected with a small notification, even when the app is closed."
+            ),
+            ar = listOf(
+                "رسايل البنك اللي فاتت والتطبيق مقفول بقت بتتجاب لوحدها.",
+                "بيفضل متصل بإشعار صغير، حتى لو التطبيق مقفول."
+            )
         ),
         "0.8.5" to ReleaseNote(
             en = listOf("Sync no longer closes the app when a photo is large."),
