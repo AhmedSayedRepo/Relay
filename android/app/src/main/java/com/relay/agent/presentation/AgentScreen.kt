@@ -477,7 +477,6 @@ private fun syncLine(status: AgentStatus, now: Instant): String = when (status.c
             ?: stringResource(R.string.never_synced)
 }
 
-/** Battery saving holds Relay back: one tap opens Android's own question. */
 /** InstaPay notifications as a second source: on, or a button to allow it. */
 @Composable
 private fun InstaPayAccess(allow: () -> Unit) {
@@ -500,6 +499,7 @@ private fun InstaPayAccess(allow: () -> Unit) {
     }
 }
 
+/** Battery saving holds Relay back: one tap opens Android's own question. */
 @Composable
 private fun BatteryCard(allow: () -> Unit) {
     Surface(
