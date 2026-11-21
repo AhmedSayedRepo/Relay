@@ -216,6 +216,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--surface-soft) 65%, transpa
 .badge { display: inline-flex; align-items: center; gap: .38rem; max-width: 15rem; padding: .3rem .5rem; color: var(--ink-soft); background: var(--surface-strong); border-radius: 99rem; font-size: .7rem; font-weight: 820; }
 .status-dot { width: .42rem; height: .42rem; border-radius: 50%; background: currentColor; }
 .badge.warning { color: var(--warning); background: var(--warning-soft); }.badge.danger { color: var(--danger); background: var(--danger-soft); }.badge.success { color: var(--success); background: var(--success-soft); }
+.sms-why { display: grid; gap: .15rem; } .sms-why small { color: var(--ink-soft); font-size: .78rem; }
 .pager { display: flex; justify-content: flex-end; align-items: center; gap: .55rem; margin-block-start: 1rem; }.pager > span { margin-inline-end: auto; color: var(--ink-soft); }
 .card-list { display: grid; gap: .75rem; }
 .record-card { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1.05rem 1.15rem; }

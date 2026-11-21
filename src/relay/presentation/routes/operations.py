@@ -108,7 +108,7 @@ async def transactions(
     search: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     review_status: Literal["AUTO_ACCEPTED", "NEEDS_REVIEW", "REJECTED"] | None = None,
     duplicate_status: (
-        Literal["DUPLICATE", "CANONICAL", "GROUPED", "UNIQUE"] | None
+        Literal["DUPLICATE", "CANONICAL", "GROUPED", "UNIQUE", "COPY"] | None
     ) = None,
     receipt_type: Literal["INSTAPAY_TRANSFER_RECEIPT", "UNKNOWN_RECEIPT"] | None = None,
     currency: Annotated[str | None, Query(pattern=r"^[A-Za-z]{3}$")] = None,

@@ -50,6 +50,37 @@ async def test_bank_sms_lists_unused_and_amountless_messages(client, auth_header
     )
     rows = only_unused.json()["items"]
     assert [row["amount"] for row in rows] == ["640.00"]
+    assert rows[0]["reason"] == "no_receipt"
+
+
+def test_why_an_sms_was_not_used():
+    from decimal import Decimal
+    from uuid import uuid4
+
+    from relay.application.sms_verification import unused_reason
+    from relay.application.sms_verification_ports import DayReceipt
+
+    sms_at = datetime(2026, 11, 20, 18, 0, tzinfo=CAIRO)
+    waiting, rejected = uuid4(), uuid4()
+
+    def receipt(identifier, status, amount, day_shift=0):
+        at = sms_at - timedelta(hours=2) + timedelta(days=day_shift)
+        return DayReceipt(identifier, at, status, frozenset({Decimal(amount)}))
+
+    amount = Decimal("2700.00")
+    found = [
+        receipt(rejected, "REJECTED", "2700"),
+        receipt(waiting, "NEEDS_REVIEW", "2700"),
+    ]
+    # A receipt waiting in Review is the most useful lead.
+    assert unused_reason(sms_at, amount, found, CAIRO) == ("waiting", waiting)
+    assert unused_reason(sms_at, amount, found[:1], CAIRO) == ("rejected", rejected)
+    # Another day, or another amount, does not count.
+    other = [
+        receipt(uuid4(), "NEEDS_REVIEW", "2700", -1),
+        receipt(uuid4(), "HIDDEN", "57"),
+    ]
+    assert unused_reason(sms_at, amount, other, CAIRO) == ("no_receipt", None)
 
 
 async def test_dashboard_accepts_a_time_range(client, auth_headers):
