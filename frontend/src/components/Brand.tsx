@@ -30,6 +30,7 @@ const paths: Record<string, ReactNode> = {
   menu: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
   close: <><path d="m6 6 12 12" /><path d="M18 6 6 18" /></>,
   copy: <><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" /></>,
+  calendar: <><rect x="4" y="5.5" width="16" height="14" rx="2.5" /><path d="M4 10h16" /><path d="M8.5 3.5v4M15.5 3.5v4" /></>,
   download: <><path d="M12 4v11" /><path d="m7.5 10.5 4.5 4.5 4.5-4.5" /><path d="M5 19.5h14" /></>,
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
   link: <><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M9.5 9.5h5v5h-5z" /></>,

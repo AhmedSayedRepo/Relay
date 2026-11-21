@@ -136,13 +136,10 @@ export function Dashboard({ token }: { token: string }) {
   const queue = (["ready", "missing", "duplicate", "in_progress", "done"] as const).map((key) => [key, n(workload?.[key])] as const);
   const waiting = queue.reduce((sum, [, value]) => sum + value, 0);
   const received = data ? data.transactions_by_device.reduce((sum, item) => sum + n(item.count), 0) : 0;
-  const pick = (from: string, to: string) => { setDateFrom(from); setDateTo(to); setTimeFrom("00:00"); setTimeTo("23:59"); };
-  const quick: [string, string, string][] = [[d.today, cairoDate(), cairoDate()], [d.yesterday, cairoDate(1), cairoDate(1)]];
   async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query(range), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
-    <div className="panel dash-filters"><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, from, to]) => <button key={label} type="button" className={"chip" + (dateFrom === from && dateTo === to && timeFrom === "00:00" && timeTo === "23:59" ? " active" : "")} aria-pressed={dateFrom === from && dateTo === to} onClick={() => pick(from, to)}>{label}</button>)}<ShiftChips token={token} day={dateFrom} current={[dateFrom, dateTo, timeFrom, timeTo]} apply={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} allowClose /></div>
-      <div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /><label>{d.fromTime}<input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} /></label><label>{d.toTime}<input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} /></label><button type="button" className="with-icon" onClick={() => void download()}><Icon name="download" size={18} />{d.exportExcel}</button></div>
-      <p className="hint">{d.filterHint} {m.reports.folderBasis}</p>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
+    <div className="panel dash-filters"><RangePicker token={token} allowClose value={[dateFrom, dateTo, timeFrom, timeTo]} set={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} hint={<>{d.filterHint} {m.reports.folderBasis}</>} extra={<button type="button" className="with-icon range-export" onClick={() => void download()}><Icon name="download" size={18} /><span>{d.exportExcel}</span></button>} />
+      {message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
         <MetricCard to={can(role, "page.bank_sms") ? "/bank-sms" : ""} tone="money" label={d.smsReceived} tip={d.tips.smsReceived} value={<MoneyValue totals={data.bank_sms_received_totals} locale={locale} />} hint={formatMessage(d.smsReceivedHint, { count: n(data.bank_sms_received_count) })} />
@@ -189,17 +186,20 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
     try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note || null }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); reload(); }
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
   }
-  const number = (value: number) => new Intl.NumberFormat(locale).format(value);
+  const number = (value: number) => new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB").format(value);
   const listed = shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at);
-  return <>{listed.length > 0 && <span className="shift-group" role="group" aria-label={s.title}><span className="shift-title">{s.title}</span>{listed.map((shift) => {
-    // A shift that covers the whole day is the same as "Today": only "Today" lights up.
-    const b = bounds(shift); const on = b.every((value, index) => value === current[index]) && !(b[2] === "00:00" && b[3] === "23:59");
-    const span = formatMessage(s.range, { start: cairoClock(shift.opened_at, locale), end: shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now });
-    return <button key={shift.id} type="button" className={"chip shift-chip" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>
-      {!shift.closed_at && <span className="live-dot" role="img" aria-label={s.open} title={s.open} />}<b>{formatMessage(s.label, { number: number(shift.number) })}</b><small>{span}</small></button>;
-  })}</span>}
+  if (listed.length === 0) return null;
+  return <div className="shift-strip" role="group" aria-label={s.title}>
+    {listed.map((shift) => {
+      // A shift that covers the whole day is the same as "Today": only "Today" lights up.
+      const b = bounds(shift); const on = b.every((value, index) => value === current[index]) && !(b[2] === "00:00" && b[3] === "23:59");
+      return <button key={shift.id} type="button" className={"shift-card" + (on ? " active" : "")} aria-pressed={on} title={shift.note ?? undefined} onClick={() => apply(...b)}>
+        <span className="shift-name">{!shift.closed_at && <span className="live-dot" role="img" aria-label={s.open} title={s.open} />}{formatMessage(s.label, { number: number(shift.number) })}</span>
+        <small>{cairoClock(shift.opened_at, locale)} – {shift.closed_at ? cairoClock(shift.closed_at, locale) : s.now}</small></button>;
+    })}
     {allowClose && can(role, "action.close_shift") && openShift && <button type="button" className="close-shift" onClick={() => void closeShift()}>{formatMessage(s.close, { number: number(openShift.number) })}</button>}
-    {notice && <span className="status" role="status">{notice}</span>}</>;
+    {notice && <span className="status" role="status">{notice}</span>}
+  </div>;
 }
 
 function useDayRange() {
@@ -208,13 +208,37 @@ function useDayRange() {
   return { dateFrom, dateTo, timeFrom, timeTo, setDateFrom, setDateTo, setTimeFrom, setTimeTo, params: { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined } };
 }
 
+/** One period picker everywhere: Today / Yesterday / Custom, the day's shifts, and what is applied. */
+function RangePicker({ value, set, token, allowClose = false, extra, hint }: { value: [string, string, string, string]; set: (from: string, to: string, timeFrom: string, timeTo: string) => void; token?: string; allowClose?: boolean; extra?: ReactNode; hint?: ReactNode }) {
+  const { locale, messages: m } = useI18n(); const d = m.dashboard; const [from, to, timeFrom, timeTo] = value;
+  const presets: [string, string][] = [[d.today, cairoDate()], [d.yesterday, cairoDate(1)]];
+  const preset = presets.find(([, day]) => from === day && to === day && timeFrom === "00:00" && timeTo === "23:59");
+  const [custom, setCustom] = useState(false);
+  const tag = locale === "ar" ? "ar-EG" : "en-GB";
+  const day = (iso: string) => iso ? new Date(iso + "T12:00:00Z").toLocaleDateString(tag, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) : "";
+  const clock = (hhmm: string) => hhmm ? new Date("2000-01-01T" + hhmm + ":00Z").toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "";
+  const summary = from === to ? `${day(from)} · ${clock(timeFrom)} – ${clock(timeTo)}` : `${day(from)} ${clock(timeFrom)} – ${day(to)} ${clock(timeTo)}`;
+  return <div className="range-picker">
+    <div className="range-top">
+      <div className="segmented" role="group" aria-label={d.rangeLabel}>
+        {presets.map(([label, iso]) => { const on = !custom && preset?.[1] === iso; return <button key={label} type="button" aria-pressed={on} className={on ? "active" : ""} onClick={() => { setCustom(false); set(iso, iso, "00:00", "23:59"); }}>{label}</button>; })}
+        <button type="button" aria-pressed={custom} aria-expanded={custom} className={custom ? "active" : ""} onClick={() => setCustom(!custom)}>{d.custom}</button>
+      </div>
+      {extra}
+    </div>
+    {token && <ShiftChips token={token} day={from} current={value} apply={(a, b, c, e) => { setCustom(false); set(a, b, c, e); }} allowClose={allowClose} />}
+    <p className="range-summary"><Icon name="calendar" size={16} /><Bidi>{summary}</Bidi></p>
+    {custom && <div className="range-fields">
+      <DateFields dateFrom={from} dateTo={to} setDateFrom={(v) => set(v, to, timeFrom, timeTo)} setDateTo={(v) => set(from, v, timeFrom, timeTo)} />
+      <label>{d.fromTime}<input type="time" value={timeFrom} onChange={(e) => set(from, to, e.target.value, timeTo)} /></label>
+      <label>{d.toTime}<input type="time" value={timeTo} onChange={(e) => set(from, to, timeFrom, e.target.value)} /></label>
+      {hint && <p className="hint">{hint}</p>}
+    </div>}
+  </div>;
+}
+
 function DayRange({ range, changed, token }: { range: ReturnType<typeof useDayRange>; changed: () => void; token?: string }) {
-  const { messages: m } = useI18n(); const d = m.dashboard;
-  const quick: [string, string][] = [[d.today, cairoDate()], [d.yesterday, cairoDate(1)]];
-  const pick = (day: string) => { range.setDateFrom(day); range.setDateTo(day); range.setTimeFrom("00:00"); range.setTimeTo("23:59"); changed(); };
-  const set = (apply: () => void) => { apply(); changed(); };
-  return <><div className="quick-range" role="group" aria-label={d.rangeLabel}>{quick.map(([label, day]) => { const on = range.dateFrom === day && range.dateTo === day && range.timeFrom === "00:00" && range.timeTo === "23:59"; return <button key={label} type="button" className={"chip" + (on ? " active" : "")} aria-pressed={on} onClick={() => pick(day)}>{label}</button>; })}{token && <ShiftChips token={token} day={range.dateFrom} current={[range.dateFrom, range.dateTo, range.timeFrom, range.timeTo]} apply={(from, to, timeFrom, timeTo) => { range.setDateFrom(from); range.setDateTo(to); range.setTimeFrom(timeFrom); range.setTimeTo(timeTo); changed(); }} />}</div>
-    <DateFields dateFrom={range.dateFrom} dateTo={range.dateTo} setDateFrom={(value) => set(() => range.setDateFrom(value))} setDateTo={(value) => set(() => range.setDateTo(value))} /><label>{d.fromTime}<input type="time" value={range.timeFrom} onChange={(e) => set(() => range.setTimeFrom(e.target.value))} /></label><label>{d.toTime}<input type="time" value={range.timeTo} onChange={(e) => set(() => range.setTimeTo(e.target.value))} /></label></>;
+  return <RangePicker token={token} value={[range.dateFrom, range.dateTo, range.timeFrom, range.timeTo]} set={(from, to, timeFrom, timeTo) => { range.setDateFrom(from); range.setDateTo(to); range.setTimeFrom(timeFrom); range.setTimeTo(timeTo); changed(); }} />;
 }
 
 /** A value read by a machine but not yet confirmed, shown as a suggestion. */
