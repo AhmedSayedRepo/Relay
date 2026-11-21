@@ -142,6 +142,13 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
             requestSmsPermission = { permissionLauncher.launch(Manifest.permission.RECEIVE_SMS) },
             discardSms = model::discardQueuedEvents,
             allowBackground = { askToRunInBackground(context) },
+            allowInstaPay = {
+                try {
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                } catch (_: ActivityNotFoundException) {
+                    Unit // no such settings screen on this phone
+                }
+            },
             catchUpSms = {
                 if (app.readSmsGranted()) {
                     model.catchUpSms(caughtUp)

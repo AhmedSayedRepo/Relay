@@ -9,11 +9,17 @@ from relay.application.errors import NotFound
 from relay.application.event_ports import AddEventResult, EventUnitOfWork
 from relay.domain.agent import JsonValue
 from relay.domain.events import (
+    INSTAPAY_SENDER,
     EventRejected,
     RawEvent,
     parse_submission,
     sms_rule_matches,
 )
+from relay.domain.sms_verification import SmsDirection, parse_bank_sms
+
+# A bank SMS and the InstaPay notification of the same transfer arrive within
+# minutes of each other; one record is kept for the transfer.
+TWIN_WINDOW = timedelta(minutes=5)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +35,30 @@ class EventService:
     def __init__(self, uow: EventUnitOfWork, retention_days: int = 30) -> None:
         self.uow = uow
         self.retention_days = retention_days
+
+    async def _twin(
+        self, device_id: UUID, occurred_at: datetime, sender: str, body: str
+    ) -> UUID | None:
+        """The other record of the same incoming transfer: for an InstaPay
+        notification, its bank SMS; for a bank SMS, the InstaPay notification
+        of the same amount within a few minutes."""
+        parsed = parse_bank_sms(body)
+        if parsed is None or parsed.direction != SmsDirection.IN:
+            return None
+        notification = sender == INSTAPAY_SENDER
+        for event_id, other_sender, other_body in await self.uow.events.nearby_sms(
+            device_id, occurred_at - TWIN_WINDOW, occurred_at + TWIN_WINDOW
+        ):
+            if (other_sender == INSTAPAY_SENDER) == notification:
+                continue
+            other = parse_bank_sms(other_body)
+            if (
+                other is not None
+                and other.direction == SmsDirection.IN
+                and other.amount == parsed.amount
+            ):
+                return event_id
+        return None
 
     async def ingest(
         self,
@@ -68,6 +98,14 @@ class EventService:
                     counts["duplicate"] += 1
                     results.append(ItemResult(supplied_id, "duplicate"))
                     continue
+                twin = await self._twin(
+                    device_id, value.occurred_at, value.sender, value.body
+                )
+                if twin is not None and value.sender == INSTAPAY_SENDER:
+                    # The bank SMS for this transfer is already in: keep it.
+                    counts["duplicate"] += 1
+                    results.append(ItemResult(supplied_id, "duplicate"))
+                    continue
                 event = RawEvent(
                     uuid4(),
                     value.event_id,
@@ -88,6 +126,9 @@ class EventService:
                 stored = await self.uow.events.add(event)
                 if stored == AddEventResult.CONFLICT:
                     raise EventRejected("event_id_conflict")
+                if twin is not None and stored == AddEventResult.ACCEPTED:
+                    # The bank SMS replaces the InstaPay notification that came first.
+                    await self.uow.events.replace_sms(twin, event.id)
                 status = stored.value
                 counts[status] += 1
                 results.append(ItemResult(supplied_id, status))

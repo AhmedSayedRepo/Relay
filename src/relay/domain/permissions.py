@@ -16,6 +16,9 @@ REVIEW_WRITES = frozenset(
         ("POST", "/api/v1/receipts/{candidate_id}/exceptions"),
         ("POST", "/api/v1/receipts/{candidate_id}/review"),
         ("POST", "/api/v1/receipts/{candidate_id}/reopen"),
+        ("POST", "/api/v1/receipts/reject-copies"),
+        ("POST", "/api/v1/receipts/{candidate_id}/not-a-copy"),
+        ("POST", "/api/v1/shifts/close"),
         (
             "POST",
             "/api/v1/duplicate-groups/{group_id}/members/{candidate_id}/resolution",

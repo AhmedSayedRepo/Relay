@@ -574,3 +574,14 @@ td { font-variant-numeric: tabular-nums; }
 .chip.close-shift { border-color: var(--danger); color: var(--danger); background: transparent; }
 .chip.close-shift:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .quick-range .status { margin: 0 .5rem; font-size: .85rem; }
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; align-items: start; }
+.compare-side img { max-height: 520px; width: 100%; object-fit: contain; }
+.compare-facts { display: grid; gap: .35rem; margin: .8rem 0; }
+.compare-facts div { display: flex; justify-content: space-between; gap: .75rem; padding: .35rem .5rem; border-radius: 8px; }
+.compare-facts dt { color: var(--ink-soft); }
+.compare-facts dd { margin: 0; font-weight: 600; }
+.compare-facts .differs { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.compare-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.check-all { display: inline-flex; align-items: center; gap: .4rem; margin-inline-end: auto; }
+.bulk-bar { gap: .75rem; align-items: center; }
+.card-check { margin-inline-end: .75rem; align-self: flex-start; margin-top: .35rem; }

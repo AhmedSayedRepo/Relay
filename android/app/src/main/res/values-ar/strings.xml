@@ -115,4 +115,6 @@
     <string name="keep_connected_channel">اتصال Relay</string>
     <string name="keep_connected_title">Relay متصل</string>
     <string name="keep_connected_text">الإيصالات ورسايل البنك بتتبعت لـ Relay لوحدها.</string>
+    <string name="instapay_on">إشعارات انستاباي بتتقري كمان، كتأكيد تاني جنب رسايل البنك.</string>
+    <string name="instapay_allow">اقرأ إشعارات انستاباي كمان</string>
 </resources>
