@@ -571,3 +571,6 @@ td { font-variant-numeric: tabular-nums; }
 .decide-all { align-items: center; padding-block-end: 1rem; border-block-end: 1px solid var(--line); }
 .decide-all > button { min-width: 9rem; }
 .decide-all > .hint { flex-basis: 100%; margin: 0; }
+.chip.close-shift { border-color: var(--danger); color: var(--danger); background: transparent; }
+.chip.close-shift:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.quick-range .status { margin: 0 .5rem; font-size: .85rem; }

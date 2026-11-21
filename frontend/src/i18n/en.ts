@@ -171,6 +171,9 @@ export const en = {
     how: ["Open myaccount.google.com and go to Security.", "Turn on 2-Step Verification if it is off.", "Search for “App passwords”, create one named Relay.", "Copy the 16 letters here and press Save, then Send a test email."],
     privacy: "The app password is stored encrypted on the server and is never shown again.",
   },
+  shifts: {
+    label: "Shift {number}", now: "now", close: "Close shift {number}", closePrompt: "Close shift {number} now? A new shift starts right away. Add a note (optional):", closed: "Shift {number} closed. Its report is on the way by email.", failed: "Could not close the shift.",
+  },
   rejected: {
     delete: "Delete", deleteSelected: "Delete selected ({count})", deleteConfirm: "Delete {count} receipt(s) for good? The photos and readings are removed and cannot be restored.", deleted: "{count} deleted.", select: "Select", selectAll: "Select all on this page", smsFree: "A bank SMS with this amount at {time} is still unused: it may be real.", smsUsed: "A bank SMS with this amount at {time} already confirmed another receipt: likely a copy.", openUsed: "Open that receipt", smsNone: "No bank SMS with this amount that day.", why: "Why", action: "Action", bringBack: "Bring back to Review", broughtBack: "Brought back to Review.", failed: "Could not bring it back.", empty: "Nothing was rejected or hidden in this period.",
   },
