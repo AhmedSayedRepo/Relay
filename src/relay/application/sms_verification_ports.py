@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
@@ -30,6 +31,17 @@ class BankSms:
     body: str
     occurred_at: datetime
     candidate_id: UUID | None  # the receipt this SMS confirmed, if any
+
+
+@dataclass(frozen=True, slots=True)
+class DayReceipt:
+    """A receipt photo and the amounts it shows (confirmed or suggested),
+    to explain why a bank SMS was not used."""
+
+    candidate_id: UUID
+    folder_at: datetime
+    status: str  # NEEDS_REVIEW, AUTO_ACCEPTED, REJECTED or HIDDEN
+    amounts: frozenset[Decimal]
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +88,10 @@ class SmsVerificationRepository(Protocol):
     async def bank_sms(
         self, since: datetime, until: datetime, device_id: UUID | None
     ) -> list[BankSms]: ...
+
+    async def day_receipts(
+        self, since: datetime, until: datetime
+    ) -> list[DayReceipt]: ...
 
     async def get(self, candidate_id: UUID) -> StoredVerification | None: ...
 
