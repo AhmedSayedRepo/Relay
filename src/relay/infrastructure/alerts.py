@@ -50,7 +50,11 @@ async def current_alerts(
     if WORK_STARTS <= local.hour < WORK_ENDS:
         phones = await session.execute(
             select(
-                DeviceRow.id, DeviceRow.name, DeviceRow.last_seen_at, DeviceRow.health
+                DeviceRow.id,
+                DeviceRow.name,
+                DeviceRow.last_seen_at,
+                DeviceRow.health,
+                DeviceRow.app_version,
             ).where(
                 DeviceRow.status == DeviceStatus.ACTIVE,
                 select(RawEventRow.id)
@@ -61,7 +65,23 @@ async def current_alerts(
                 .exists(),
             )
         )
-        for device_id, name, seen, health in phones.all():
+        listed = phones.all()
+        # A cashier phone behind the newest version another cashier phone
+        # runs probably missed the update prompt: install it by hand.
+        newest = max((_version(row[4]) for row in listed), default=())
+        for device_id, name, _, _, version in listed:
+            if version and newest and _version(version) < newest:
+                alerts.append(
+                    {
+                        "key": f"old_app:{device_id}:{version}",
+                        "kind": "old_app",
+                        "device": str(name),
+                        "version": str(version),
+                        "latest": ".".join(str(part) for part in newest),
+                        "since": None,
+                    }
+                )
+        for device_id, name, seen, health, _ in listed:
             if seen is not None and moment - _aware(seen) < QUIET:
                 continue
             alerts.append(
@@ -187,6 +207,17 @@ def _old_why(alert: dict[str, Any], zone: ZoneInfo) -> str:
     return f"paid on {alert.get('paid_on')}"
 
 
+def _version(value: str | None) -> tuple[int, ...]:
+    """ "0.8.7" -> (0, 8, 7); anything unreadable sorts first."""
+    parts: list[int] = []
+    for part in str(value or "").split("."):
+        digits = "".join(ch for ch in part if ch.isdigit())
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts)
+
+
 def _aware(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
@@ -204,6 +235,12 @@ def describe(alert: dict[str, Any], zone: ZoneInfo) -> str:
         return (
             f"{alert['device']}: no contact since {at} ({why}). "
             "Open Relay Receipts, tap Sync now, and set its battery to Unrestricted."
+        )
+    if alert["kind"] == "old_app":
+        return (
+            f"{alert['device']} runs Relay Receipts {alert['version']}; other phones "
+            f"run {alert['latest']}. Install the update on it from the portal's "
+            "Download apps page."
         )
     if alert["kind"] == "rejected_with_sms":
         return (

@@ -12,6 +12,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +25,7 @@ import com.relay.agent.BuildConfig
 import com.relay.agent.R
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -87,18 +89,20 @@ fun newestRelease(body: String, assetName: String): AppRelease? =
 
 private val http = OkHttpClient()
 
-private suspend fun latestRelease(): AppRelease? = withContext(Dispatchers.IO) {
+/** The newest release for this app, null when none has it; a failure when
+ *  the update server could not be reached. */
+private suspend fun latestRelease(): Result<AppRelease?> = withContext(Dispatchers.IO) {
     runCatching {
         val request = Request.Builder()
             .url(RECENT_RELEASES)
             .header("Accept", "application/vnd.github+json")
             .build()
         http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@use null
+            check(response.isSuccessful) { "HTTP ${response.code}" }
             val body = response.body?.string().orEmpty()
             newestRelease(body, updateAssetName(BuildConfig.SMS_CAPTURE))
         }
-    }.getOrNull()
+    }
 }
 
 private suspend fun download(
@@ -157,11 +161,29 @@ fun UpdatePrompt(currentVersion: String) {
     var progress by remember { mutableStateOf<Float?>(null) }
     var failed by remember { mutableStateOf(false) }
     var dismissed by remember { mutableStateOf(false) }
-    LaunchedEffect(currentVersion) {
-        latestRelease()?.takeIf { isNewer(currentVersion, it.version) }?.let { release = it }
+    var checkFailed by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(currentVersion, attempt) {
+        checkFailed = false
+        var result = latestRelease()
+        if (result.isFailure) {
+            delay(RETRY_DELAY_MS) // one quiet retry before telling anyone
+            result = latestRelease()
+        }
+        result
+            .onSuccess { latest ->
+                latest?.takeIf { isNewer(currentVersion, it.version) }?.let { release = it }
+            }
+            .onFailure { checkFailed = true }
     }
     val found = release
-    if (found == null || dismissed) return
+    if (found == null) {
+        if (checkFailed && !dismissed) {
+            CheckFailed(retry = { attempt += 1 }, later = { dismissed = true })
+        }
+        return
+    }
+    if (dismissed) return
     AlertDialog(
         onDismissRequest = { if (progress == null) dismissed = true },
         title = { Text(stringResource(R.string.update_title)) },
@@ -202,6 +224,25 @@ fun UpdatePrompt(currentVersion: String) {
                     Text(stringResource(R.string.update_later))
                 }
             }
+        }
+    )
+}
+
+private const val RETRY_DELAY_MS = 5_000L
+
+/** The update check could not reach the server: say so instead of staying
+ *  silent, since a missed update can leave a phone unable to sync. */
+@Composable
+private fun CheckFailed(retry: () -> Unit, later: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = later,
+        title = { Text(stringResource(R.string.update_check_failed_title)) },
+        text = { Text(stringResource(R.string.update_check_failed_body)) },
+        confirmButton = {
+            TextButton(onClick = retry) { Text(stringResource(R.string.update_retry)) }
+        },
+        dismissButton = {
+            TextButton(onClick = later) { Text(stringResource(R.string.update_later)) }
         }
     )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError, downloadExport, query } from "./api";
-import { DateFields, PageHeading, Pager, Status } from "./components/Layout";
+import { DateFields, LANDING, PageHeading, Pager, Status } from "./components/Layout";
 import { Bidi, ReceiptJourney, StatusBadge } from "./components/Product";
 import { AddDevice, DeviceActions } from "./components/DeviceAdmin";
 import { Icon } from "./components/Brand";
@@ -57,7 +57,7 @@ function MetricCard({ to, tone = "", label, value, hint, tip }: { to: string; to
   return to ? <Link className={"metric metric-link " + tone} to={to} title={tip}>{body}</Link> : <article className={"metric " + tone} title={tip}>{body}</article>;
 }
 
-type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt" | "old_receipt"; id?: string; device?: string; amount?: string | null; currency?: string; reference?: string | null; since?: string | null; health?: PhoneHealth | null; reason?: "reference" | "date" | null; paid_on?: string | null; first_seen?: string | null };
+type Alert = { key: string; kind: "silent_phone" | "sms_without_receipt" | "old_receipt" | "old_app" | "rejected_with_sms"; version?: string; latest?: string; id?: string; device?: string; amount?: string | null; currency?: string; reference?: string | null; since?: string | null; health?: PhoneHealth | null; reason?: "reference" | "date" | null; paid_on?: string | null; first_seen?: string | null };
 
 const cairoDay = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", timeZone: "Africa/Cairo" });
 const cairoClock = (iso: string | null | undefined, locale: Locale) => iso ? new Date(iso).toLocaleTimeString(locale === "ar" ? "ar-EG" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" }) : "";
@@ -97,6 +97,8 @@ function Alerts({ token }: { token: string }) {
       <p className="subhead">{d.alertsResets}</p>
       <ul className="alerts-list">{alerts.map((item) => item.kind === "old_receipt"
         ? <li key={item.key} className="alert-item old"><span className="alert-icon"><Icon name="review" size={18} /></span><div><strong><Link to={"/transactions/" + item.id}>{d.alertOldTitle}{item.amount ? <> · <Bidi>{money(item)}</Bidi></> : null}</Link></strong><span>{formatMessage(d.alertOldMeta, { phone: item.device ?? "", time: cairoClock(item.since, locale) })}</span><span>{item.reason === "reference" && item.first_seen ? formatMessage(d.alertOldReference, { day: cairoDay(item.first_seen, locale) }) : item.paid_on ? formatMessage(d.alertOldDate, { day: cairoDay(item.paid_on + "T12:00:00Z", locale) }) : null}</span><small>{d.alertOldTip}</small></div></li>
+        : item.kind === "old_app"
+        ? <li key={item.key} className="alert-item phone"><span className="alert-icon"><Icon name="devices" size={18} /></span><div><strong>{item.device}</strong><span>{formatMessage(d.alertOldAppMeta, { version: item.version ?? "", latest: item.latest ?? "" })}</span><small><a href={locale === "en" ? LANDING + "en/" : LANDING} target="_blank" rel="noopener noreferrer">{d.alertOldAppTip}</a></small></div></li>
         : item.kind === "silent_phone"
         ? <li key={item.key} className="alert-item phone"><span className="alert-icon"><Icon name="devices" size={18} /></span><div><strong>{item.device}</strong><span>{item.since ? formatMessage(d.alertSilentMeta, { time: cairoClock(item.since, locale) }) : d.alertSilentNeverMeta}</span>{phoneNotes(item.health, d, locale).map((note) => <small key={note} className="health-note">{note}</small>)}<small>{d.alertSilentTip}</small></div></li>
         : <li key={item.key} className="alert-item sms"><span className="alert-icon"><Icon name="bankSms" size={18} /></span><div><strong><Bidi>{money(item)}</Bidi></strong><span>{formatMessage(d.alertSmsMeta, { time: cairoClock(item.since, locale) })}</span><small>{d.alertSmsTip}</small></div></li>)}</ul></>}
@@ -581,10 +583,16 @@ export function Devices({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const { data, error, loading, reload } = useApi<Page<Record<string, Json>>>("/operations/devices?limit=100", token);
   const [linking, setLinking] = useState(""); const [round, setRound] = useState(0);
   const list = data ? data.items.map((device) => ({ id: String(device.id), name: display(device.name) })) : [];
+  // The newest version any phone runs; a phone behind it likely missed an update.
+  const parts = (value: Json | undefined) => String(value ?? "").split(".").map((part) => Number.parseInt(part, 10)).filter((part) => !Number.isNaN(part));
+  const older = (a: number[], b: number[]) => { for (let i = 0; i < Math.max(a.length, b.length); i += 1) { if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) < (b[i] ?? 0); } return false; };
+  const newestParts = (data?.items ?? []).map((device) => parts(device.app_version)).filter((p) => p.length > 0).reduce<number[]>((best, p) => (older(best, p) ? p : best), []);
+  const newest = newestParts.join(".");
+  const behind = (value: Json | undefined) => { const p = parts(value); return p.length > 0 && newestParts.length > 0 && older(p, newestParts); };
   return <section><PageHeading title={m.pages.devices[0]} description={m.pages.devices[1]} help={contextHelp.devices} /><div className="page-actions"><AddDevice token={token} added={(device) => { reload(); setLinking(device.id); }} /></div><Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={m.state.noDevices} />
     {data && data.items.length > 0 && <SmsPhoneForAll token={token} devices={list} done={() => setRound((value) => value + 1)} />}
     {data && <div className="card-list">{data.items.map((item) => { const id = String(item.id); const name = display(item.name); const collects = (item.configuration && typeof item.configuration === "object" && !Array.isArray(item.configuration) ? item.configuration : {}) as Record<string, Json>; const config = Object.entries(collects); return <article className="record-card device-card" key={id} aria-label={name}>
-      <header className="device-head"><div><h2>{name}</h2><p className="subhead"><StatusBadge value={String(item.status)} /> · {m.devices.lastSeen} <Timestamp value={item.last_seen_at as string | null} locale={locale} /></p>{phoneNotes(item.health as unknown as PhoneHealth | null | undefined, m.dashboard, locale).map((note) => <small key={note} className="health-note">{note}</small>)}<p>{m.devices.externalId} <Bidi>{display(item.external_device_id)}</Bidi> · {m.devices.appVersion} <Bidi>{display(item.app_version)}</Bidi></p></div>
+      <header className="device-head"><div><div className="device-title"><h2>{name}</h2>{item.app_version ? <span className={"version-tag" + (behind(item.app_version) ? " behind" : "")} title={m.devices.appVersion}><Bidi>{"v" + String(item.app_version).split("-")[0]}</Bidi></span> : null}</div><p className="subhead"><StatusBadge value={String(item.status)} /> · {m.devices.lastSeen} <Timestamp value={item.last_seen_at as string | null} locale={locale} /></p>{phoneNotes(item.health as unknown as PhoneHealth | null | undefined, m.dashboard, locale).map((note) => <small key={note} className="health-note">{note}</small>)}<p>{m.devices.externalId} <Bidi>{display(item.external_device_id)}</Bidi> · {m.devices.appVersion} <Bidi>{display(item.app_version)}</Bidi>{behind(item.app_version) && <span className="badge warning version-behind">{formatMessage(m.devices.behind, { latest: newest })}</span>}</p></div>
         <dl><div><dt>{m.devices.configVersion}</dt><dd><Bidi>{display(item.configuration_version)}</Bidi></dd></div><div><dt>{m.devices.transactions}</dt><dd><Bidi>{display(item.transaction_count)}</Bidi></dd></div><div><dt>{m.devices.duplicates}</dt><dd><Bidi>{display(item.duplicate_count)}</Bidi></dd></div><div><dt>{m.devices.needsReview}</dt><dd><Bidi>{display(item.needs_review_count)}</Bidi></dd></div></dl></header>
       <DeviceActions id={id} name={name} status={String(item.status)} token={token} changed={reload} linkOpen={linking === id} setLinkOpen={(open) => setLinking(open ? id : "")} />
       <details className="device-settings" open><summary>{formatMessage(m.devices.settingsFor, { name })}</summary><div className="device-settings-grid">

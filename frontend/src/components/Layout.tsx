@@ -14,7 +14,7 @@ const paths = ["/", "/review", "/transactions", "/rejected", "/bank-sms", "/devi
 const tabs = ["dashboard", "review", "transactions"] as const;
 const pageKey: Record<string, string> = { dashboard: "page.dashboard", review: "page.review", transactions: "page.transactions", rejected: "page.rejected", bankSms: "page.bank_sms", devices: "page.devices", users: "page.users", emailSettings: "page.email_settings" };
 
-const LANDING = "https://relay-landing-woad.vercel.app/";
+export const LANDING = "https://relay-landing-woad.vercel.app/";
 
 /** Link to the public page with the phone apps (opens outside the portal). */
 export function AppsLink() {
