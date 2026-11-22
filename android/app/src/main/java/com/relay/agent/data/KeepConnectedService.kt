@@ -113,7 +113,7 @@ class KeepConnectedService : Service() {
     }
 
     companion object {
-        private const val CHANNEL = "relay_connected"
+        const val CHANNEL = "relay_connected"
         private const val NOTIFICATION_ID = 4108
         private const val INTERVAL_MILLIS = 15L * 60 * 1000
 
