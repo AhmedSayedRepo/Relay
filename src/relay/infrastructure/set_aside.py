@@ -212,9 +212,10 @@ async def rejected_with_sms(
 
 
 async def reopen(session: AsyncSession, candidate_id: UUID, actor_id: UUID) -> None:
-    """Bring a rejected or hidden receipt back to Review, every field to be
-    decided again. Recorded in the review audit; readers will not reject or
-    hide it again by themselves."""
+    """Bring a rejected, hidden or confirmed receipt back to Review, every
+    field to be decided again. A confirmed one gives its bank SMS back, so
+    the SMS can match again. Recorded in the review audit; readers will not
+    reject or hide it again by themselves."""
     from relay.infrastructure.cli import _reopen
 
     row = await session.scalar(
@@ -225,8 +226,9 @@ async def reopen(session: AsyncSession, candidate_id: UUID, actor_id: UUID) -> N
     if row is None:
         raise NotFound("Receipt candidate not found.")
     rejected = row.review_status == ReviewStatus.REJECTED.value
-    if not rejected and row.hidden_reason is None:
-        raise Conflict("Only a rejected or hidden receipt can be brought back.")
+    accepted = row.review_status == ReviewStatus.AUTO_ACCEPTED.value
+    if not rejected and not accepted and row.hidden_reason is None:
+        raise Conflict("This receipt is already in Review.")
     now = datetime.now(UTC)
     before = {
         "review_status": row.review_status,
@@ -234,7 +236,13 @@ async def reopen(session: AsyncSession, candidate_id: UUID, actor_id: UUID) -> N
         "resolution_result": copy.deepcopy(row.resolution_result),
     }
     row.hidden_reason = None
-    if rejected:
+    if accepted:
+        from relay.infrastructure.sms_verification_models import SmsVerificationRow
+
+        await session.execute(
+            delete(SmsVerificationRow).where(SmsVerificationRow.candidate_id == row.id)
+        )
+    if rejected or accepted:
         resolution = _reopen(row, "operator", now)
     else:
         resolution = copy.deepcopy(row.resolution_result or {})

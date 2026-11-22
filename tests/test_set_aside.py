@@ -134,3 +134,20 @@ def test_bank_app_transfer_amount_without_currency() -> None:
     # No transfer words, or two amounts: nothing is guessed.
     assert bank_app_amount("1,096 01003405232") is None
     assert bank_app_amount("Transaction 1,096 and 2,500") is None
+
+
+async def test_a_confirmed_receipt_can_be_sent_back_to_review(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "send-back")
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        row.review_status = "AUTO_ACCEPTED"
+        await session.commit()
+    sent = await client.post(
+        f"/api/v1/receipts/{candidate['id']}/reopen", headers=auth_headers
+    )
+    assert sent.status_code == 200, sent.text
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        assert row.review_status == "NEEDS_REVIEW"
