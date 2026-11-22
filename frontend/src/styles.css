@@ -651,3 +651,6 @@ td { font-variant-numeric: tabular-nums; }
   .side-rail .rail-art { display: none; }
   .side-rail .signal-mark { margin-block-start: 1rem; }
 }
+/* Shift cards keep their own colours on hover (not the dark button hover). */
+.shift-card:hover:not(.active) { background: var(--surface-soft); color: var(--ink); }
+.shift-card.active:hover { background: var(--brand); color: #fff; filter: brightness(1.08); }

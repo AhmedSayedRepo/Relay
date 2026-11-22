@@ -282,11 +282,16 @@ def test_sender_and_recipient_names() -> None:
         "recipient_name": "YOUSSEF",
         "recipient_phone": "01003405232",
     }
-    # Nothing past "powered by", and nothing without a "to" line.
+    # Nothing past "powered by"; without a "to" line, the phone and the name
+    # above it are the recipient; without either, nothing.
     assert parties("SALMA MOHAMED\nالى المحفظة\nPOWERED BY\nYOUSSEF") == {
         "sender_name": "SALMA MOHAMED"
     }
-    assert parties("YOUSSEF\n01003405232") == {}
+    assert parties("YOUSSEF\n01003405232") == {
+        "recipient_name": "YOUSSEF",
+        "recipient_phone": "01003405232",
+    }
+    assert parties("YOUSSEF\nno phone here") == {}
 
 
 def test_noisy_receipt_text() -> None:
