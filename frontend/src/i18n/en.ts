@@ -179,7 +179,7 @@ export const en = {
     privacy: "The app password is stored encrypted on the server and is never shown again.",
   },
   shifts: {
-    title: "Shifts", label: "Shift {number}", now: "now", range: "{start} → {end}", open: "Open now", close: "Close shift {number}", closePrompt: "Close shift {number} now? A new shift starts right away. Add a note (optional):", closed: "Shift {number} closed. Its report is on the way by email.", failed: "Could not close the shift.",
+    title: "Shifts", label: "Shift {number}", now: "now", range: "{start} → {end}", open: "Open now", close: "Close shift {number}", closeAsk: "Close shift {number} (started {start})? The next shift starts right away and the report is emailed.", notePlaceholder: "Note for the report (optional)", closing: "Closing…", cancel: "Cancel", closePrompt: "Close shift {number} now? A new shift starts right away. Add a note (optional):", closed: "Shift {number} closed. Its report is on the way by email.", failed: "Could not close the shift.",
   },
   compare: {
     title: "Compare with the first receipt", description: "The possible copy beside the receipt it may copy. Differences are marked.", first: "First receipt", copy: "Possible copy", sender: "Sender", status: "Status", sms: "Bank SMS", openDetail: "Open details", noOther: "The first receipt is no longer in Relay.", rejectCopy: "It is a copy: reject it", notCopy: "Different payment: keep it", failed: "That did not work. Try again.", select: "Select", selectAll: "Select all on this page", rejectSelected: "Reject selected as copies ({count})", rejectSelectedConfirm: "Reject {count} receipt(s) as copies of other receipts?", rejected: "{count} rejected as copies.",
