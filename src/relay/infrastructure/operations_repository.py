@@ -9,6 +9,7 @@ from sqlalchemy import Text, and_, case, delete, func, or_, select
 from sqlalchemy import cast as sql_cast
 from sqlalchemy.orm import aliased
 
+from relay.application.sms_verification import sms_source
 from relay.domain.agent import JsonValue
 from relay.domain.devices import DeviceStatus
 from relay.domain.operations import DateWindow, DuplicateGroupQuery, TransactionQuery
@@ -208,6 +209,8 @@ class SqlOperationsRepository:
         )
 
     def _transaction_select(self) -> Any:
+        # The SMS that confirmed the receipt, to say who showed the transfer.
+        sms_event = aliased(RawEventRow, name="sms_event")
         return (
             select(
                 ReceiptCandidateRow,
@@ -226,6 +229,10 @@ class SqlOperationsRepository:
                 OcrResultRow.mean_confidence,
                 self._child_count().label("child_count"),
                 SmsVerificationRow.status.label("sms_verification"),
+                sms_event.payload["sender"].as_string().label("sms_sender"),
+                sms_event.metadata_json["instapay_seen"]
+                .as_boolean()
+                .label("sms_instapay_seen"),
             )
             .join(ProcessingJobRow, ProcessingJobRow.id == ReceiptCandidateRow.job_id)
             .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
@@ -236,6 +243,7 @@ class SqlOperationsRepository:
                 SmsVerificationRow,
                 SmsVerificationRow.candidate_id == ReceiptCandidateRow.id,
             )
+            .outerjoin(sms_event, sms_event.id == SmsVerificationRow.sms_event_id)
         )
 
     @staticmethod
@@ -401,6 +409,12 @@ class SqlOperationsRepository:
             "processing_status": row.processing_status,
             "processing_failure": row.processing_failure,
             "sms_verification": row.sms_verification,
+            # bank / instapay / both, while the SMS itself is still kept.
+            "sms_source": (
+                sms_source(row.sms_sender, bool(row.sms_instapay_seen))
+                if row.sms_verification == "VERIFIED" and row.sms_sender is not None
+                else None
+            ),
             "amount": amount,
             "currency": currency,
             "transaction_occurred_at": (

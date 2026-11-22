@@ -643,3 +643,4 @@ td { font-variant-numeric: tabular-nums; }
 .source-tag.both { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
 .operator-version { margin: 0 0 0 .4rem; font-size: .68rem; }
 .send-back { margin-top: .8rem; }
+.source-tag.list { display: flex; width: fit-content; margin-top: .3rem; }
