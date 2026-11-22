@@ -8,7 +8,7 @@ import { cairoDate, useApi } from "./hooks";
 import { useI18n } from "./i18n";
 import type { Json, Page } from "./types";
 
-type BankSmsRow = { event_id: string; device_id: string; device_name: string; sender: string | null; occurred_at: string; amount: string | null; currency: string | null; status: "MATCHED" | "UNUSED" | "NO_AMOUNT"; candidate_id: string | null; reason?: "waiting" | "rejected" | "hidden" | "receipt_used" | "no_receipt" | null; reason_candidate_id?: string | null };
+type BankSmsRow = { event_id: string; device_id: string; device_name: string; sender: string | null; source?: "bank" | "instapay" | "both"; occurred_at: string; amount: string | null; currency: string | null; status: "MATCHED" | "UNUSED" | "NO_AMOUNT"; candidate_id: string | null; reason?: "waiting" | "rejected" | "hidden" | "receipt_used" | "no_receipt" | null; reason_candidate_id?: string | null };
 type BankSmsPage = Page<BankSmsRow> & { counts?: Record<string, number>; unused_totals?: { currency: string; amount: string }[] };
 
 /** Every bank SMS the SMS phone received, and whether it confirmed a receipt. */
@@ -39,7 +39,7 @@ export function BankSms({ token }: { token: string }) {
     {data && data.total > 0 && <div className="table-wrap"><table><thead><tr><th>{b.time}</th><th>{b.phone}</th><th>{b.sender}</th><th>{b.amount}</th><th>{b.status}</th><th>{b.receipt}</th></tr></thead><tbody>{data.items.map((row) => <tr key={row.event_id}>
       <td data-label={b.time}><Bidi>{new Date(row.occurred_at).toLocaleString(locale === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" })}</Bidi></td>
       <td data-label={b.phone}>{row.device_name}</td>
-      <td data-label={b.sender}><Bidi>{row.sender || "—"}</Bidi></td>
+      <td data-label={b.sender}><Bidi>{row.sender || "—"}</Bidi>{row.source && row.source !== "bank" && <> <span className={"source-tag " + row.source}>{m.sms.sources[row.source]}</span></>}</td>
       <td data-label={b.amount}><Bidi>{money(row.amount, row.currency)}</Bidi></td>
       <td data-label={b.status}><span className={"badge " + tone[row.status]}>{labels[row.status]}</span></td>
       <td data-label={b.receipt}>{row.candidate_id ? <Link to={"/transactions/" + row.candidate_id}>{b.openReceipt}</Link> : row.reason ? <span className="sms-why"><small>{b.reasons[row.reason]}</small>{row.reason_candidate_id && <Link to={"/transactions/" + row.reason_candidate_id}>{b.openReceipt}</Link>}</span> : "—"}</td>

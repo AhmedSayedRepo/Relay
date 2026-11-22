@@ -31,6 +31,7 @@ class BankSms:
     body: str
     occurred_at: datetime
     candidate_id: UUID | None  # the receipt this SMS confirmed, if any
+    instapay_seen: bool = False  # the InstaPay notification came too
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +93,11 @@ class SmsVerificationRepository(Protocol):
     async def day_receipts(
         self, since: datetime, until: datetime
     ) -> list[DayReceipt]: ...
+
+    async def sms_origin(self, event_id: UUID) -> tuple[str | None, bool] | None:
+        """(sender, InstaPay notification also seen) of a stored SMS; None
+        once the SMS itself has expired."""
+        ...
 
     async def get(self, candidate_id: UUID) -> StoredVerification | None: ...
 

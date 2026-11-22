@@ -4,6 +4,24 @@ export type ReleaseNote = { version: string; date: string; en: string[]; ar: str
 
 export const releaseNotes: ReleaseNote[] = [
   {
+    version: "0.9.0",
+    date: "2026-11-22",
+    en: [
+      "Shifts: close a shift, filter the dashboard by shift, and get its report by email in your portal language.",
+      "Admins can allow or block each page and action for each user.",
+      "Copies of a receipt wait in Review beside the first one, with a side-by-side compare.",
+      "Blurry photos of a phone screen are zoomed and read again; unreadable photos go to Review.",
+      "Each bank SMS shows whether the bank SMS, the InstaPay notification, or both proved the transfer.",
+    ],
+    ar: [
+      "الورديات: اقفل الوردية، فلتر لوحة التحكم بالوردية، ووصلك تقريرها على الإيميل بلغة البوابة.",
+      "الأدمن يقدر يسمح أو يمنع كل صفحة وكل إجراء لكل مستخدم.",
+      "النسخ المكررة بتستنى في المراجعة جنب الإيصال الأول، مع مقارنة جنب بعض.",
+      "صور شاشة الموبايل المهزوزة بتتكبّر وتتقري تاني، واللي مش مقروء بيروح للمراجعة.",
+      "كل رسالة بنك بتوضح اللي أثبت التحويل: رسالة البنك، إشعار انستاباي، أو الاتنين.",
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-11-16",
     en: [

@@ -14,6 +14,7 @@ from relay.application.sms_verification_ports import (
     StoredVerification,
 )
 from relay.domain.agent import JsonValue
+from relay.domain.events import INSTAPAY_SENDER
 from relay.domain.sms_verification import (
     MAX_SMS_SOURCES,
     WAITING_HOURS,
@@ -56,6 +57,14 @@ def _facts(events: list[SmsEvent]) -> list[SmsFacts]:
                 )
             )
     return facts
+
+
+def sms_source(sender: str | None, instapay_seen: bool) -> str:
+    """Who showed the transfer: "bank" (bank SMS), "instapay" (only the
+    InstaPay notification) or "both"."""
+    if sender == INSTAPAY_SENDER:
+        return "instapay"
+    return "both" if instapay_seen else "bank"
 
 
 def _sms_json(sms: SmsFacts, *, in_window: bool | None = None) -> dict[str, JsonValue]:
@@ -163,6 +172,7 @@ class SmsVerificationService:
                     "device_id": str(sms.device_id),
                     "device_name": sms.device_name,
                     "sender": sms.sender,
+                    "source": sms_source(sms.sender, sms.instapay_seen),
                     "occurred_at": sms.occurred_at.astimezone(UTC).isoformat(),
                     "amount": f"{parsed.amount:.2f}" if parsed else None,
                     "currency": parsed.currency if parsed else None,
@@ -461,11 +471,18 @@ class SmsVerificationService:
                 _sms_json(sms, in_window=in_window)
                 for sms, in_window in await self._options(receipt)
             ]
+        origin = (
+            await self.repo.sms_origin(stored.sms.event_id)
+            if stored and stored.sms
+            else None
+        )
         return {
             "candidate_id": str(candidate_id),
             "status": state,
             "method": str(stored.method) if stored else None,
             "sms": _sms_json(stored.sms) if stored and stored.sms else None,
+            # Who showed the transfer: bank SMS, InstaPay notification, or both.
+            "source": sms_source(*origin) if origin else None,
             "option_count": stored.option_count if stored else 0,
             "options": options,
         }

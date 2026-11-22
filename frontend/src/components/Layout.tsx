@@ -17,6 +17,10 @@ const pageKey: Record<string, string> = { dashboard: "page.dashboard", review: "
 export const LANDING = "https://relay-landing-woad.vercel.app/";
 
 /** Link to the public page with the phone apps (opens outside the portal). */
+/** The Relay Operator phone app adds "RelayOperator/<version>" to its browser
+ * name; shown beside the portal version so both versions are visible. */
+const operatorApp = typeof navigator !== "undefined" ? /RelayOperator\/([\w.-]+)/.exec(navigator.userAgent)?.[1] ?? "" : "";
+
 export function AppsLink() {
   const { locale, messages: m } = useI18n();
   return <a className="apps-link" href={locale === "en" ? LANDING + "en/" : LANDING} target="_blank" rel="noopener noreferrer">
@@ -60,7 +64,7 @@ export function Layout({ signOut }: { signOut: () => void }) {
   const current = routes.find((key, index) => index > 0 && (pathname === paths[index] || pathname.startsWith(paths[index] + "/")));
   const blocked = current !== undefined && !visible(current);
   return <div className="app-shell"><a className="skip-link" href="#main-content">{m.common.skip}</a>
-    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav>{narrow && <div className="rail-preferences"><PreferenceControls compact /></div>}<AppsLink /><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small></div></aside>
+    <aside className={"side-rail" + (open ? " open" : "")}><NavLink className="brand" to="/" aria-label={m.common.appName + " " + m.navigation.dashboard} onClick={() => setOpen(false)}><RelayMark /><b>{m.common.appName}</b></NavLink><p className="rail-caption">{m.common.secureEvidence}</p><nav className="primary-nav" aria-label={m.common.workspace}>{routes.map((key, index) => visible(key) && <NavLink end={index === 0} key={key} to={paths[index]} onClick={() => setOpen(false)}><Icon name={key} /><span>{m.navigation[key]}</span></NavLink>)}</nav>{narrow && <div className="rail-preferences"><PreferenceControls compact /></div>}<AppsLink /><RailArt /><div className="signal-mark"><span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" /><small className="app-version" dir="ltr">v{__APP_VERSION__}</small>{operatorApp && <small className="version-tag operator-version" dir="ltr" title="Relay Operator">{"Operator v" + operatorApp}</small>}</div></aside>
     <header className="topbar"><button className="menu-button" type="button" aria-label={m.common.menu} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="menu" /></button><div className="top-context"><strong>{m.common.workspace}</strong><span>{m.common.operator}</span><span className="role-chip">{m.users.roles[role]}</span></div><div className="top-actions"><PreferenceControls /><HelpDialog /><NavLink className="icon-link" to="/account" aria-label={m.navigation.account} title={m.navigation.account}><Icon name="account" /></NavLink><button className="quiet-button" onClick={signOut} type="button">{m.common.signOut}</button></div></header>
     {open && <button className="rail-scrim" aria-label={m.common.close} onClick={() => setOpen(false)} />}
     <main id="main-content"><div className="page-enter" key={pathname}>{blocked ? <div className="status error" role="alert"><strong>{m.users.noAccess}</strong></div> : <Outlet />}</div></main><WhatsNew />
