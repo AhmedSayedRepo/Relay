@@ -98,7 +98,7 @@ fun PhoneCheckPrompt() {
         confirmButton = {
             TextButton(onClick = {
                 if (shown == PhoneProblem.NOTIFICATIONS_OFF && canAsk(context)) {
-                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    askNotifications.launch(NOTIFY)
                 } else {
                     fix(context, shown)
                 }
@@ -112,10 +112,14 @@ fun PhoneCheckPrompt() {
     )
 }
 
+// Manifest.permission.POST_NOTIFICATIONS, spelled out: the field is API 33+
+// and only used after the version check below.
+private const val NOTIFY = "android.permission.POST_NOTIFICATIONS"
+
 /** Android 13+ asks for the notification permission in the app itself. */
 private fun canAsk(context: Context): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
-    val state = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+    val state = ContextCompat.checkSelfPermission(context, NOTIFY)
     return state != PackageManager.PERMISSION_GRANTED
 }
 
