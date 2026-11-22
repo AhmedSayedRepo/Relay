@@ -47,10 +47,10 @@ export function Users({ token }: { token: string }) {
       <td data-label={m.users.role}><select aria-label={m.users.role + " " + user.email} value={user.role} onChange={(event) => void update(user, { role: event.target.value })}>{roles.map((role) => <option key={role} value={role}>{m.users.roles[role]}</option>)}</select></td>
       <td data-label={m.users.status}><StatusBadge value={user.is_active ? m.users.active : m.users.disabled} tone={user.is_active ? "success" : "neutral"} /></td>
       <td data-label={m.users.actions}><div className="button-row">
-        <button className="quiet-button" type="button" onClick={() => void update(user, { is_active: !user.is_active })}>{user.is_active ? m.users.disable : m.users.enable}</button>
-        <button className="quiet-button" type="button" onClick={() => resetPassword(user)}>{m.users.resetPassword}</button>
-        <button className="quiet-button" type="button" aria-expanded={editing === user.id} onClick={() => setEditing(editing === user.id ? "" : user.id)}>{m.users.permissions}</button>
-        <button className="quiet-button" type="button" onClick={() => remove(user)}>{m.users.delete}</button>
+        <button className={"user-action " + (user.is_active ? "warn" : "ok")} type="button" onClick={() => void update(user, { is_active: !user.is_active })}>{user.is_active ? m.users.disable : m.users.enable}</button>
+        <button className="user-action neutral" type="button" onClick={() => resetPassword(user)}>{m.users.resetPassword}</button>
+        <button className="user-action info" type="button" aria-expanded={editing === user.id} onClick={() => setEditing(editing === user.id ? "" : user.id)}>{m.users.permissions}</button>
+        <button className="user-action danger" type="button" onClick={() => remove(user)}>{m.users.delete}</button>
       </div></td>
     </tr>)}</tbody></table></div>}
   </section>;
