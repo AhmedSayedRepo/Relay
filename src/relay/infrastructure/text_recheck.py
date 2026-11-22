@@ -373,16 +373,30 @@ def parties(text: str) -> dict[str, str]:
         masked = next(
             (i for i, line in enumerate(lines) if "*" in line and _person(line)), None
         )
-        if masked is None:
-            return {}
-        to = masked - 1
+        if masked is not None:
+            to = masked - 1
+        else:
+            # Neither the "to" word nor the stars were read ("YOUSSEFM M"):
+            # the recipient's phone (not inside the sender's InstaPay address)
+            # with the name on the line above it.
+            phone = next(
+                (
+                    i
+                    for i, line in enumerate(lines)
+                    if "@" not in line and _PHONE.search(line)
+                ),
+                None,
+            )
+            if phone is None:
+                return {}
+            to = phone - 2
     after: list[str] = []
     for line in lines[to + 1 :]:
         if _END.search(line):
             break
         after.append(line)
     found = {
-        "sender_name": next(filter(None, map(_person, lines[:to])), None),
+        "sender_name": next(filter(None, map(_person, lines[: max(to, 0)])), None),
         "recipient_name": next(filter(None, map(_person, after)), None),
         "recipient_phone": next(
             (m.group(1) for m in map(_PHONE.search, after) if m), None
