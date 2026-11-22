@@ -691,7 +691,10 @@ async def test_paddleocr_helps_when_tesseract_reads_nothing(client, auth_headers
     await _send_sms(client, bundle, body, _now())
     # A photo of a phone: Tesseract reads neither amount nor recipient.
     await model_suggest(
-        app.state.database, app.state.object_storage, FakeReader({}), 10
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"reference_number": "362246940647"}),
+        10,
     )
     await _text(app, "متابعة المعاملة")
     await _ppocr(
@@ -766,7 +769,10 @@ async def test_bank_sms_decides_when_the_readers_disagree(client, auth_headers, 
         client, bundle, "notice: You have received EGP 56.00 via InstaPay", _now()
     )
     await model_suggest(
-        app.state.database, app.state.object_storage, FakeReader({}), 10
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"reference_number": "729817663564"}),
+        10,
     )
     # Tesseract reads 56.00, PaddleOCR 590.00 (total minus fee): the only
     # SMS that day says 56.00, so Tesseract's reading is the one proved.
@@ -1132,3 +1138,18 @@ def test_a_dark_photo_of_a_screen_is_cropped_and_enlarged() -> None:
     assert zoomed is not None
     # Only the bright screen (plus a small margin), enlarged.
     assert zoomed.width > 600 and zoomed.width / zoomed.height < 0.75
+
+
+async def test_an_unreadable_photo_goes_to_review_not_rejected(
+    client, auth_headers, app
+):
+    from relay.infrastructure.cli import review_unreadable
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "unreadable")
+    await _machine_rejected(app)
+    assert await review_unreadable(app.state.database) == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    assert detail["resolution_result"]["unreadable"] is True
+    # Moved once: nothing left for the next loop.
+    assert await review_unreadable(app.state.database) == 0
