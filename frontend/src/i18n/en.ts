@@ -98,7 +98,7 @@ export const en = {
     machineHint: "Machine output is retained unchanged for audit. Confidence is recognition evidence, not authenticity.",
     reference: "Reference / serial", amount: "Amount", transactionTime: "Transaction time", relayEntry: "Relay entry",
     review: "Review", processing: "Processing", device: "Device", source: "Source", confidence: "OCR confidence",
-    openDuplicate: "Open duplicate group", reviewTitle: "Record review decision", decision: "Decision", accept: "Accept",
+    sendBack: "Send back to Review", sendBackConfirm: "Send this confirmed receipt back to Review? Its bank SMS becomes unused again until someone confirms it.", sentBack: "Sent back to Review.", sendBackFailed: "It could not be sent back.", openDuplicate: "Open duplicate group", reviewTitle: "Record review decision", decision: "Decision", accept: "Accept",
     correct: "Correct", reject: "Reject", correctedAmount: "Corrected amount", correctedCurrency: "Corrected currency",
     correctionPlaceholder: "Used only for Correct", recordReview: "Record audited review", reviewHint: "Corrections are applied only with Correct. Machine output remains unchanged.",
     reviewRecorded: "Review decision recorded.", reviewFailed: "Review could not be recorded.", provenance: "OCR and processing provenance",

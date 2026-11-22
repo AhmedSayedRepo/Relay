@@ -216,7 +216,9 @@ async def send_daily_report(
     return await send_window_report(settings, day, window)
 
 
-async def send_shift_report(settings: Settings, shift: dict[str, Any]) -> bool:
+async def send_shift_report(
+    settings: Settings, shift: dict[str, Any], language: str = "en"
+) -> bool:
     """Send a closed shift's report: its counts and Excel list."""
     zone = ZoneInfo(settings.receipt_timezone)
     start = datetime.fromisoformat(str(shift["opened_at"]))
@@ -226,7 +228,9 @@ async def send_shift_report(settings: Settings, shift: dict[str, Any]) -> bool:
     span = f"{start.astimezone(zone):%I:%M %p} to {end.astimezone(zone):%I:%M %p}"
     window = DateWindow(start, end, folder_time=True)
     day = date.fromisoformat(str(shift["day"]))
-    return await send_window_report(settings, day, window, shift | {"span": span})
+    return await send_window_report(
+        settings, day, window, shift | {"span": span}, language=language
+    )
 
 
 async def send_window_report(
@@ -234,7 +238,10 @@ async def send_window_report(
     day: date,
     window: DateWindow,
     shift: dict[str, Any] | None = None,
+    language: str = "en",
 ) -> bool:
+    """Email one period's report, in English or Arabic (the operator's
+    portal language when they close a shift)."""
     database = Database(settings)
     try:
         async with database.session() as session:
@@ -273,5 +280,15 @@ async def send_window_report(
         if shift
         else f"Relay daily report: {day.isoformat()}"
     )
+    if language == "ar":
+        from relay.infrastructure import report_language as arabic
+
+        text, html, subject = (
+            arabic.arabic_text(text),
+            arabic.arabic_html(html),
+            arabic.translate(subject),
+        )
+        if attachment is not None:
+            attachment = (attachment[0], arabic.arabic_workbook(attachment[1]))
     await mailer.send_report(recipient, subject, text, html, attachment)
     return True

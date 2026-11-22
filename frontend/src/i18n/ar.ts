@@ -100,7 +100,7 @@ export const ar = {
     machineHint: "تُحفظ نتيجة الاستخراج الآلي بلا تغيير للتدقيق. دقة القراءة دليل تعرّف وليست دليلاً على الأصالة.",
     reference: "المرجع / الرقم التسلسلي", amount: "المبلغ", transactionTime: "وقت المعاملة", relayEntry: "وقت الإدخال في Relay",
     review: "المراجعة", processing: "المعالجة", device: "الجهاز", source: "المصدر", confidence: "دقة OCR",
-    openDuplicate: "فتح مجموعة التكرار", reviewTitle: "تسجيل قرار المراجعة", decision: "القرار", accept: "قبول",
+    sendBack: "رجّعه للمراجعة", sendBackConfirm: "ترجّع الإيصال المؤكد ده للمراجعة؟ رسالة البنك بتاعته هترجع مش مستخدمة لحد ما حد يأكده.", sentBack: "رجع للمراجعة.", sendBackFailed: "مقدرناش نرجّعه.", openDuplicate: "فتح مجموعة التكرار", reviewTitle: "تسجيل قرار المراجعة", decision: "القرار", accept: "قبول",
     correct: "تصحيح", reject: "رفض", correctedAmount: "المبلغ المصحح", correctedCurrency: "العملة المصححة",
     correctionPlaceholder: "يُستخدم مع التصحيح فقط", recordReview: "تسجيل المراجعة المدققة", reviewHint: "تُطبق التصحيحات عند اختيار «تصحيح» فقط، وتبقى نتيجة الاستخراج الآلي كما هي.",
     reviewRecorded: "تم تسجيل قرار المراجعة.", reviewFailed: "تعذر تسجيل قرار المراجعة.", provenance: "مصدر OCR والمعالجة",
