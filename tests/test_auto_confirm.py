@@ -282,11 +282,16 @@ def test_sender_and_recipient_names() -> None:
         "recipient_name": "YOUSSEF",
         "recipient_phone": "01003405232",
     }
-    # Nothing past "powered by", and nothing without a "to" line.
+    # Nothing past "powered by"; without a "to" line, the phone and the name
+    # above it are the recipient; without either, nothing.
     assert parties("SALMA MOHAMED\nالى المحفظة\nPOWERED BY\nYOUSSEF") == {
         "sender_name": "SALMA MOHAMED"
     }
-    assert parties("YOUSSEF\n01003405232") == {}
+    assert parties("YOUSSEF\n01003405232") == {
+        "recipient_name": "YOUSSEF",
+        "recipient_phone": "01003405232",
+    }
+    assert parties("YOUSSEF\nno phone here") == {}
 
 
 def test_noisy_receipt_text() -> None:
@@ -1153,3 +1158,15 @@ async def test_an_unreadable_photo_goes_to_review_not_rejected(
     assert detail["resolution_result"]["unreadable"] is True
     # Moved once: nothing left for the next loop.
     assert await review_unreadable(app.state.database) == 0
+
+
+def test_recipient_read_without_the_to_word_or_stars() -> None:
+    from relay.infrastructure.text_recheck import parties
+
+    text = (
+        "elmarwa01000607657@instapay\nocobc jcoc cmin oLot\nsuliil\n"
+        "YOUSSEFM M\n01003405232\nlc\n0.50 EGP\n204.50 EGP\n887273415214"
+    )
+    found = parties(text)
+    assert found["recipient_phone"] == "01003405232"
+    assert found["recipient_name"] == "YOUSSEFM"
