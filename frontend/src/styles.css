@@ -671,3 +671,7 @@ td { font-variant-numeric: tabular-nums; }
    no lift on hover, and room for the focus ring. */
 .shift-strip { padding: .2rem .15rem .3rem; }
 .shift-card:hover:not(.active) { transform: none; border-color: var(--brand); }
+.user-action.info { color: var(--brand-2); }
+.user-action.info:hover, .user-action.info[aria-expanded="true"] { background: color-mix(in srgb, var(--brand-2) 12%, transparent); }
+.user-action:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
+.you-tag { margin-inline-start: .5rem; padding: .1rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 800; color: var(--brand-2); background: color-mix(in srgb, var(--brand-2) 12%, transparent); }

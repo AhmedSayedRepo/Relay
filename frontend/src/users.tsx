@@ -15,9 +15,12 @@ export function Users({ token }: { token: string }) {
   const { messages: m } = useI18n(); const { data, error, loading, reload } = useApi<{ items: UserRow[] }>("/users", token);
   const [message, setMessage] = useState(""); const [failed, setFailed] = useState(false);
   const list = useApi<PermissionList>("/users/permissions", token).data; const [editing, setEditing] = useState("");
+  // Who is signed in: their own row can't be disabled or deleted (no lock-out).
+  const me = useApi<{ id?: string }>("/auth/me", token).data?.id ?? "";
+  const serverText: Record<string, string> = { "You cannot remove your own admin access.": m.users.selfAdmin, "You cannot delete your own account.": m.users.selfDelete, "Relay needs at least one active admin.": m.users.lastAdmin };
   async function run(action: () => Promise<unknown>, done: string) {
     setMessage(""); setFailed(false);
-    try { await action(); setMessage(done); reload(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : m.users.failed); setFailed(true); }
+    try { await action(); setMessage(done); reload(); } catch (reason) { setMessage(reason instanceof Error ? (serverText[reason.message] ?? reason.message) : m.users.failed); setFailed(true); }
   }
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const values = new FormData(form);
@@ -43,14 +46,14 @@ export function Users({ token }: { token: string }) {
     {message && <p className={"status" + (failed ? " error" : "")} role={failed ? "alert" : "status"}>{message}</p>}
     <Status loading={loading} error={error} />
     {data && <div className="table-wrap"><table className="responsive-table"><thead><tr><th>{m.users.email}</th><th>{m.users.role}</th><th>{m.users.status}</th><th>{m.users.actions}</th></tr></thead><tbody>{data.items.map((user) => <tr key={user.id}>
-      <td data-label={m.users.email}><span dir="ltr">{user.email}</span></td>
+      <td data-label={m.users.email}><span dir="ltr">{user.email}</span>{user.id === me && <span className="you-tag">{m.users.you}</span>}</td>
       <td data-label={m.users.role}><select aria-label={m.users.role + " " + user.email} value={user.role} onChange={(event) => void update(user, { role: event.target.value })}>{roles.map((role) => <option key={role} value={role}>{m.users.roles[role]}</option>)}</select></td>
       <td data-label={m.users.status}><StatusBadge value={user.is_active ? m.users.active : m.users.disabled} tone={user.is_active ? "success" : "neutral"} /></td>
       <td data-label={m.users.actions}><div className="button-row">
-        <button className={"user-action " + (user.is_active ? "warn" : "ok")} type="button" onClick={() => void update(user, { is_active: !user.is_active })}>{user.is_active ? m.users.disable : m.users.enable}</button>
+        <button className={"user-action " + (user.is_active ? "warn" : "ok")} type="button" disabled={user.id === me} title={user.id === me ? m.users.selfAdmin : undefined} onClick={() => void update(user, { is_active: !user.is_active })}>{user.is_active ? m.users.disable : m.users.enable}</button>
         <button className="user-action neutral" type="button" onClick={() => resetPassword(user)}>{m.users.resetPassword}</button>
         <button className="user-action info" type="button" aria-expanded={editing === user.id} onClick={() => setEditing(editing === user.id ? "" : user.id)}>{m.users.permissions}</button>
-        <button className="user-action danger" type="button" onClick={() => remove(user)}>{m.users.delete}</button>
+        <button className="user-action danger" type="button" disabled={user.id === me} title={user.id === me ? m.users.selfDelete : undefined} onClick={() => remove(user)}>{m.users.delete}</button>
       </div></td>
     </tr>)}</tbody></table></div>}
   </section>;

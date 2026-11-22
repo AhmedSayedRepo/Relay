@@ -129,7 +129,7 @@ export const en = {
     added: "User added.", saved: "Saved.", deleted: "User deleted.", failed: "The change could not be saved.",
     newPasswordFor: "New password for {email} (at least 12 characters):", confirmDelete: "Delete {email}? Their past review decisions stay in the history.",
     readOnly: "Your role can view receipts but not review them.",
-    noAccess: "You do not have access to this page. Ask an admin.",
+    you: "you", selfAdmin: "You can’t disable your own account or remove your own admin access. Ask another admin.", selfDelete: "You can’t delete your own account.", lastAdmin: "Relay needs at least one active admin: add or enable another admin first.", noAccess: "You do not have access to this page. Ask an admin.",
     permissions: "Permissions", savePermissions: "Save permissions", resetPermissions: "Back to role defaults", pagesTitle: "Pages", actionsTitle: "Actions",
     adminAll: "Admins always have every page and action.", changed: "changed from the role default",
     keys: {
