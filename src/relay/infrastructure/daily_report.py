@@ -5,6 +5,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from relay.application.operations import OperationsService, date_window
+from relay.domain.agent import JsonValue
 from relay.domain.operations import DateWindow, TransactionQuery
 from relay.domain.users import Role
 from relay.infrastructure.config import Settings
@@ -266,19 +267,17 @@ async def send_window_report(
             admins = [user for user in active if user.role == Role.ADMIN]
             workbook: bytes | None = None
             if admins:
+                filters: dict[str, JsonValue] = {
+                    "date_from": day.isoformat(),
+                    "date_to": day.isoformat(),
+                }
+                if shift:
+                    filters["shift"] = int(shift["number"])
+                    start, end = window.start, window.end_exclusive
+                    filters["time_from"] = f"{start.astimezone(zone):%H:%M}"
+                    filters["time_to"] = f"{end.astimezone(zone):%H:%M}"
                 workbook = await service.export(
-                    TransactionQuery(window=window, limit=100),
-                    admins[0].id,
-                    {"date_from": day.isoformat(), "date_to": day.isoformat()}
-                    | (
-                        {
-                            "shift": int(shift["number"]),
-                            "time_from": f"{window.start.astimezone(zone):%H:%M}",
-                            "time_to": f"{window.end_exclusive.astimezone(zone):%H:%M}",
-                        }
-                        if shift
-                        else {}
-                    ),
+                    TransactionQuery(window=window, limit=100), admins[0].id, filters
                 )
     finally:
         await database.close()
