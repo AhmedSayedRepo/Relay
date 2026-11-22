@@ -638,3 +638,4 @@ td { font-variant-numeric: tabular-nums; }
 .version-tag { display: inline-flex; align-items: center; margin-inline-start: .6rem; padding: .18rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 800; vertical-align: middle; color: var(--success); background: var(--success-soft); }
 .version-tag.behind { color: var(--warning); background: var(--warning-soft); }
 .device-title { display: flex; align-items: center; flex-wrap: wrap; gap: .2rem; }.device-title h2 { margin: 0; }
+.send-back { margin-top: .8rem; }
