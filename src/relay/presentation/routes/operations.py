@@ -190,6 +190,9 @@ async def shifts(
 
 class CloseShift(BaseModel):
     note: Annotated[str | None, Field(max_length=500)] = None
+    # The portal language of whoever closes it: the report email and its
+    # Excel file come in that language.
+    language: Literal["en", "ar"] = "en"
 
 
 @router.post("/shifts/close")
@@ -210,7 +213,7 @@ async def close_shift(
         uow.session, user.id, body.note, ZoneInfo(settings.receipt_timezone)
     )
     report = as_dict(closed)
-    background.add_task(send_shift_report, settings, report)
+    background.add_task(send_shift_report, settings, report, body.language)
     return {
         "closed": cast(JsonValue, report),
         "opened": cast(JsonValue, as_dict(opened)),
@@ -554,10 +557,11 @@ async def export_report(
         "created_at", "transaction_occurred_at", "amount", "reference", "review_status"
     ] = "created_at",
     sort_direction: Literal["asc", "desc"] = "desc",
+    language: Literal["en", "ar"] = "en",
 ) -> Response:
     values = locals().copy()
     values.update({"limit": 100, "offset": 0})
-    for key in ("service", "actor", "request", "time_from", "time_to"):
+    for key in ("service", "actor", "request", "time_from", "time_to", "language"):
         values.pop(key)
     query = replace(
         _transaction_query(**values),
@@ -570,6 +574,10 @@ async def export_report(
         if value is not None and key not in {"limit", "offset"}
     }
     content = await service.export(query, actor.id, filters)
+    if language == "ar":
+        from relay.infrastructure.report_language import arabic_workbook
+
+        content = arabic_workbook(content)
     filename = f"relay-transactions-{query.window.start.date().isoformat()}-to-"
     filename += (
         f"{(query.window.end_exclusive.date() - timedelta(days=1)).isoformat()}.xlsx"

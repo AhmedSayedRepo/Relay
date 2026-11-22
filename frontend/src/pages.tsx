@@ -138,7 +138,7 @@ export function Dashboard({ token }: { token: string }) {
   const queue = (["ready", "missing", "duplicate", "in_progress", "done"] as const).map((key) => [key, n(workload?.[key])] as const);
   const waiting = queue.reduce((sum, [, value]) => sum + value, 0);
   const received = data ? data.transactions_by_device.reduce((sum, item) => sum + n(item.count), 0) : 0;
-  async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query(range), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
+  async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query({ ...range, language: locale }), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
     <div className="panel dash-filters"><RangePicker token={token} allowClose value={[dateFrom, dateTo, timeFrom, timeTo]} set={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} hint={<>{d.filterHint} {m.reports.folderBasis}</>} extra={<button type="button" className="with-icon range-export" onClick={() => void download()}><Icon name="download" size={18} /><span>{d.exportExcel}</span></button>} />
       {message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
@@ -190,7 +190,7 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
   const started = (shift: Shift) => { const [day0] = cairoParts(new Date(shift.opened_at)); const label = new Date(day0 + "T12:00:00Z").toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }); return day0 === cairoDate() ? cairoClock(shift.opened_at, locale) : `${label} ${cairoClock(shift.opened_at, locale)}`; };
   async function closeShift() {
     const open = openShift; if (!open) return; setBusy(true);
-    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note.trim() || null }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); setAsking(false); setNote(""); reload(); }
+    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note.trim() || null, language: locale }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); setAsking(false); setNote(""); reload(); }
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
     finally { setBusy(false); }
   }
@@ -436,9 +436,9 @@ export function ProcessingQueue({ token }: { token: string }) {
 }
 
 export function Reports({ token }: { token: string }) {
-  const { messages: m } = useI18n(); const initial = defaultDates(); const [dateFrom, setDateFrom] = useState(initial.dateFrom); const [dateTo, setDateTo] = useState(initial.dateTo); const [timeFrom, setTimeFrom] = useState(""); const [timeTo, setTimeTo] = useState(""); const [currency, setCurrency] = useState(""); const [message, setMessage] = useState(""); const [messageError, setMessageError] = useState(false);
+  const { locale, messages: m } = useI18n(); const initial = defaultDates(); const [dateFrom, setDateFrom] = useState(initial.dateFrom); const [dateTo, setDateTo] = useState(initial.dateTo); const [timeFrom, setTimeFrom] = useState(""); const [timeTo, setTimeTo] = useState(""); const [currency, setCurrency] = useState(""); const [message, setMessage] = useState(""); const [messageError, setMessageError] = useState(false);
   const range = { date_from: dateFrom, date_to: dateTo, time_from: timeFrom || undefined, time_to: timeTo || undefined };
-  const path = query({ ...range, currency: currency || undefined }); const { data, error, loading } = useApi<DashboardData>("/reports/summary" + query(range), token);
+  const path = query({ ...range, currency: currency || undefined, language: locale }); const { data, error, loading } = useApi<DashboardData>("/reports/summary" + query(range), token);
   async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + path, token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section><PageHeading title={m.pages.reports[0]} description={m.pages.reports[1]} help={contextHelp.reports} /><p className="hint">{m.reports.folderBasis}</p><div className="filter-bar"><DateFields {...{ dateFrom, dateTo, setDateFrom, setDateTo }} /><label>{m.reports.timeFrom}<input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} /></label><label>{m.reports.timeTo}<input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} /></label><label>{m.filters.currency}<input className="short" dir="ltr" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></label><button type="button" onClick={() => void download()}>{m.reports.export}</button></div>{message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}<Status loading={loading} error={error} />{data && <article className="panel report-scope"><h2>{m.reports.scope}</h2><p className="scope-count"><Bidi>{formatMessage(m.reports.scopeLine, { transactions: data.final_transaction_count, duplicates: data.duplicate_group_count, review: data.needs_review_count })}</Bidi></p><p className="hint">{m.reports.contents}</p></article>}</section>;
 }
