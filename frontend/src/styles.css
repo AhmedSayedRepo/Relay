@@ -654,3 +654,16 @@ td { font-variant-numeric: tabular-nums; }
 /* Shift cards keep their own colours on hover (not the dark button hover). */
 .shift-card:hover:not(.active) { background: var(--surface-soft); color: var(--ink); }
 .shift-card.active:hover { background: var(--brand); color: #fff; filter: brightness(1.08); }
+/* Users page: each action has its own colour, so they can be told apart. */
+.user-action { padding: .42rem .85rem; border-radius: 999px; border: 1px solid currentColor; background: transparent; font-weight: 700; font-size: .85rem; cursor: pointer; transition: background-color .18s ease, color .18s ease; }
+.user-action.ok { color: var(--success); }
+.user-action.warn { color: var(--warning); }
+.user-action.info { color: var(--accent); }
+.user-action.neutral { color: var(--ink-soft); }
+.user-action.danger { color: var(--danger); }
+.user-action.ok:hover { background: var(--success-soft); }
+.user-action.warn:hover { background: var(--warning-soft); }
+.user-action.info:hover, .user-action.info[aria-expanded="true"] { background: var(--accent-soft); }
+.user-action.neutral:hover { background: var(--surface-soft); }
+.user-action.danger:hover { background: var(--danger); color: #fff; }
+.user-action:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
