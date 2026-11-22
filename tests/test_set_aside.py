@@ -147,7 +147,7 @@ async def test_a_confirmed_receipt_can_be_sent_back_to_review(
     sent = await client.post(
         f"/api/v1/receipts/{candidate['id']}/reopen", headers=auth_headers
     )
-    assert sent.status_code == 200, sent.text
+    assert sent.status_code == 204, sent.text
     async with app.state.database.session() as session:
         row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
         assert row.review_status == "NEEDS_REVIEW"
