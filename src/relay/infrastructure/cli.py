@@ -1066,7 +1066,14 @@ async def auto_confirm(
         shows_a_phone,
     )
 
-    counts = {"sms_day": 0, "waiting": 0, "failed": 0, "copies": 0, "old": 0}
+    counts = {
+        "sms_day": 0,
+        "waiting": 0,
+        "failed": 0,
+        "copies": 0,
+        "old": 0,
+        "no_reference": 0,
+    }
     wait = _primary_wait()
     async with database.session() as session:
         reviewer = await session.scalar(
@@ -1302,6 +1309,13 @@ async def auto_confirm(
                 resolution = fixed
         core = model_values(resolution, ("amount", "currency"))
         if core is None:
+            counts["waiting"] += 1
+            continue
+        if model_values(resolution, ("reference_number",)) is None:
+            # No reference number read (a bank-app screen, a blurry photo):
+            # a person checks it in Review, even when a bank SMS shows the
+            # same amount.
+            counts["no_reference"] += 1
             counts["waiting"] += 1
             continue
         # "425" read as 4.25: try the amount without the lost separator. Only
