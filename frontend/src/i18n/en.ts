@@ -57,7 +57,7 @@ export const en = {
     alertsTitle: "Needs attention today", alertsResets: "Starts empty every morning.", alertsNone: "Nothing needs attention today.",
     alertOldAppMeta: "Runs version {version}; other phones run {latest}", alertOldAppTip: "It missed the update: open Download apps on that phone and install it", alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
     alertOldTitle: "Old receipt shown again", alertOldMeta: "{phone} at {time}", alertOldReference: "Same reference as a receipt from {day}", alertOldDate: "Paid on {day}", alertOldTip: "Not confirmed. Open it: if it is a copy of an old receipt, reject it.", alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
-    lastPhoto: "Last photo", behind: "Older than {latest}: update it", lastSeen: "Last contact", never: "Never",
+    lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
     phoneCrash: "App crashed {time}: {error}",
     phoneGapLine: "Last silence: {reason}, {time}",
     phoneGaps: { phone_off: "phone was off or restarted", force_stopped: "app was force-stopped", app_killed: "Android closed the app", no_internet: "no internet" },
@@ -155,7 +155,7 @@ export const en = {
     contents: "Transactions, Duplicates, and Summary sheets are created in memory. Relay retains only an export audit record.",
   },
   devices: {
-    active: "Active", lastSeen: "Last seen", appVersion: "App version", configVersion: "Configuration version",
+    behind: "Older than {latest}: update it", active: "Active", lastSeen: "Last seen", appVersion: "App version", configVersion: "Configuration version",
     transactions: "Transactions", duplicates: "Duplicates", needsReview: "Needs review", collection: "Collection configuration",
     sms: "SMS collection", images: "Image collection", smsRules: "SMS rules", imageRules: "Image rules", imageSources: "Approved image sources",
     readiness: "Pilot readiness signal", externalId: "Installation ID",
