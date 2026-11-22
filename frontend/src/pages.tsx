@@ -138,9 +138,10 @@ export function Dashboard({ token }: { token: string }) {
   const queue = (["ready", "missing", "duplicate", "in_progress", "done"] as const).map((key) => [key, n(workload?.[key])] as const);
   const waiting = queue.reduce((sum, [, value]) => sum + value, 0);
   const received = data ? data.transactions_by_device.reduce((sum, item) => sum + n(item.count), 0) : 0;
-  async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query({ ...range, language: locale }), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
+  const [shift, setShift] = useState<number | null>(null);
+  async function download() { setMessage(m.reports.preparing); setMessageError(false); try { await downloadExport("/reports/export.xlsx" + query({ ...range, language: locale, shift: shift ?? undefined }), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); setMessageError(true); } }
   return <section className="dashboard"><PageHeading title={m.pages.dashboard[0]} description={m.pages.dashboard[1]} help={contextHelp.dashboard} />
-    <div className="panel dash-filters"><RangePicker token={token} allowClose value={[dateFrom, dateTo, timeFrom, timeTo]} set={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} hint={<>{d.filterHint} {m.reports.folderBasis}</>} extra={<button type="button" className="with-icon range-export" onClick={() => void download()}><Icon name="download" size={18} /><span>{d.exportExcel}</span></button>} />
+    <div className="panel dash-filters"><RangePicker token={token} allowClose onShift={setShift} value={[dateFrom, dateTo, timeFrom, timeTo]} set={(from, to, tf, tt) => { setDateFrom(from); setDateTo(to); setTimeFrom(tf); setTimeTo(tt); }} hint={<>{d.filterHint} {m.reports.folderBasis}</>} extra={<button type="button" className="with-icon range-export" onClick={() => void download()}><Icon name="download" size={18} /><span>{d.exportExcel}</span></button>} />
       {message && <p role={messageError ? "alert" : "status"} className={"status" + (messageError ? " error" : "")}>{message}</p>}</div>
     <Status loading={loading} error={error} />{data && <>
       <div className="metric-grid">
@@ -169,7 +170,7 @@ function cairoParts(moment: Date): [string, string] {
 }
 
 /** The day's shifts as quick filters; on the dashboard also "Close shift". */
-function ShiftChips({ token, day, current, apply, allowClose = false }: { token: string; day: string; current: [string, string, string, string]; apply: (from: string, to: string, timeFrom: string, timeTo: string) => void; allowClose?: boolean }) {
+function ShiftChips({ token, day, current, apply, allowClose = false, onActive }: { token: string; day: string; current: [string, string, string, string]; apply: (from: string, to: string, timeFrom: string, timeTo: string) => void; allowClose?: boolean; onActive?: (shift: number | null) => void }) {
   const { locale, messages: m } = useI18n(); const s = m.shifts; const role = useRole();
   const { data, reload } = useApi<{ items: Shift[]; open: Shift }>("/shifts" + query({ day }), token, true);
   const [notice, setNotice] = useState(""); const [asking, setAsking] = useState(false); const [note, setNote] = useState(""); const [busy, setBusy] = useState(false);
@@ -196,6 +197,10 @@ function ShiftChips({ token, day, current, apply, allowClose = false }: { token:
   }
   const number = (value: number) => new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-GB").format(value);
   const listed = shown.filter((shift) => !shift.closed_at || shift.closed_at > shift.opened_at);
+  // Which shift the chosen period is (if any): the Excel export names it.
+  const matching = listed.find((shift) => { const b = bounds(shift); return b.every((value, index) => value === current[index]); });
+  const activeNumber = matching ? matching.number : null;
+  useEffect(() => { onActive?.(activeNumber); }, [activeNumber, onActive]);
   if (listed.length === 0 && !notice) return null;
   return <><div className="shift-strip" role="group" aria-label={s.title}>
     {listed.map((shift) => {
@@ -222,7 +227,7 @@ function useDayRange() {
 }
 
 /** One period picker everywhere: Today / Yesterday / Custom, the day's shifts, and what is applied. */
-function RangePicker({ value, set, token, allowClose = false, extra, hint }: { value: [string, string, string, string]; set: (from: string, to: string, timeFrom: string, timeTo: string) => void; token?: string; allowClose?: boolean; extra?: ReactNode; hint?: ReactNode }) {
+function RangePicker({ value, set, token, allowClose = false, extra, hint, onShift }: { value: [string, string, string, string]; set: (from: string, to: string, timeFrom: string, timeTo: string) => void; token?: string; allowClose?: boolean; extra?: ReactNode; hint?: ReactNode; onShift?: (shift: number | null) => void }) {
   const { locale, messages: m } = useI18n(); const d = m.dashboard; const [from, to, timeFrom, timeTo] = value;
   const presets: [string, string][] = [[d.today, cairoDate()], [d.yesterday, cairoDate(1)]];
   const preset = presets.find(([, day]) => from === day && to === day && timeFrom === "00:00" && timeTo === "23:59");
@@ -239,7 +244,7 @@ function RangePicker({ value, set, token, allowClose = false, extra, hint }: { v
       </div>
       {extra}
     </div>
-    {token && <ShiftChips token={token} day={from} current={value} apply={(a, b, c, e) => { setCustom(false); set(a, b, c, e); }} allowClose={allowClose} />}
+    {token && <ShiftChips token={token} day={from} current={value} apply={(a, b, c, e) => { setCustom(false); set(a, b, c, e); }} allowClose={allowClose} onActive={onShift} />}
     <p className="range-summary"><Icon name="calendar" size={16} /><Bidi>{summary}</Bidi></p>
     {custom && <div className="range-fields">
       <DateFields dateFrom={from} dateTo={to} setDateFrom={(v) => set(v, to, timeFrom, timeTo)} setDateTo={(v) => set(from, v, timeFrom, timeTo)} />

@@ -242,6 +242,7 @@ async def send_window_report(
 ) -> bool:
     """Email one period's report, in English or Arabic (the operator's
     portal language when they close a shift)."""
+    zone = ZoneInfo(settings.receipt_timezone)
     database = Database(settings)
     try:
         async with database.session() as session:
@@ -268,7 +269,16 @@ async def send_window_report(
                 workbook = await service.export(
                     TransactionQuery(window=window, limit=100),
                     admins[0].id,
-                    {"date_from": day.isoformat(), "date_to": day.isoformat()},
+                    {"date_from": day.isoformat(), "date_to": day.isoformat()}
+                    | (
+                        {
+                            "shift": int(shift["number"]),
+                            "time_from": f"{window.start.astimezone(zone):%H:%M}",
+                            "time_to": f"{window.end_exclusive.astimezone(zone):%H:%M}",
+                        }
+                        if shift
+                        else {}
+                    ),
                 )
     finally:
         await database.close()

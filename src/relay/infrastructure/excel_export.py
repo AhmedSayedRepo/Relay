@@ -453,6 +453,13 @@ class OpenpyxlWorkbookExporter:
         start = str(filters.get("date_from") or summary.get("date_from") or "")
         end = str(filters.get("date_to") or summary.get("date_to") or "")
         period = start if start == end else f"{start} to {end}".strip()
+        shift = filters.get("shift")
+        if shift:
+            # A shift's report: its number and the hours it covered.
+            hours = (
+                f"{filters.get('time_from') or ''} to {filters.get('time_to') or ''}"
+            )
+            period = f"{period} · Shift {shift} ({hours})"
         sheet.merge_cells("A1:H1")
         sheet["A1"] = "Relay · Receipts report"
         sheet["A1"].font = Font(name=UI, size=18, bold=True, color=BRAND)
@@ -603,7 +610,8 @@ class OpenpyxlWorkbookExporter:
         shown = {
             key: value
             for key, value in filters.items()
-            if key not in ("date_from", "date_to") and value not in (None, "", [])
+            if key not in ("date_from", "date_to", "shift", "time_from", "time_to")
+            and value not in (None, "", [])
         }
         if shown:
             notes.insert(

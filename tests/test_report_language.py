@@ -41,3 +41,19 @@ def test_the_excel_file_in_arabic() -> None:
     assert book.worksheets[0].sheet_view.rightToLeft is True
     first = book["المعاملات"]
     assert first.cell(1, 1).value == "وصل (القاهرة)"
+
+
+def test_a_shift_report_names_its_shift() -> None:
+    exporter = OpenpyxlWorkbookExporter()
+    filters = {
+        "date_from": "2026-11-22",
+        "date_to": "2026-11-22",
+        "shift": 1,
+        "time_from": "08:57",
+        "time_to": "21:30",
+    }
+    data = exporter.build([], {}, filters, datetime(2026, 11, 22, 12, tzinfo=UTC))
+    period = load_workbook(BytesIO(data)).worksheets[0]["A2"].value
+    assert period == "2026-11-22 · Shift 1 (08:57 to 21:30)"
+    arabic = load_workbook(BytesIO(arabic_workbook(data))).worksheets[0]["A2"].value
+    assert arabic == "2026-11-22 · وردية 1 (من 08:57 لحد 21:30)"

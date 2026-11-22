@@ -153,6 +153,10 @@ PATTERNS: list[tuple[re.Pattern[str], Callable[[re.Match[str]], str]]] = [
         lambda m: f"تقرير Relay اليومي: {m[1]}",
     ),
     (re.compile(r"^SHIFT (\d+)$"), lambda m: f"وردية {m[1]}"),
+    (
+        re.compile(r"^(.+) · Shift (\d+) \((.*) to (.*)\)$"),
+        lambda m: f"{m[1]} · وردية {m[2]} (من {m[3]} لحد {m[4]})",
+    ),
     (re.compile(r"^Group (\d+)$"), lambda m: f"مجموعة {m[1]}"),
     (
         re.compile(r"^(\w+day) (\d{2}) (\w+) (\d{4})$"),

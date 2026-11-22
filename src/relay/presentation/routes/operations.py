@@ -558,10 +558,20 @@ async def export_report(
     ] = "created_at",
     sort_direction: Literal["asc", "desc"] = "desc",
     language: Literal["en", "ar"] = "en",
+    # The dashboard's chosen shift, named on the Excel summary.
+    shift: Annotated[int | None, Query(ge=1, le=99)] = None,
 ) -> Response:
     values = locals().copy()
     values.update({"limit": 100, "offset": 0})
-    for key in ("service", "actor", "request", "time_from", "time_to", "language"):
+    for key in (
+        "service",
+        "actor",
+        "request",
+        "time_from",
+        "time_to",
+        "language",
+        "shift",
+    ):
         values.pop(key)
     query = replace(
         _transaction_query(**values),
@@ -573,6 +583,8 @@ async def export_report(
         for key, value in values.items()
         if value is not None and key not in {"limit", "offset"}
     }
+    if shift is not None:
+        filters["shift"] = shift
     content = await service.export(query, actor.id, filters)
     if language == "ar":
         from relay.infrastructure.report_language import arabic_workbook
