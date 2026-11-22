@@ -303,9 +303,21 @@ class SqlSmsVerificationRepository:
                     body if isinstance(body, str) else "",
                     aware(row.occurred_at),
                     candidate_id,
+                    bool((row.metadata_json or {}).get("instapay_seen")),
                 )
             )
         return found
+
+    async def sms_origin(self, event_id: UUID) -> tuple[str | None, bool] | None:
+        row = await self.session.get(RawEventRow, event_id)
+        if row is None:
+            return None
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        sender = payload.get("sender")
+        return (
+            sender if isinstance(sender, str) else None,
+            bool((row.metadata_json or {}).get("instapay_seen")),
+        )
 
     async def day_receipts(self, since: datetime, until: datetime) -> list[DayReceipt]:
         rows = await self.session.execute(

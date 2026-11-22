@@ -120,6 +120,14 @@ class SqlEventRepository:
         )
         await self.session.execute(delete(RawEventRow).where(RawEventRow.id == old_id))
 
+    async def mark_instapay_seen(self, event_id: UUID) -> None:
+        """The InstaPay notification of this bank SMS's transfer also came."""
+        row = await self.session.get(RawEventRow, event_id)
+        if row is not None:
+            metadata = dict(row.metadata_json or {})
+            metadata["instapay_seen"] = True
+            row.metadata_json = metadata
+
     async def same_sms_seen(
         self, occurred_at: datetime, sender: str, body: str
     ) -> bool:

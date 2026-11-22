@@ -192,7 +192,7 @@ export const en = {
     status: "Status", allStatuses: "All", time: "Received", sender: "Sender", amount: "Amount", receipt: "Receipt", reasons: { waiting: "A receipt with this amount waits in Review", rejected: "A receipt with this amount was rejected", hidden: "A photo with this amount was hidden (copy or not a receipt)", receipt_used: "Its receipt was already confirmed by another SMS", no_receipt: "No receipt that day shows this amount (not sent, or the amount was misread)" }, openReceipt: "Open receipt",
     empty: "No bank SMS in this range.", hint: "Times are when the SMS reached the phone (Cairo time). Message text stays private.",
   },
-  sms: {
+  sms: { source: "Proved by", sources: { bank: "Bank SMS", instapay: "InstaPay notification only", both: "Bank SMS + InstaPay" } as Record<string, string>, 
     column: "SMS check", eyebrow: "Payment check", title: "Bank SMS verification", amount: "SMS amount", time: "SMS received", method: "Matched by",
     auto: "Relay (amount and time)", manual: "Operator", options: "SMS with the same amount", outsideWindow: "outside the time window", use: "Use this SMS",
     recheck: "Re-check now", clear: "Clear match", failed: "The change was not saved. Try again.", loading: "Checking SMS verification…", unavailable: "SMS verification could not be loaded.",

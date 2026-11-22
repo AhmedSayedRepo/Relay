@@ -82,3 +82,11 @@ async def test_notification_after_its_sms_is_not_stored_twice(client, auth_heade
         "/api/v1/device/events/batch", headers=headers(bundle), json={"events": [other]}
     )
     assert response.json()["results"][0]["status"] == "rejected"
+
+
+def test_the_source_says_who_showed_the_transfer() -> None:
+    from relay.application.sms_verification import sms_source
+
+    assert sms_source("CIB", False) == "bank"
+    assert sms_source("CIB", True) == "both"
+    assert sms_source("InstaPay", False) == "instapay"

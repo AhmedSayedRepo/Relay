@@ -102,7 +102,9 @@ class EventService:
                     device_id, value.occurred_at, value.sender, value.body
                 )
                 if twin is not None and value.sender == INSTAPAY_SENDER:
-                    # The bank SMS for this transfer is already in: keep it.
+                    # The bank SMS for this transfer is already in: keep it,
+                    # noting that InstaPay showed the same transfer.
+                    await self.uow.events.mark_instapay_seen(twin)
                     counts["duplicate"] += 1
                     results.append(ItemResult(supplied_id, "duplicate"))
                     continue
@@ -119,7 +121,10 @@ class EventService:
                     value.captured_at,
                     now,
                     {"sender": value.sender, "body": value.body},
-                    {"rule_id": value.rule_id},
+                    # A bank SMS that replaces an InstaPay notification of
+                    # the same transfer: both sources showed it.
+                    {"rule_id": value.rule_id}
+                    | ({"instapay_seen": True} if twin is not None else {}),
                     value.content_hash,
                     now + timedelta(days=self.retention_days),
                 )
