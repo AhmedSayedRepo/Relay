@@ -65,3 +65,37 @@ def test_numpy_style_results_are_read() -> None:
     texts = ArrayLike(["تم التحويل بنجاح", "550 EGP"])
     assert ppocr_reader.lines(boxes, texts) == ["تم التحويل بنجاح", "550 EGP"]
     assert ppocr_reader.lines(None, None) == []
+
+
+async def test_only_poor_earlier_readings_are_read_again(
+    client, auth_headers, app, monkeypatch
+):
+    good, _ = await run_receipt(client, auth_headers, app, "ppocr-good")
+    poor, _ = await run_receipt(client, auth_headers, app, "ppocr-poor")
+    database, storage = app.state.database, app.state.object_storage
+    earlier = {
+        good["id"]: {"text": "x", "latin": "Reference 362246940647\n815.82 EGP"},
+        poor["id"]: {"text": "x", "latin": "Track Transaction"},
+    }
+    async with database.session() as session:
+        for row in await session.scalars(select(ReceiptCandidateRow)):
+            row.machine_result = dict(row.machine_result) | {
+                "ppocr_v5": earlier[str(row.id)]
+            }
+        await session.commit()
+    calls: list[bytes] = []
+
+    def zoomed(data: bytes) -> dict[str, str]:
+        calls.append(data)
+        return {"text": "zoomed", "latin": "Reference 362246940647\n815.82 EGP"}
+
+    monkeypatch.setattr(ppocr_reader, "read_parts", zoomed)
+    assert await ppocr_reader.ppocr_pass(database, storage, 5) == 2
+    assert len(calls) == 1  # only the poorly read photo was read again
+    async with database.session() as session:
+        rows = {
+            str(row.id): row.machine_result
+            for row in await session.scalars(select(ReceiptCandidateRow))
+        }
+    assert rows[good["id"]][ppocr_reader.VERSION]["carried_from"] == "ppocr_v5"
+    assert rows[poor["id"]][ppocr_reader.VERSION]["text"] == "zoomed"
