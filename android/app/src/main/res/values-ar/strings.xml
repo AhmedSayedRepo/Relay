@@ -120,4 +120,15 @@
     <string name="keep_connected_text">الإيصالات ورسايل البنك بتتبعت لـ Relay لوحدها.</string>
     <string name="instapay_on">إشعارات انستاباي بتتقري كمان، كتأكيد تاني جنب رسايل البنك.</string>
     <string name="instapay_allow">اقرأ إشعارات انستاباي كمان</string>
+    <string name="check_fix">صلّحها دلوقتي</string>
+    <string name="check_notifications_title">الإشعارات مقفولة لـ Relay</string>
+    <string name="check_notifications_body">Relay بيحط إشعار ثابت "Relay متصل" علشان الموبايل ما يقفلوش. من غير إشعارات ممكن يوقف المزامنة ساعات ومش هتشوف إشعار التحديث. شغّل الإشعارات.</string>
+    <string name="check_power_save_title">توفير البطارية شغّال</string>
+    <string name="check_power_save_body">توفير البطارية بيوقف Relay في الخلفية فالإيصالات بتتأخر. اقفل توفير البطارية.</string>
+    <string name="check_battery_title">بطارية Relay عليها قيود</string>
+    <string name="check_battery_body">الموبايل ممكن ينيّم Relay. اختار "سماح" (بدون قيود) علشان الإيصالات تفضل توصل.</string>
+    <string name="check_background_title">Relay مش مسموحله يشتغل في الخلفية</string>
+    <string name="check_background_body">من إعدادات بطارية التطبيق اختار "بدون قيود" واسمح بالنشاط في الخلفية.</string>
+    <string name="check_data_title">البيانات في الخلفية مقفولة لـ Relay</string>
+    <string name="check_data_body">Relay مش هيقدر يبعت الإيصالات وهو مش مفتوح. اسمح بالبيانات في الخلفية لـ Relay.</string>
 </resources>

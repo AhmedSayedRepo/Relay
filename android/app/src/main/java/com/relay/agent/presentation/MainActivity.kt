@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
                 UpdatePrompt(BuildConfig.VERSION_NAME)
+                PhoneCheckPrompt()
                 WhatsNewPrompt(BuildConfig.VERSION_NAME)
             }
         }
@@ -206,7 +207,7 @@ private fun AgentScreen(switchLanguage: () -> Unit, model: AgentViewModel = view
  * phone does not offer the question.
  */
 @SuppressLint("BatteryLife")
-private fun askToRunInBackground(context: Context) {
+internal fun askToRunInBackground(context: Context) {
     val ask = Intent(
         Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
         "package:${context.packageName}".toUri()

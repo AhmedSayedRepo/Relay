@@ -26,8 +26,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
         "0.8.8" to ReleaseNote(
-            en = listOf("If the app can’t check for updates, it now says so, with Try again."),
-            ar = listOf("لو التطبيق مقدرش يشوف التحديثات بيقولك، وفيه زرار جرّب تاني.")
+            en = listOf(
+                "If the app can’t check for updates, it now says so, with Try again.",
+                "The app spots settings that stop it syncing (notifications off, battery " +
+                    "saver, battery limits, background data) and opens the screen to fix them."
+            ),
+            ar = listOf(
+                "لو التطبيق مقدرش يشوف التحديثات بيقولك، وفيه زرار جرّب تاني.",
+                "التطبيق بيكتشف الإعدادات اللي بتوقف المزامنة (الإشعارات، توفير البطارية، " +
+                    "قيود البطارية، البيانات في الخلفية) ويفتحلك الشاشة اللي تصلّحها."
+            )
         ),
         "0.8.7" to ReleaseNote(
             en = listOf(

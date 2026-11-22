@@ -86,6 +86,10 @@ export function DateFields({ dateFrom, dateTo, setDateFrom, setDateTo }: { dateF
 }
 
 export function Pager({ total, limit, offset, setOffset }: { total: number; limit: number; offset: number; setOffset: (value: number) => void }) {
-  const { messages: m } = useI18n(); const range = total ? String(offset + 1) + "–" + String(Math.min(total, offset + limit)) + " " + m.common.of + " " + String(total) : "0 " + m.common.records;
+  const { messages: m } = useI18n();
+  // A page past the end (the filter changed and there are fewer results now):
+  // jump back to the last page that has rows instead of showing an empty list.
+  useEffect(() => { if (total > 0 && offset >= total) setOffset(Math.floor((total - 1) / limit) * limit); }, [total, offset, limit, setOffset]);
+  const range = total ? String(offset + 1) + "–" + String(Math.min(total, offset + limit)) + " " + m.common.of + " " + String(total) : "0 " + m.common.records;
   return <nav className="pager" aria-label={m.common.page}><span dir="ltr">{range}</span><button type="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>{m.common.previous}</button><button type="button" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)}>{m.common.next}</button></nav>;
 }

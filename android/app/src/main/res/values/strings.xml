@@ -125,4 +125,15 @@
     <string name="keep_connected_text">Receipts and bank SMS are sent to Relay automatically.</string>
     <string name="instapay_on">InstaPay notifications are read too, as a second check next to the bank SMS.</string>
     <string name="instapay_allow">Also read InstaPay notifications</string>
+    <string name="check_fix">Fix now</string>
+    <string name="check_notifications_title">Notifications are off for Relay</string>
+    <string name="check_notifications_body">Relay keeps a “Relay is connected” notification so the phone doesn’t stop it. Without notifications it can stop syncing for hours, and you won’t see update notices. Turn notifications on.</string>
+    <string name="check_power_save_title">Battery saver is on</string>
+    <string name="check_power_save_body">Battery saver pauses Relay in the background, so receipts arrive late. Turn battery saver off.</string>
+    <string name="check_battery_title">Relay’s battery use is restricted</string>
+    <string name="check_battery_body">The phone may put Relay to sleep. Choose “Allow” (no restrictions) so receipts keep arriving.</string>
+    <string name="check_background_title">Relay can’t run in the background</string>
+    <string name="check_background_body">In the app’s battery settings, choose “Unrestricted” and allow background activity.</string>
+    <string name="check_data_title">Background data is blocked for Relay</string>
+    <string name="check_data_body">Relay can’t send receipts while it isn’t on screen. Allow background data for Relay.</string>
 </resources>
