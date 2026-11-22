@@ -6,9 +6,9 @@
     <string name="retry">Try again</string>
     <string name="saved_download">Saved to Downloads: %1$s</string>
     <string name="save_failed">Could not save the file.</string>
-    <string name="update_title">Relay Operator %1$s is available</string>
-    <string name="update_body">Download the new version and install it over this one. Your sign-in stays.</string>
-    <string name="update_now">Update</string>
+    <string name="update_title">Update available</string>
+    <string name="update_body">Relay Operator %1$s is ready (you have %2$s). Your sign-in stays.</string>
+    <string name="update_now">Update now</string>
     <string name="update_later">Later</string>
     <string name="not_now">Not now</string>
     <string name="fingerprint_offer_title">Sign in with your fingerprint next time?</string>
@@ -16,4 +16,11 @@
     <string name="fingerprint_offer_yes">Use fingerprint</string>
     <string name="fingerprint_save_title">Confirm to save your sign-in</string>
     <string name="fingerprint_unlock_title">Sign in to Relay</string>
+    <string name="update_downloading">Downloading… %1$d%% · %2$s of %3$s MB</string>
+    <string name="update_installing">Opening the installer…</string>
+    <string name="update_failed">The download didn’t finish. Check the connection and try again.</string>
+    <string name="update_allow_installs">To update, allow Relay Operator to install apps: tap Update now, turn on “Allow from this source”, then come back.</string>
+    <string name="update_check_failed_title">Couldn’t check for updates</string>
+    <string name="update_check_failed_body">Relay Operator couldn’t reach the update server. Check the internet and try again.</string>
+    <string name="update_cancel">Cancel</string>
 </resources>

@@ -60,9 +60,13 @@ class MainActivity : ComponentActivity() {
                         recreate()
                     }
                 )
-                UpdatePrompt(BuildConfig.VERSION_NAME)
-                PhoneCheckPrompt()
-                WhatsNewPrompt(BuildConfig.VERSION_NAME)
+                // One window at a time: the update first, then the rest.
+                var updating by remember { mutableStateOf(false) }
+                UpdatePrompt(BuildConfig.VERSION_NAME) { updating = it }
+                if (!updating) {
+                    PhoneCheckPrompt()
+                    WhatsNewPrompt(BuildConfig.VERSION_NAME)
+                }
             }
         }
     }

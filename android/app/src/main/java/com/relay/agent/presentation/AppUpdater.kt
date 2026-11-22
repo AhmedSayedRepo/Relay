@@ -5,8 +5,14 @@ package com.relay.agent.presentation
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -17,15 +23,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import com.relay.agent.BuildConfig
 import com.relay.agent.R
 import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -108,7 +121,7 @@ private suspend fun latestRelease(): Result<AppRelease?> = withContext(Dispatche
 private suspend fun download(
     context: Context,
     release: AppRelease,
-    progress: (Float) -> Unit
+    progress: (Long, Long) -> Unit
 ): File? = withContext(Dispatchers.IO) {
     runCatching {
         val folder = File(context.cacheDir, "updates").apply { mkdirs() }
@@ -123,11 +136,12 @@ private suspend fun download(
                     val buffer = ByteArray(64 * 1024)
                     var done = 0L
                     while (true) {
+                        ensureActive() // Cancel stops the download
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         done += read
-                        if (total > 0) progress(done.toFloat() / total)
+                        progress(done, total)
                     }
                 }
             }
@@ -154,12 +168,12 @@ private fun install(context: Context, apk: File) {
  * during the install; a notification then opens the new one.
  */
 @Composable
-fun UpdatePrompt(currentVersion: String) {
+fun UpdatePrompt(currentVersion: String, onShowing: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var release by remember { mutableStateOf<AppRelease?>(null) }
-    var progress by remember { mutableStateOf<Float?>(null) }
-    var failed by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf<UpdateState>(UpdateState.Ready) }
+    var job by remember { mutableStateOf<Job?>(null) }
     var dismissed by remember { mutableStateOf(false) }
     var checkFailed by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -177,6 +191,8 @@ fun UpdatePrompt(currentVersion: String) {
             .onFailure { checkFailed = true }
     }
     val found = release
+    val showing = !dismissed && (found != null || checkFailed)
+    LaunchedEffect(showing) { onShowing(showing) }
     if (found == null) {
         if (checkFailed && !dismissed) {
             CheckFailed(retry = { attempt += 1 }, later = { dismissed = true })
@@ -184,49 +200,144 @@ fun UpdatePrompt(currentVersion: String) {
         return
     }
     if (dismissed) return
+    UpdateDialog(
+        appName = stringResource(R.string.app_name),
+        found = found,
+        currentVersion = currentVersion,
+        state = state,
+        canInstall = canInstall(context),
+        update = {
+            if (!canInstall(context)) {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        "package:${context.packageName}".toUri()
+                    )
+                )
+            } else {
+                state = UpdateState.Downloading(0L, -1L)
+                job = scope.launch {
+                    val apk = download(context, found) { done, total ->
+                        state = UpdateState.Downloading(done, total)
+                    }
+                    if (apk == null) {
+                        state = UpdateState.Failed
+                    } else {
+                        state = UpdateState.Installing
+                        install(context, apk)
+                    }
+                }
+            }
+        },
+        cancel = {
+            job?.cancel()
+            state = UpdateState.Ready
+        },
+        later = { dismissed = true }
+    )
+}
+
+/** Where an update stands: offered, downloading (bytes so far, total or -1),
+ *  handed to the installer, or failed. */
+sealed interface UpdateState {
+    data object Ready : UpdateState
+    data class Downloading(val done: Long, val total: Long) : UpdateState
+    data object Installing : UpdateState
+    data object Failed : UpdateState
+}
+
+/** One update window for every Relay app: its icon, the versions, then the
+ *  download with percent and megabytes, then "Opening the installer". */
+@Composable
+private fun UpdateDialog(
+    appName: String,
+    found: AppRelease,
+    currentVersion: String,
+    state: UpdateState,
+    canInstall: Boolean,
+    update: () -> Unit,
+    cancel: () -> Unit,
+    later: () -> Unit
+) {
+    val context = LocalContext.current
+    val busy = state is UpdateState.Downloading || state is UpdateState.Installing
+    val icon = remember {
+        context.applicationInfo.loadIcon(context.packageManager).toBitmap().asImageBitmap()
+    }
     AlertDialog(
-        onDismissRequest = { if (progress == null) dismissed = true },
+        onDismissRequest = { if (!busy) later() },
+        icon = { Image(icon, contentDescription = null, modifier = Modifier.size(56.dp)) },
         title = { Text(stringResource(R.string.update_title)) },
         text = {
-            when {
-                progress != null -> LinearProgressIndicator(progress = { progress ?: 0f })
-                failed -> Text(stringResource(R.string.update_failed))
-                !canInstall(context) -> Text(stringResource(R.string.update_allow_installs))
-                else -> Text(stringResource(R.string.update_body, found.version, currentVersion))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    stringResource(
+                        R.string.update_body,
+                        appName,
+                        found.version,
+                        currentVersion.substringBefore("-")
+                    )
+                )
+                when (state) {
+                    is UpdateState.Downloading -> {
+                        val fraction =
+                            if (state.total > 0) state.done.toFloat() / state.total else 0f
+                        if (state.total > 0) {
+                            LinearProgressIndicator(
+                                progress = { fraction },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                        }
+                        Text(
+                            stringResource(
+                                R.string.update_downloading,
+                                (fraction * 100).toInt(),
+                                megabytes(state.done),
+                                megabytes(maxOf(state.total, state.done))
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    UpdateState.Installing -> {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text(
+                            stringResource(R.string.update_installing),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    UpdateState.Failed -> Text(
+                        stringResource(R.string.update_failed),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    UpdateState.Ready -> if (!canInstall) {
+                        Text(stringResource(R.string.update_allow_installs))
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(
-                enabled = progress == null,
-                onClick = {
-                    if (!canInstall(context)) {
-                        context.startActivity(
-                            Intent(
-                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                "package:${context.packageName}".toUri()
-                            )
-                        )
-                        return@TextButton
-                    }
-                    failed = false
-                    progress = 0f
-                    scope.launch {
-                        val apk = download(context, found) { value -> progress = value }
-                        progress = null
-                        if (apk == null) failed = true else install(context, apk)
-                    }
-                }
-            ) { Text(stringResource(R.string.update_now)) }
+            TextButton(enabled = !busy, onClick = update) {
+                Text(stringResource(R.string.update_now))
+            }
         },
         dismissButton = {
-            if (progress == null) {
-                TextButton(onClick = { dismissed = true }) {
+            when (state) {
+                is UpdateState.Downloading -> TextButton(onClick = cancel) {
+                    Text(stringResource(R.string.update_cancel))
+                }
+                UpdateState.Installing -> Unit
+                else -> TextButton(onClick = later) {
                     Text(stringResource(R.string.update_later))
                 }
             }
         }
     )
 }
+
+private fun megabytes(bytes: Long): String =
+    String.format(Locale.getDefault(), "%.1f", bytes / 1_048_576.0)
 
 private const val RETRY_DELAY_MS = 5_000L
 

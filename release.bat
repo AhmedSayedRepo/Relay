@@ -1,10 +1,15 @@
 @echo off
 setlocal EnableDelayedExpansion
-rem Releases both Android apps (Relay Receipts + Relay Bank SMS) from this PC.
+rem Releases the Relay phone apps from this PC, all together or one at a time.
 rem Needs the GitHub CLI signed in once:  gh auth login
-rem Usage:  release.bat            next patch version (0.6.4 -> 0.6.5)
-rem         release.bat 0.7.0      a version you choose
-rem         release.bat 0.7.0 bank also release Relay Bank SMS (rarely needed)
+rem Usage:  release.bat                      next patch version, Receipts + Operator
+rem         release.bat 0.9.0                Receipts + Operator
+rem         release.bat 0.9.0 all            all three apps
+rem         release.bat 0.9.0 bank           all three apps (as before)
+rem         release.bat 0.9.0 operator       only Relay Operator
+rem         release.bat 0.9.0 receipts bank  only the apps you list
+rem Apps: receipts (Relay Receipts), bank (Relay Bank SMS), operator (Relay Operator).
+rem Each app checks only for its own new version, so the others stay as they are.
 
 set REPO=AhmedSayedRepo/Relay
 set RELEASES=AhmedSayedRepo/relay-releases
@@ -31,10 +36,24 @@ if errorlevel 1 (
   echo WARNING: no release notes for %VER% in WhatsNew.kt - the app will not show "What's new".
 )
 
-set BANK=false
-if /i "%~2"=="bank" set BANK=true
-if "%BANK%"=="true" (echo Relay Bank SMS is included.) else (echo Relay Bank SMS is skipped - add "bank" after the version to include it.)
-set /p OK=Release version %VER% now? (Y/N) 
+rem Which apps: none listed = Receipts + Operator; "all" or "bank" alone = all
+rem three (what "bank" meant before); otherwise exactly the apps listed.
+set APPS=
+set LISTED=0
+for %%a in (%2 %3 %4) do (
+  set /a LISTED+=1
+  if /i "%%a"=="all" (set APPS=receipts,bank,operator) else (
+    if /i "%%a"=="receipts" set APPS=!APPS!,receipts
+    if /i "%%a"=="bank" set APPS=!APPS!,bank
+    if /i "%%a"=="operator" set APPS=!APPS!,operator
+  )
+)
+if "!LISTED!"=="0" set APPS=receipts,operator
+if /i "%~2"=="bank" if "%~3"=="" set APPS=receipts,bank,operator
+if "!APPS:~0,1!"=="," set APPS=!APPS:~1!
+if "!APPS!"=="" (echo Unknown app. Use receipts, bank, operator or all. & exit /b 1)
+echo Apps in this release: !APPS!
+set /p OK=Release version %VER% of !APPS! now? (Y/N) 
 if /i not "%OK%"=="Y" (echo Cancelled. & exit /b 0)
 
 rem Start the build. api.github.com sometimes times out on this network, so:
@@ -42,13 +61,12 @@ rem try the API three times, then start it by pushing a tag with git, which
 rem goes through github.com (the same way "git pull" works).
 set STARTED=
 for /l %%n in (1,1,3) do if not defined STARTED (
-  gh api -X POST repos/%REPO%/actions/workflows/android-release.yml/dispatches -f ref=main -f "inputs[version]=%VER%" -f "inputs[bank_sms]=%BANK%" >nul 2>&1 && set STARTED=api
+  gh api -X POST repos/%REPO%/actions/workflows/android-release.yml/dispatches -f ref=main -f "inputs[version]=%VER%" -f "inputs[apps]=!APPS!" >nul 2>&1 && set STARTED=api
   if not defined STARTED (echo GitHub API did not answer, try %%n of 3... & timeout /t 5 /nobreak >nul)
 )
 if not defined STARTED (
-  rem A tag ending in -bank also builds Relay Bank SMS.
-  set TAG=agent-v%VER%
-  if "%BANK%"=="true" set TAG=agent-v%VER%-bank
+  rem The tag lists the apps: agent-v0.9.0-only-receipts-operator.
+  set TAG=agent-v%VER%-only-!APPS:,=-!
   echo Starting the release with a git tag instead: !TAG!
   git fetch -q origin main || (echo Could not reach GitHub at all. Check the internet. & exit /b 1)
   git tag !TAG! origin/main || exit /b 1
@@ -71,6 +89,6 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Released %VER%. Phones will offer the update inside the apps.
+echo Released %VER% of !APPS!. Phones with those apps will offer the update inside the app.
 echo https://github.com/%RELEASES%/releases/tag/agent-v%VER%
 endlocal

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Relay mark "Two sources meet" with this app's badge, inside the 66dp
+     adaptive-icon safe zone. Each app has its own colour and badge. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="19"
+        android:translateY="19">
+        <path
+            android:pathData="M14,26h22c10,0 16,6 22,14l8,10"
+            android:strokeColor="#F4F6F3"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M14,74h22c10,0 16,-6 22,-14l8,-10"
+            android:strokeColor="#EDA06D"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="#BFF0E3"
+            android:pathData="M78,38a12,12 0,1 1,0 24a12,12 0,1 1,0 -24z" />
+    </group>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M71,60a11,11 0,1 1,0 22a11,11 0,1 1,0 -22z" />
+    <!-- Badge: a receipt -->
+    <path
+        android:fillColor="#0E6B60"
+        android:pathData="M66.5,64h9v12.5l-1.5,-1 -1.5,1 -1.5,-1 -1.5,1 -1.5,-1 -1.5,1z" />
+    <path
+        android:pathData="M68.5,67.5h5M68.5,70.2h5M68.5,72.9h3"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round" />
+</vector>
