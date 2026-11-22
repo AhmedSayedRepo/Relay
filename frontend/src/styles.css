@@ -630,3 +630,6 @@ td { font-variant-numeric: tabular-nums; }
   .filter-bar label { min-width: 0; }
   .filter-bar input, .filter-bar select { width: 100%; min-width: 0; }
 }
+.close-confirm { display: grid; gap: .6rem; padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line)); background: var(--danger-soft); }
+.close-confirm p { margin: 0; font-weight: 600; }
+.close-confirm input { width: 100%; }
