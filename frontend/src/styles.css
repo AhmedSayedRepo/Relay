@@ -644,3 +644,10 @@ td { font-variant-numeric: tabular-nums; }
 .operator-version { margin: 0 0 0 .4rem; font-size: .68rem; }
 .send-back { margin-top: .8rem; }
 .source-tag.list { display: flex; width: fit-content; margin-top: .3rem; }
+/* Phones: the side menu scrolls above the bottom tab bar, so its last items
+   (apps link, versions) are never hidden behind it. */
+@media (max-width: 850px) {
+  .side-rail { overflow-y: auto; overscroll-behavior: contain; }
+  .side-rail .rail-art { display: none; }
+  .side-rail .signal-mark { margin-block-start: 1rem; }
+}
