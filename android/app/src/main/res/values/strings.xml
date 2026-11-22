@@ -102,11 +102,14 @@
     <string name="scan_unavailable">The camera scanner isn’t available on this phone. Type the code instead.</string>
     <string name="other_language">العربية</string>
     <string name="update_title">Update available</string>
-    <string name="update_body">Relay %1$s is ready (you have %2$s). Update now?</string>
+    <string name="update_body">%1$s %2$s is ready (you have %3$s).</string>
     <string name="update_now">Update now</string>
     <string name="update_check_failed_title">Couldn’t check for updates</string>
     <string name="update_check_failed_body">Relay couldn’t reach the update server. Check the internet and try again: an old version can stop this phone from syncing.</string>
     <string name="update_retry">Try again</string>
+    <string name="update_downloading">Downloading… %1$d%% · %2$s of %3$s MB</string>
+    <string name="update_installing">Opening the installer…</string>
+    <string name="update_cancel">Cancel</string>
     <string name="update_later">Later</string>
     <string name="update_failed">The download didn’t finish. Check the connection and try again.</string>
     <string name="update_allow_installs">To update, allow Relay to install apps: tap Update now, turn on “Allow from this source”, then come back.</string>

@@ -44,3 +44,14 @@ phone has one or the other.
 
 The download link for the newest release can also be
 `https://github.com/<release repo>/releases/latest/download/relay-agent-<version>.apk`.
+
+
+## Releasing one app at a time
+
+`release.bat <version> [apps]` releases only the apps you list: `receipts`
+(Relay Receipts), `bank` (Relay Bank SMS) and `operator` (Relay Operator), or
+`all`. With no apps it releases Receipts and Operator; `bank` on its own still
+means all three. Each app looks through the recent releases for its own file,
+so an app left out of a release keeps its version and shows no update.
+Stable download links for the landing page: the fixed releases
+`receipts-app`, `operator-app` and `bank-sms` always hold each app's newest APK.

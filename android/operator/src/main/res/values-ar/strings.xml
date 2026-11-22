@@ -6,9 +6,9 @@
     <string name="retry">جرّب تاني</string>
     <string name="saved_download">اتحفظ في التنزيلات: %1$s</string>
     <string name="save_failed">مقدرناش نحفظ الملف.</string>
-    <string name="update_title">متاح Relay Operator %1$s</string>
-    <string name="update_body">نزّل النسخة الجديدة وثبّتها فوق دي. تسجيل دخولك هيفضل زي ما هو.</string>
-    <string name="update_now">تحديث</string>
+    <string name="update_title">فيه تحديث جديد</string>
+    <string name="update_body">Relay Operator %1$s جاهز (انت على %2$s). تسجيل دخولك هيفضل زي ما هو.</string>
+    <string name="update_now">حدّث دلوقتي</string>
     <string name="update_later">بعدين</string>
     <string name="not_now">مش دلوقتي</string>
     <string name="fingerprint_offer_title">تدخل بالبصمة المرة الجاية؟</string>
@@ -16,4 +16,11 @@
     <string name="fingerprint_offer_yes">استخدم البصمة</string>
     <string name="fingerprint_save_title">أكّد عشان نحفظ تسجيل الدخول</string>
     <string name="fingerprint_unlock_title">الدخول إلى Relay</string>
+    <string name="update_downloading">بيتنزّل… %1$d%% · %2$s من %3$s م.ب</string>
+    <string name="update_installing">بيفتح التثبيت…</string>
+    <string name="update_failed">التنزيل ما كملش. اتأكد من النت وجرّب تاني.</string>
+    <string name="update_allow_installs">علشان تحدّث، اسمح لـ Relay Operator يثبّت تطبيقات: دوس حدّث دلوقتي، شغّل "السماح من هذا المصدر"، وارجع.</string>
+    <string name="update_check_failed_title">مقدرناش نشوف التحديثات</string>
+    <string name="update_check_failed_body">Relay Operator مقدرش يوصل لسيرفر التحديثات. اتأكد من النت وجرّب تاني.</string>
+    <string name="update_cancel">إلغاء</string>
 </resources>
