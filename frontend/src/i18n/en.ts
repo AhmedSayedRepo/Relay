@@ -55,9 +55,9 @@ export const en = {
   },
   dashboard: {
     alertsTitle: "Needs attention today", alertsResets: "Starts empty every morning.", alertsNone: "Nothing needs attention today.",
-    alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
+    alertOldAppMeta: "Runs version {version}; other phones run {latest}", alertOldAppTip: "It missed the update: open Download apps on that phone and install it", alertSilentMeta: "No contact since {time}", alertSilentNeverMeta: "Has never contacted Relay", alertSilentTip: "Open Relay Receipts, tap Sync now, set battery to Unrestricted.",
     alertOldTitle: "Old receipt shown again", alertOldMeta: "{phone} at {time}", alertOldReference: "Same reference as a receipt from {day}", alertOldDate: "Paid on {day}", alertOldTip: "Not confirmed. Open it: if it is a copy of an old receipt, reject it.", alertSmsMeta: "Bank SMS at {time} · no matching receipt yet", alertSmsTip: "Check the photo reached the cashier phone and Relay.",
-    lastPhoto: "Last photo", lastSeen: "Last contact", never: "Never",
+    lastPhoto: "Last photo", behind: "Older than {latest}: update it", lastSeen: "Last contact", never: "Never",
     phoneCrash: "App crashed {time}: {error}",
     phoneGapLine: "Last silence: {reason}, {time}",
     phoneGaps: { phone_off: "phone was off or restarted", force_stopped: "app was force-stopped", app_killed: "Android closed the app", no_internet: "no internet" },

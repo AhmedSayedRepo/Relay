@@ -99,6 +99,9 @@
     <string name="update_title">يوجد تحديث جديد</string>
     <string name="update_body">الإصدار %1$s من Relay جاهز (لديك %2$s). هل تريد التحديث الآن؟</string>
     <string name="update_now">حدّث الآن</string>
+    <string name="update_check_failed_title">مقدرناش نشوف التحديثات</string>
+    <string name="update_check_failed_body">Relay مقدرش يوصل لسيرفر التحديثات. اتأكد من النت وجرّب تاني: النسخة القديمة ممكن توقف مزامنة الموبايل ده.</string>
+    <string name="update_retry">جرّب تاني</string>
     <string name="update_later">لاحقاً</string>
     <string name="update_failed">لم يكتمل التنزيل. تأكد من الاتصال وحاول مرة أخرى.</string>
     <string name="update_allow_installs">للتحديث، اسمح لـ Relay بتثبيت التطبيقات: اضغط حدّث الآن، وفعّل «السماح من هذا المصدر»، ثم ارجع.</string>

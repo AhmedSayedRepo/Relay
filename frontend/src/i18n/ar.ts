@@ -57,9 +57,9 @@ export const ar = {
   },
   dashboard: {
     alertsTitle: "محتاج انتباه النهارده", alertsResets: "القايمة بتبدأ فاضية كل يوم الصبح.", alertsNone: "مفيش حاجة محتاجة انتباه النهارده.",
-    alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
+    alertOldAppMeta: "شغال على نسخة {version} والباقي على {latest}", alertOldAppTip: "فاته التحديث: افتح صفحة تنزيل التطبيقات من الموبايل ده ونزّله", alertSilentMeta: "مفيش اتصال من الساعة {time}", alertSilentNeverMeta: "عمره ما اتصل بـ Relay", alertSilentTip: "افتح Relay Receipts، دوس مزامنة الآن، وخلّي البطارية غير مقيدة.",
     alertOldTitle: "إيصال قديم اتبعت تاني", alertOldMeta: "{phone} الساعة {time}", alertOldReference: "نفس رقم المرجع بتاع إيصال من {day}", alertOldDate: "اتدفع يوم {day}", alertOldTip: "ماتأكدش. افتحه: لو نسخة من إيصال قديم، ارفضه.", alertSmsMeta: "رسالة بنك الساعة {time} · لسه مفيش إيصال مطابق", alertSmsTip: "اتأكد إن الصورة وصلت لموبايل الكاشير ولـ Relay.",
-    lastPhoto: "آخر صورة وصلت", lastSeen: "آخر اتصال", never: "ولا مرة",
+    lastPhoto: "آخر صورة وصلت", behind: "أقدم من {latest}: حدّثه", lastSeen: "آخر اتصال", never: "ولا مرة",
     phoneCrash: "التطبيق وقع {time}: {error}",
     phoneGapLine: "آخر مرة سكت: {reason}، {time}",
     phoneGaps: { phone_off: "الموبايل كان مقفول أو اتعمله ريستارت", force_stopped: "التطبيق اتقفل بالإجبار", app_killed: "أندرويد قفل التطبيق", no_internet: "مكانش فيه نت" },
