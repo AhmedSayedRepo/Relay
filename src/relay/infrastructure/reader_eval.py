@@ -207,9 +207,10 @@ MODEL_NAMES = {
     "vl_ocr_v1": "PaddleOCR-VL",
     "vl_glm_v1": "GLM-OCR",
     "ppocr_v4": "PaddleOCR (classic) v4",
-    "ppocr_v5": "PaddleOCR (classic)",
+    "ppocr_v5": "PaddleOCR (classic) v5",
+    "ppocr_v6": "PaddleOCR (classic)",
 }
-HELPER = "ppocr_v5"  # must match ppocr_reader.VERSION (checked in tests)
+HELPER = "ppocr_v6"  # must match ppocr_reader.VERSION (checked in tests)
 
 
 async def confirmed_grades(settings: Settings) -> tuple[Grades, dict[str, Grades]]:
@@ -287,7 +288,11 @@ def evaluate_reader(settings: Settings, score: Path | None, accept: bool) -> int
     # where PaddleOCR has not read the receipt).
     # The newest PaddleOCR reading of each receipt (earlier versions while
     # receipts are read again), as in use.
-    helper = {**models.get("ppocr_v4", {}), **models.get(HELPER, {})}
+    helper = {
+        **models.get("ppocr_v4", {}),
+        **models.get("ppocr_v5", {}),
+        **models.get(HELPER, {}),
+    }
     grades = {
         key: combined(value, helper[key]) if key in helper else value
         for key, value in tesseract.items()

@@ -30,9 +30,10 @@ from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
 # v1-v3 readings all failed (numpy results, missing python-bidi, no Arabic
-# model in PP-OCRv6); v5 adds the Latin recognizer's lines on their own.
-VERSION = "ppocr_v5"
-EARLIER = ("ppocr_v4",)
+# model in PP-OCRv6); v5 adds the Latin recognizer's lines on their own;
+# v6 zooms into photos of a screen when the first reading finds too little.
+VERSION = "ppocr_v6"
+EARLIER = ("ppocr_v5", "ppocr_v4")
 KEYS = (VERSION, *EARLIER)
 
 
@@ -236,6 +237,9 @@ async def ppocr_pass(
         ).all()
     done = 0
     for candidate_id, storage_key in rows:
+        if await _carry_over(database, candidate_id):
+            done += 1  # the v5 reading was already good: no need to zoom
+            continue
         started = time.monotonic()
         try:
             data = storage.read(storage_key, MAX_IMAGE_BYTES)
@@ -263,6 +267,30 @@ async def ppocr_pass(
             f"PP-OCR read {str(candidate_id)[:8]} in {reading['seconds']}s", flush=True
         )
     return done
+
+
+async def _carry_over(database: Database, candidate_id: Any) -> bool:
+    """Keep a good earlier reading as this version's, without reading again:
+    only photos the earlier version read poorly are read again (zoomed)."""
+    async with database.session() as session:
+        row = await session.scalar(
+            select(ReceiptCandidateRow)
+            .where(ReceiptCandidateRow.id == candidate_id)
+            .with_for_update()
+        )
+        if row is None:
+            return True
+        machine = row.machine_result if isinstance(row.machine_result, dict) else {}
+        earlier = machine.get("ppocr_v5")
+        if not isinstance(earlier, dict) or earlier.get("error"):
+            return False
+        if not _readable(str(earlier.get("latin") or earlier.get("text") or "")):
+            return False
+        machine = copy.deepcopy(machine)
+        machine[VERSION] = dict(earlier) | {"carried_from": "ppocr_v5"}
+        row.machine_result = machine
+        await session.commit()
+    return True
 
 
 async def ppocr_loop(database: Database, storage: FilesystemObjectStorage) -> None:
