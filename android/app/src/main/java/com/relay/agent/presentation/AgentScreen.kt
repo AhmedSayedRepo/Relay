@@ -384,10 +384,15 @@ private fun Header(
                 modifier = Modifier.weight(1f).semantics { heading() }
             )
             if (appVersion.isNotEmpty()) {
+                // The installed version as a tag, so it can be compared with
+                // the portal's Devices page at a glance.
                 Text(
                     "v" + appVersion.substringBefore("-"),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = relay.onHeaderSoft
+                    style = MaterialTheme.typography.labelLarge,
+                    color = relay.onHeader,
+                    modifier = Modifier
+                        .background(relay.onHeader.copy(alpha = 0.16f), CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
             if (switchLanguage != null) {

@@ -635,3 +635,5 @@ td { font-variant-numeric: tabular-nums; }
 .close-confirm input { width: 100%; }
 @media (max-width: 680px) { .close-shift { justify-self: stretch; padding-block: .6rem; } }
 .version-behind { margin-inline-start: .45rem; }
+.version-tag { display: inline-flex; align-items: center; margin-inline-start: .6rem; padding: .18rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 800; vertical-align: middle; color: var(--success); background: var(--success-soft); }
+.version-tag.behind { color: var(--warning); background: var(--warning-soft); }
