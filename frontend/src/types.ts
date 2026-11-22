@@ -37,6 +37,7 @@ export type Transaction = {
   created_at: string;
   ocr_mean_confidence: number | null;
   sms_verification: string | null;
+  sms_source: "bank" | "instapay" | "both" | null;
   image_url: string;
   [key: string]: Json;
 };
