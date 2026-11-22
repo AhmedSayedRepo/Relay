@@ -25,6 +25,16 @@ data class ReleaseNote(val en: List<String>, val ar: List<String>)
 /** What changed in each app version. Add an entry before each Android release. */
 object ReleaseNotes {
     val byVersion: Map<String, ReleaseNote> = mapOf(
+        "0.8.9" to ReleaseNote(
+            en = listOf(
+                "Photos in subfolders of the chosen folders are sent too, such as " +
+                    "WhatsApp's Sent folder for pictures taken with its camera."
+            ),
+            ar = listOf(
+                "الصور اللي جوه الفولدرات الفرعية بتتبعت كمان، زي فولدر Sent بتاع " +
+                    "واتساب للصور اللي اتصورت بكاميرته."
+            )
+        ),
         "0.8.8" to ReleaseNote(
             en = listOf(
                 "If the app can’t check for updates, it now says so, with Try again.",

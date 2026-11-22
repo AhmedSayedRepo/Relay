@@ -12,7 +12,11 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Reads only direct children of a user-selected SAF tree. It never crawls device storage. */
+/**
+ * Reads a user-selected SAF tree and its subfolders (WhatsApp keeps photos
+ * taken with its own camera in "Sent"). It never reaches outside the folders
+ * the user chose; hidden folders (thumbnails, trash) are skipped.
+ */
 class SafTreeImageSource(private val context: Context) : ImageSource {
     private val resolver = context.contentResolver
 
@@ -29,10 +33,11 @@ class SafTreeImageSource(private val context: Context) : ImageSource {
         recent(source, 0L, limit)
 
     /**
-     * Every direct child changed since [sinceMillis] (and after the folder was
-     * approved), newest first. The folder's own order is not by date, so all
-     * rows are read (name, type, time and size only) and sorted before the
-     * newest [limit] are opened for their dimensions.
+     * Every photo in the folder and its subfolders changed since [sinceMillis]
+     * (and after the folder was approved), newest first. The folder's own
+     * order is not by date, so all rows are read (name, type, time and size
+     * only) and sorted before the newest [limit] are opened for their
+     * dimensions.
      */
     override suspend fun recent(
         source: ApprovedImageSource,
@@ -42,22 +47,33 @@ class SafTreeImageSource(private val context: Context) : ImageSource {
         require(limit in 1..MAX_CANDIDATES)
         if (!accessGranted(source)) return@withContext emptyList()
         val tree = source.treeUri.toUri()
-        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
-            tree,
-            DocumentsContract.getTreeDocumentId(tree)
-        )
         val after = maxOf(source.approvedAtMillis, sinceMillis)
         val rows = mutableListOf<Row>()
-        resolver.query(children, PROJECTION, null, null, null)?.use { cursor ->
-            while (cursor.moveToNext()) {
-                val documentId = cursor.getString(0) ?: continue
-                val mime = cursor.getString(2) ?: continue
-                val modified = cursor.getLong(3)
-                val size = cursor.getLong(4)
-                if (modified <= after || mime !in ALLOWED_MIMES || size !in 1..MAX_IMAGE_BYTES) {
-                    continue
+        // Breadth-first through the subfolders, a few levels deep and with a
+        // cap on rows read, so a huge folder cannot stall a sync.
+        val folders = ArrayDeque(listOf(DocumentsContract.getTreeDocumentId(tree) to 0))
+        var seen = 0
+        while (folders.isNotEmpty() && seen < MAX_ROWS) {
+            val (folderId, depth) = folders.removeFirst()
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, folderId)
+            resolver.query(children, PROJECTION, null, null, null)?.use { cursor ->
+                while (cursor.moveToNext() && seen < MAX_ROWS) {
+                    seen += 1
+                    val documentId = cursor.getString(0) ?: continue
+                    val name = cursor.getString(1)
+                    val mime = cursor.getString(2) ?: continue
+                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                        if (depth < MAX_DEPTH && name?.startsWith(".") != true) {
+                            folders.addLast(documentId to depth + 1)
+                        }
+                        continue
+                    }
+                    val modified = cursor.getLong(3)
+                    val size = cursor.getLong(4)
+                    if (modified <= after || mime !in ALLOWED_MIMES) continue
+                    if (size !in 1..MAX_IMAGE_BYTES || name?.startsWith(".") == true) continue
+                    rows += Row(documentId, name, mime, modified, size)
                 }
-                rows += Row(documentId, cursor.getString(1), mime, modified, size)
             }
         }
         val values = mutableListOf<ImageCandidate>()
@@ -131,6 +147,8 @@ class SafTreeImageSource(private val context: Context) : ImageSource {
 
     companion object {
         const val MAX_CANDIDATES = 300
+        const val MAX_DEPTH = 3
+        const val MAX_ROWS = 20_000
         const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
         const val MAX_DIMENSION = 12_000
         const val MAX_PIXELS = 40_000_000L
