@@ -128,6 +128,20 @@ def read_parts(data: bytes) -> dict[str, str]:
 
     with Image.open(io.BytesIO(data)) as image:
         picture = ImageOps.exif_transpose(image).convert("RGB")
+    first = _read_picture(picture)
+    if _readable(first["latin"]):
+        return first
+    # Little or nothing read: often a dark photo of another phone's screen,
+    # where the text is a few pixels high. Crop to the screen, enlarge and
+    # read again; keep whichever reading found more.
+    zoomed = zoom_in(picture)
+    if zoomed is None:
+        return first
+    second = _read_picture(zoomed)
+    return second if len(second["latin"]) > len(first["latin"]) else first
+
+
+def _read_picture(picture: Any) -> dict[str, str]:
     import numpy
 
     array = numpy.asarray(picture)
@@ -140,6 +154,58 @@ def read_parts(data: bytes) -> dict[str, str]:
             )
         )
     return {"text": "\n".join(parts), "latin": parts[0] if parts else ""}
+
+
+ZOOM_MAX_SIDE = 2600
+
+
+def _readable(latin: str) -> bool:
+    """Enough for a receipt: a reference-like number and an amount in EGP."""
+    import re
+
+    return bool(re.search(r"\d{10,}", latin)) and "EGP" in latin.upper()
+
+
+def zoom_in(picture: Any) -> Any:
+    """The bright screen in a photo, cropped, enlarged and sharpened; None
+    when there is nothing to gain (already large and filling the frame)."""
+    from PIL import ImageFilter, ImageOps
+
+    gray = ImageOps.grayscale(picture)
+    histogram = gray.histogram()
+    total = sum(histogram)
+    seen, cut = 0, 255
+    for level in range(255, -1, -1):  # the brightest ~35% of pixels
+        seen += histogram[level]
+        if seen >= total * 0.35:
+            cut = level
+            break
+    box = gray.point(lambda value: 255 if value >= max(cut, 60) else 0).getbbox()
+    width, height = picture.size
+    if box is not None:
+        left, top, right, bottom = box
+        pad_x, pad_y = (right - left) // 20, (bottom - top) // 20
+        box = (
+            max(0, left - pad_x),
+            max(0, top - pad_y),
+            min(width, right + pad_x),
+            min(height, bottom + pad_y),
+        )
+        area = (box[2] - box[0]) * (box[3] - box[1])
+        if area < width * height * 0.08:
+            box = None  # a lamp or a reflection, not a screen
+    cropped = picture.crop(box) if box is not None else picture
+    side = max(cropped.size)
+    scale = min(3.0, ZOOM_MAX_SIDE / side)
+    if scale < 1.3 and box is None:
+        return None
+    if scale > 1:
+        cropped = cropped.resize(
+            (int(cropped.width * scale), int(cropped.height * scale)),
+            resample=3,  # bicubic
+        )
+    cropped = ImageOps.autocontrast(cropped, cutoff=1)
+    return cropped.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=3))
 
 
 async def ppocr_pass(

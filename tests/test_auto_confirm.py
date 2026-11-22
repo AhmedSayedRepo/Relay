@@ -2,7 +2,7 @@
 same day backs up a receipt; everything else waits for review."""
 
 from datetime import datetime, timedelta
-from itertools import cycle
+from itertools import count, cycle
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -19,14 +19,23 @@ from tests.test_sms_verification import _send_sms
 CAIRO = ZoneInfo("Africa/Cairo")
 
 
+_REFERENCES = count(700000000001)
+
+
 class FakeReader:
+    """Model readings; each gets its own reference number unless the test
+    gives one (or a "reference_number": None to leave it unread)."""
+
     version = "test-reader"
 
     def __init__(self, *values):
         self.values = cycle(values)
 
     def read(self, image: bytes) -> dict[str, str]:
-        return dict(next(self.values))
+        reading = dict(next(self.values))
+        if "amount" in reading and "reference_number" not in reading:
+            reading["reference_number"] = str(next(_REFERENCES))
+        return {key: value for key, value in reading.items() if value is not None}
 
 
 async def _text(app, text="", sender=None, instapay=True):
@@ -682,7 +691,10 @@ async def test_paddleocr_helps_when_tesseract_reads_nothing(client, auth_headers
     await _send_sms(client, bundle, body, _now())
     # A photo of a phone: Tesseract reads neither amount nor recipient.
     await model_suggest(
-        app.state.database, app.state.object_storage, FakeReader({}), 10
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"reference_number": "362246940647"}),
+        10,
     )
     await _text(app, "متابعة المعاملة")
     await _ppocr(
@@ -757,7 +769,10 @@ async def test_bank_sms_decides_when_the_readers_disagree(client, auth_headers, 
         client, bundle, "notice: You have received EGP 56.00 via InstaPay", _now()
     )
     await model_suggest(
-        app.state.database, app.state.object_storage, FakeReader({}), 10
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"reference_number": "729817663564"}),
+        10,
     )
     # Tesseract reads 56.00, PaddleOCR 590.00 (total minus fee): the only
     # SMS that day says 56.00, so Tesseract's reading is the one proved.
@@ -1094,3 +1109,47 @@ async def test_a_copy_hidden_before_comes_back_flagged_as_a_repeat(
             "kind": "reference",
             "with": "first-id",
         }
+
+
+async def test_a_receipt_without_a_reference_waits_even_with_a_matching_sms(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "no-ref")
+    bundle = await _link_sms(client, auth_headers, [candidate], "no-ref-phone")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 19485.00 via InstaPay", _now()
+    )
+    counts = await _read_and_confirm(
+        app, {"amount": "19485.00", "currency": "EGP", "reference_number": None}
+    )
+    assert counts["sms_day"] == 0 and counts["no_reference"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+
+
+def test_a_dark_photo_of_a_screen_is_cropped_and_enlarged() -> None:
+    from PIL import Image, ImageDraw
+
+    from relay.infrastructure.ppocr_reader import zoom_in
+
+    photo = Image.new("RGB", (900, 1200), (20, 20, 20))
+    ImageDraw.Draw(photo).rectangle((300, 300, 600, 800), fill=(235, 235, 235))
+    zoomed = zoom_in(photo)
+    assert zoomed is not None
+    # Only the bright screen (plus a small margin), enlarged.
+    assert zoomed.width > 600 and zoomed.width / zoomed.height < 0.75
+
+
+async def test_an_unreadable_photo_goes_to_review_not_rejected(
+    client, auth_headers, app
+):
+    from relay.infrastructure.cli import review_unreadable
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "unreadable")
+    await _machine_rejected(app)
+    assert await review_unreadable(app.state.database) == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
+    assert detail["resolution_result"]["unreadable"] is True
+    # Moved once: nothing left for the next loop.
+    assert await review_unreadable(app.state.database) == 0

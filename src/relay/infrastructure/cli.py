@@ -291,6 +291,45 @@ async def hide_non_receipts(database: Database) -> int:
     return hidden
 
 
+async def review_unreadable(database: Database) -> int:
+    """Photos the first reader rejected because it could read nothing go to
+    Review instead: a person can often read what the machine could not.
+    Not error screens, payment requests, copies, or anything a person
+    already decided; clear non-receipts are hidden again by the next step."""
+    from relay.infrastructure import text_recheck
+
+    moved = 0
+    async with database.session() as session:
+        rows = await session.scalars(
+            select(ReceiptCandidateRow)
+            .where(
+                ReceiptCandidateRow.review_status == ReviewStatus.REJECTED.value,
+                ReceiptCandidateRow.hidden_reason.is_(None),
+            )
+            .with_for_update()
+        )
+        now = datetime.now(UTC)
+        for row in rows:
+            resolution = row.resolution_result
+            resolution = resolution if isinstance(resolution, dict) else {}
+            read = (row.machine_result or {}).get(text_recheck.VERSION)
+            read = read if isinstance(read, dict) else {}
+            if (
+                resolution.get("rejected_reason")
+                or not _machine_only(row)
+                or read.get("failed")
+                or read.get("payment_request")
+            ):
+                continue
+            reopened = _reopen(row, "unreadable", now)
+            row.resolution_result = reopened | {"unreadable": True}
+            moved += 1
+        await session.commit()
+    if moved:
+        print(f"Moved {moved} unreadable photos from Rejected to Review.")
+    return moved
+
+
 async def unhide_receipt_like(database: Database) -> int:
     """Bring back photos hidden by the stricter rule that came before."""
     from relay.infrastructure import text_recheck
@@ -1066,7 +1105,14 @@ async def auto_confirm(
         shows_a_phone,
     )
 
-    counts = {"sms_day": 0, "waiting": 0, "failed": 0, "copies": 0, "old": 0}
+    counts = {
+        "sms_day": 0,
+        "waiting": 0,
+        "failed": 0,
+        "copies": 0,
+        "old": 0,
+        "no_reference": 0,
+    }
     wait = _primary_wait()
     async with database.session() as session:
         reviewer = await session.scalar(
@@ -1338,6 +1384,13 @@ async def auto_confirm(
             continue
         if previous is not None:
             await _untag(database, candidate_id, "possible_repeat")
+        if model_values(resolution, ("reference_number",)) is None:
+            # No reference number read (a bank-app screen, a blurry photo):
+            # a person checks it in Review, even when a bank SMS shows the
+            # same amount.
+            counts["no_reference"] += 1
+            counts["waiting"] += 1
+            continue
         if (unclear or scaled) and not alone(candidate_id, day, core["amount"]):
             counts["waiting"] += 1  # two receipts could claim the one SMS
             continue
@@ -1769,6 +1822,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                     database, storage, provider, tuple(settings.ocr_languages), 4
                 )
                 await helper_reopen(database)
+                await review_unreadable(database)
                 await hide_non_receipts(database)
                 await unhide_copies(database)
                 await helper_suggest(database)

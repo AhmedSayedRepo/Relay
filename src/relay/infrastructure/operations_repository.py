@@ -134,6 +134,8 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         return None
     if isinstance(resolution.get("old_receipt"), dict):
         return "old_receipt"
+    if resolution.get("unreadable") and not resolution.get("possible_repeat"):
+        return "unreadable"
     repeat = resolution.get("possible_repeat")
     repeat_kind = repeat.get("kind") if isinstance(repeat, dict) else None
     if value.duplicate_of_candidate_id is not None or repeat_kind == "reference":
