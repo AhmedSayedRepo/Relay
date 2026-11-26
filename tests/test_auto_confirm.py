@@ -172,7 +172,7 @@ async def test_each_sms_confirms_one_receipt(client, auth_headers, app):
     assert again["sms_day"] == 1
 
 
-async def test_repeat_without_references_waits(client, auth_headers, app):
+async def test_repeat_without_references_confirms_one(client, auth_headers, app):
     first, _ = await run_receipt(client, auth_headers, app, "day-rep-a")
     second, _ = await run_receipt(client, auth_headers, app, "day-rep-b")
     bundle = await _link_sms(client, auth_headers, [first, second], "day-rep-phone")
@@ -201,7 +201,9 @@ async def test_repeat_without_references_waits(client, auth_headers, app):
     counts = await auto_confirm(
         app.state.database, app.state.object_storage, app.state.settings
     )
-    assert counts["sms_day"] == 0 and counts["waiting"] == 2
+    # The first is confirmed by an SMS at the same time; the other waits
+    # beside it as a possible repeat, even with a second SMS.
+    assert counts["sms_day"] == 1 and counts["waiting"] == 1
     listed = await client.get("/api/v1/transactions", headers=auth_headers)
     pair = {i["id"]: i["similar_to"] for i in listed.json()["items"]}
     # The later one points at the first (the original), side by side; the
@@ -1222,20 +1224,28 @@ async def test_a_copy_hidden_before_comes_back_flagged_as_a_repeat(
         }
 
 
-async def test_a_receipt_without_a_reference_waits_even_with_a_matching_sms(
+async def test_a_receipt_without_a_reference_needs_an_sms_at_the_same_time(
     client, auth_headers, app
 ):
     candidate, _ = await run_receipt(client, auth_headers, app, "no-ref")
     bundle = await _link_sms(client, auth_headers, [candidate], "no-ref-phone")
-    await _send_sms(
-        client, bundle, "notice: You have received EGP 19485.00 via InstaPay", _now()
-    )
+    body = "notice: You have received EGP 19485.00 via InstaPay"
+    # Same amount, but hours before the photo: not the same payment for sure.
+    await _send_sms(client, bundle, body, _now() - timedelta(hours=4))
     counts = await _read_and_confirm(
         app, {"amount": "19485.00", "currency": "EGP", "reference_number": None}
     )
     assert counts["sms_day"] == 0 and counts["no_reference"] == 1
     detail = await _detail(client, auth_headers, candidate)
     assert detail["review_status"] == "NEEDS_REVIEW"
+    # The bank SMS right before the photo confirms it, reference or not.
+    await _send_sms(client, bundle, body, _now() - timedelta(minutes=5))
+    again = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    assert again["sms_day"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["resolution_result"]["auto_confirmed"]["no_reference"] is True
 
 
 def test_a_dark_photo_of_a_screen_is_cropped_and_enlarged() -> None:

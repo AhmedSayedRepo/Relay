@@ -1066,6 +1066,12 @@ OLD_RECEIPT_DAYS = 2  # a printed payment date this many days before arrival
 # Paid late in the evening, the photo reaches the phone after midnight: the
 # bank SMS of the evening before still counts, this long before the photo.
 EVENING_BEFORE = timedelta(hours=12)
+# No reference on the receipt (a bank-app screen): the bank SMS must also
+# come at the same time as the payment, near its printed time, else shortly
+# before the photo reached the phone.
+PRINTED_TIME_SLACK = timedelta(minutes=30)
+BEFORE_PHOTO = timedelta(hours=3)
+AFTER_PHOTO = timedelta(minutes=15)
 
 
 def _without_at(value: Any) -> Any:
@@ -1280,6 +1286,21 @@ async def auto_confirm(
             return None
         return since
 
+    def paid_around(folder_at: datetime, resolution: Any) -> tuple[datetime, datetime]:
+        """When the payment happened: around its printed date and time if
+        both were read, else shortly before the photo reached the phone."""
+        printed = model_values(resolution, ("date", "time"), ("text",)) or (
+            model_values(resolution, ("date", "time")) or {}
+        )
+        try:
+            paid = datetime.fromisoformat(
+                f"{printed['date']}T{printed['time']}"
+            ).replace(tzinfo=ZoneInfo(settings.receipt_timezone))
+        except (KeyError, ValueError):
+            moment = aware(folder_at)
+            return moment - BEFORE_PHOTO, moment + AFTER_PHOTO
+        return paid - PRINTED_TIME_SLACK, paid + PRINTED_TIME_SLACK
+
     def alone(candidate_id: UUID, day: str, amount: Any) -> bool:
         """No other receipt that day, waiting or confirmed, shows this amount."""
         return not any(
@@ -1432,13 +1453,11 @@ async def auto_confirm(
             continue
         if previous is not None:
             await _untag(database, candidate_id, "possible_repeat")
+        near: tuple[datetime, datetime] | None = None
         if model_values(resolution, ("reference_number",)) is None:
             # No reference number read (a bank-app screen, a blurry photo):
-            # a person checks it in Review, even when a bank SMS shows the
-            # same amount.
-            counts["no_reference"] += 1
-            counts["waiting"] += 1
-            continue
+            # only a bank SMS with the amount at the same time confirms it.
+            near = paid_around(folder_at, resolution)
         if (unclear or scaled) and not alone(candidate_id, day, core["amount"]):
             counts["waiting"] += 1  # two receipts could claim the one SMS
             continue
@@ -1471,11 +1490,20 @@ async def auto_confirm(
                     core["currency"],
                     aware(folder_at),
                     frozenset(used),
-                    evening_before(candidate_id, folder_at, day, resolution, amount),
+                    (
+                        None
+                        if near is not None
+                        else evening_before(
+                            candidate_id, folder_at, day, resolution, amount
+                        )
+                    ),
+                    near,
                 )
             if sms is not None:
                 break
         if sms is None:
+            if near is not None:
+                counts["no_reference"] += 1
             counts["waiting"] += 1
             continue
         if lifted is not None:
@@ -1508,6 +1536,7 @@ async def auto_confirm(
                     "trained_fields": _verified_fields(values, machine),
                 }
                 | ({"recipient": "unclear"} if unclear else {})
+                | ({"no_reference": True} if near is not None else {})
                 | ({"amount_read_as": read_as} if scaled else {}),
             )
             if unclear:
