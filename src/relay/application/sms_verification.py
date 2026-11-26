@@ -376,10 +376,12 @@ class SmsVerificationService:
         currency: str,
         folder_at: datetime,
         exclude: frozenset[UUID] = frozenset(),
+        since: datetime | None = None,
     ) -> SmsFacts | None:
         """The earliest free incoming bank SMS with this amount that arrived
         on the same local day as the receipt image. Time of day does not
-        matter; a different day never matches."""
+        matter. An earlier day matches only from ``since`` (paid late in the
+        evening, photo after midnight), and only when that day has none."""
         try:
             value = Decimal(amount).quantize(Decimal("0.01"))
         except InvalidOperation:
@@ -393,21 +395,27 @@ class SmsVerificationService:
             return None
         day = folder_at.astimezone(self.zone).date()
         start = datetime(day.year, day.month, day.day, tzinfo=self.zone)
+        earliest = min(start, since) if since is not None else start
         held = await self.repo.held_events(except_candidate=candidate_id)
         events = await self.repo.sms_events(
-            sources, start - timedelta(hours=1), start + timedelta(hours=25)
+            sources, earliest - timedelta(hours=1), start + timedelta(hours=25)
         )
-        for sms in sorted(_facts(events), key=lambda item: item.occurred_at):
-            if (
-                sms.event_id not in held
-                and sms.event_id not in exclude
-                and sms.device_id in sources
-                and sms.direction == SmsDirection.IN
-                and sms.amount == value
-                and sms.currency == currency.upper()
-                and sms.occurred_at.astimezone(self.zone).date() == day
-            ):
+        free = [
+            sms
+            for sms in sorted(_facts(events), key=lambda item: item.occurred_at)
+            if sms.event_id not in held
+            and sms.event_id not in exclude
+            and sms.device_id in sources
+            and sms.direction == SmsDirection.IN
+            and sms.amount == value
+            and sms.currency == currency.upper()
+        ]
+        for sms in free:
+            if sms.occurred_at.astimezone(self.zone).date() == day:
                 return sms
+        for sms in reversed(free):
+            if since is not None and since <= sms.occurred_at < start:
+                return sms  # the latest one before midnight
         return None
 
     async def record_day_match(

@@ -1063,6 +1063,9 @@ def _same_amount(first: Any, second: Any) -> bool:
 
 
 OLD_RECEIPT_DAYS = 2  # a printed payment date this many days before arrival
+# Paid late in the evening, the photo reaches the phone after midnight: the
+# bank SMS of the evening before still counts, this long before the photo.
+EVENING_BEFORE = timedelta(hours=12)
 
 
 def _without_at(value: Any) -> Any:
@@ -1240,6 +1243,43 @@ async def auto_confirm(
             return {"kind": "date", "paid_on": paid.isoformat()}
         return None
 
+    facts_of = {candidate_id: mine for candidate_id, _, mine in known}
+
+    def rank(candidate_id: UUID) -> tuple[bool, datetime, str]:
+        """Which of two repeats is the original: one with a reference first
+        (only it can be confirmed), then the one that arrived first."""
+        moment = arrived.get(candidate_id)
+        return (
+            facts_of.get(candidate_id, {}).get("reference") is None,
+            aware(moment) if moment is not None else datetime.max.replace(tzinfo=UTC),
+            str(candidate_id),
+        )
+
+    def evening_before(
+        candidate_id: UUID, folder_at: datetime, day: str, resolution: Any, amount: Any
+    ) -> datetime | None:
+        """From when an SMS of the day before backs this receipt: the photo
+        came early in the day, or the receipt prints yesterday's date. Only
+        when no receipt of yesterday shows the same amount."""
+        zone = ZoneInfo(settings.receipt_timezone)
+        today = date.fromisoformat(day)
+        midnight = datetime(today.year, today.month, today.day, tzinfo=zone)
+        yesterday = today - timedelta(days=1)
+        since = aware(folder_at) - EVENING_BEFORE
+        printed = (model_values(resolution, ("date",), ("text",)) or {}).get("date")
+        try:
+            paid = date.fromisoformat(printed) if printed else None
+        except ValueError:
+            paid = None
+        if paid == yesterday:
+            since = min(
+                since,
+                datetime(yesterday.year, yesterday.month, yesterday.day, tzinfo=zone),
+            )
+        if since >= midnight or not alone(candidate_id, yesterday.isoformat(), amount):
+            return None
+        return since
+
     def alone(candidate_id: UUID, day: str, amount: Any) -> bool:
         """No other receipt that day, waiting or confirmed, shows this amount."""
         return not any(
@@ -1363,23 +1403,31 @@ async def auto_confirm(
             else repeated(candidate_id, day, facts(resolution, machine))
         )
         previous = resolution.get("possible_repeat")
-        if repeat is not None and repeat[0] == "reference":
+        if repeat is not None:
             other_id = repeat[1]
-            other_arrived = arrived.get(other_id)
-            earlier = other_arrived is not None and (
-                (other_arrived, str(other_id)) < (created_at, str(candidate_id))
-            )
-            if not earlier and status_of.get(other_id) != (
+            if not rank(other_id) < rank(candidate_id) and status_of.get(other_id) != (
                 ReviewStatus.AUTO_ACCEPTED.value
             ):
-                # The first of the pair goes on as usual; the later one (the
-                # copy) waits in Review, shown side by side with this one.
+                # The original goes on as usual; only the other one (the
+                # copy) waits in Review, shown side by side with it.
                 repeat = None
         if repeat is not None:
             kind, other_id = repeat
             tag = {"day": day, "kind": kind, "with": str(other_id)}
             if _without_at(previous) != tag:
                 await _tag(database, candidate_id, "possible_repeat", tag)
+            if (
+                kind == "reference"
+                and status_of.get(other_id) == ReviewStatus.AUTO_ACCEPTED.value
+            ):
+                # Same reference and amount as a confirmed receipt: the same
+                # transfer sent again. Rejected as its copy, no Review.
+                from relay.infrastructure.copies import reject_copies
+
+                async with database.session() as session:
+                    await reject_copies(session, [candidate_id], reviewer)
+                counts["copies"] += 1
+                continue
             counts["waiting"] += 1
             continue
         if previous is not None:
@@ -1423,6 +1471,7 @@ async def auto_confirm(
                     core["currency"],
                     aware(folder_at),
                     frozenset(used),
+                    evening_before(candidate_id, folder_at, day, resolution, amount),
                 )
             if sms is not None:
                 break
@@ -1480,6 +1529,7 @@ async def auto_confirm(
                     "sms_day",
                 )
             counts["sms_day"] += 1
+            status_of[candidate_id] = ReviewStatus.AUTO_ACCEPTED.value
         except Conflict as error:
             counts["failed"] += 1
             print(f"Left {candidate_id} for review: {error}")

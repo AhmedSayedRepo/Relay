@@ -204,8 +204,97 @@ async def test_repeat_without_references_waits(client, auth_headers, app):
     assert counts["sms_day"] == 0 and counts["waiting"] == 2
     listed = await client.get("/api/v1/transactions", headers=auth_headers)
     pair = {i["id"]: i["similar_to"] for i in listed.json()["items"]}
-    # Each points at the other, so they can be opened side by side.
-    assert pair[first["id"]] == second["id"] and pair[second["id"]] == first["id"]
+    # The later one points at the first (the original), side by side; the
+    # first is not tagged, so the two never block each other.
+    assert pair[second["id"]] == first["id"] and pair[first["id"]] is None
+
+
+async def test_the_original_of_a_same_sender_repeat_is_confirmed(
+    client, auth_headers, app
+):
+    first, _ = await run_receipt(client, auth_headers, app, "sender-rep-a")
+    second, _ = await run_receipt(client, auth_headers, app, "sender-rep-b")
+    bundle = await _link_sms(client, auth_headers, [first, second], "sender-rep-ph")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 880.00 via InstaPay", _now()
+    )
+    await model_suggest(
+        app.state.database,
+        app.state.object_storage,
+        FakeReader({"amount": "880.00", "currency": "EGP"}),
+        10,
+    )
+    await _text(app)
+    # The same amount from the same sender; only one shows its reference.
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        resolution = dict(row.resolution_result)
+        fields = dict(resolution["fields"])
+        fields["reference_number"] = {
+            **fields["reference_number"],
+            "value": None,
+            "candidates": [],
+        }
+        row.resolution_result = resolution | {"fields": fields}
+        await session.commit()
+    counts = await auto_confirm(
+        app.state.database, app.state.object_storage, app.state.settings
+    )
+    # Before: each was tagged a repeat of the other and neither was confirmed.
+    assert counts["sms_day"] == 1
+    async with app.state.database.session() as session:
+        one = await session.get(ReceiptCandidateRow, UUID(first["id"]))
+        two = await session.get(ReceiptCandidateRow, UUID(second["id"]))
+        assert two.review_status == "AUTO_ACCEPTED"
+        assert one.review_status == "NEEDS_REVIEW"
+        assert one.resolution_result["possible_repeat"]["with"] == second["id"]
+
+
+async def test_an_sms_of_the_evening_before_confirms_an_after_midnight_photo(
+    client, auth_headers, app
+):
+    from relay.infrastructure.event_models import RawEventRow
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "late-night")
+    bundle = await _link_sms(client, auth_headers, [candidate], "late-night-ph")
+    morning = _now().replace(hour=6, minute=46, second=0)
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        event = await session.get(RawEventRow, row.raw_event_id)
+        event.occurred_at = morning
+        await session.commit()
+    # Paid at 10:39 pm; the photo reached the phone at 6:46 the next morning.
+    await _send_sms(
+        client,
+        bundle,
+        "notice: You have received EGP 850.00 via InstaPay",
+        morning - timedelta(hours=8, minutes=7),
+    )
+    counts = await _read_and_confirm(app, {"amount": "850.00", "currency": "EGP"})
+    assert counts["sms_day"] == 1
+
+
+async def test_an_sms_of_the_day_before_waits_for_an_afternoon_photo(
+    client, auth_headers, app
+):
+    from relay.infrastructure.event_models import RawEventRow
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "late-noon")
+    bundle = await _link_sms(client, auth_headers, [candidate], "late-noon-ph")
+    afternoon = _now().replace(hour=15, minute=0, second=0)
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        event = await session.get(RawEventRow, row.raw_event_id)
+        event.occurred_at = afternoon
+        await session.commit()
+    await _send_sms(
+        client,
+        bundle,
+        "notice: You have received EGP 851.00 via InstaPay",
+        afternoon - timedelta(hours=17),
+    )
+    counts = await _read_and_confirm(app, {"amount": "851.00", "currency": "EGP"})
+    assert counts["sms_day"] == 0
 
 
 async def test_recipient_must_be_set_owner(client, auth_headers, app):
@@ -941,12 +1030,29 @@ async def test_the_same_receipt_sent_again_waits_in_review_beside_the_first(
     # One transfer, photographed twice (forwarded, or in two folders).
     same = {"amount": "577.00", "currency": "EGP", "reference_number": "820492013227"}
     counts = await _read_and_confirm(app, same)
-    # The first one is confirmed; the copy waits in Review beside it.
-    assert counts["sms_day"] == 1 and counts["copies"] == 0
+    # The first one is confirmed; the copy is rejected as its copy.
+    assert counts["sms_day"] == 1 and counts["copies"] == 1
     async with app.state.database.session() as session:
         one = await session.get(ReceiptCandidateRow, UUID(first["id"]))
         two = await session.get(ReceiptCandidateRow, UUID(second["id"]))
         assert one.review_status == "AUTO_ACCEPTED"
+        assert two.review_status == "REJECTED"
+        assert two.resolution_result["rejected_reason"] == "copy"
+        assert two.resolution_result["copy_of"] == first["id"]
+
+
+async def test_a_copy_of_an_unconfirmed_receipt_waits_beside_it(
+    client, auth_headers, app
+):
+    first, _ = await run_receipt(client, auth_headers, app, "day-copy-c")
+    second, _ = await run_receipt(client, auth_headers, app, "day-copy-d")
+    await _link_sms(client, auth_headers, [first, second], "day-copy-phone2")
+    # No bank SMS yet: the first waits, and its copy waits beside it.
+    same = {"amount": "578.00", "currency": "EGP", "reference_number": "820492013228"}
+    counts = await _read_and_confirm(app, same)
+    assert counts["sms_day"] == 0 and counts["copies"] == 0
+    async with app.state.database.session() as session:
+        two = await session.get(ReceiptCandidateRow, UUID(second["id"]))
         assert two.review_status == "NEEDS_REVIEW" and two.hidden_reason is None
         assert two.resolution_result["possible_repeat"]["with"] == first["id"]
     listed = await client.get(
@@ -958,9 +1064,9 @@ async def test_the_same_receipt_sent_again_waits_in_review_beside_the_first(
     rejected = await client.post(
         "/api/v1/receipts/reject-copies",
         headers=auth_headers,
-        json={"ids": [second["id"], first["id"]]},
+        json={"ids": [second["id"]]},
     )
-    assert rejected.json() == {"rejected": 1, "skipped": 1}
+    assert rejected.json() == {"rejected": 1, "skipped": 0}
     detail = await client.get(
         f"/api/v1/transactions/{second['id']}", headers=auth_headers
     )
