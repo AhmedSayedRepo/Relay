@@ -377,11 +377,13 @@ class SmsVerificationService:
         folder_at: datetime,
         exclude: frozenset[UUID] = frozenset(),
         since: datetime | None = None,
+        near: tuple[datetime, datetime] | None = None,
     ) -> SmsFacts | None:
         """The earliest free incoming bank SMS with this amount that arrived
         on the same local day as the receipt image. Time of day does not
         matter. An earlier day matches only from ``since`` (paid late in the
-        evening, photo after midnight), and only when that day has none."""
+        evening, photo after midnight), and only when that day has none. With
+        ``near``, only an SMS inside that time span counts, whatever the day."""
         try:
             value = Decimal(amount).quantize(Decimal("0.01"))
         except InvalidOperation:
@@ -396,6 +398,8 @@ class SmsVerificationService:
         day = folder_at.astimezone(self.zone).date()
         start = datetime(day.year, day.month, day.day, tzinfo=self.zone)
         earliest = min(start, since) if since is not None else start
+        if near is not None:
+            earliest = min(earliest, near[0])
         held = await self.repo.held_events(except_candidate=candidate_id)
         events = await self.repo.sms_events(
             sources, earliest - timedelta(hours=1), start + timedelta(hours=25)
@@ -410,6 +414,10 @@ class SmsVerificationService:
             and sms.amount == value
             and sms.currency == currency.upper()
         ]
+        if near is not None:
+            return next(
+                (sms for sms in free if near[0] <= sms.occurred_at <= near[1]), None
+            )
         for sms in free:
             if sms.occurred_at.astimezone(self.zone).date() == day:
                 return sms
