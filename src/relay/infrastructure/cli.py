@@ -1448,7 +1448,9 @@ async def auto_confirm(
                 from relay.infrastructure.copies import reject_copies
 
                 async with database.session() as session:
-                    await reject_copies(session, [candidate_id], reviewer)
+                    await reject_copies(
+                        session, [candidate_id], reviewer, automatic=True
+                    )
                 counts["copies"] += 1
                 continue
             counts["waiting"] += 1

@@ -9,10 +9,10 @@ import { WhatsNew } from "./WhatsNew";
 
 // Duplicates, Processing and Reports stay reachable (Review links to duplicates;
 // the Dashboard exports Excel) but are kept out of the menu.
-const routes = ["dashboard", "review", "transactions", "rejected", "bankSms", "devices", "users", "emailSettings"] as const;
-const paths = ["/", "/review", "/transactions", "/rejected", "/bank-sms", "/devices", "/users", "/email-settings"];
+const routes = ["dashboard", "review", "transactions", "rejected", "bankSms", "audit", "devices", "users", "emailSettings"] as const;
+const paths = ["/", "/review", "/transactions", "/rejected", "/bank-sms", "/audit", "/devices", "/users", "/email-settings"];
 const tabs = ["dashboard", "review", "transactions"] as const;
-const pageKey: Record<string, string> = { dashboard: "page.dashboard", review: "page.review", transactions: "page.transactions", rejected: "page.rejected", bankSms: "page.bank_sms", devices: "page.devices", users: "page.users", emailSettings: "page.email_settings" };
+const pageKey: Record<string, string> = { dashboard: "page.dashboard", review: "page.review", transactions: "page.transactions", rejected: "page.rejected", bankSms: "page.bank_sms", audit: "page.audit", devices: "page.devices", users: "page.users", emailSettings: "page.email_settings" };
 
 export const LANDING = "https://relay-landing-woad.vercel.app/";
 

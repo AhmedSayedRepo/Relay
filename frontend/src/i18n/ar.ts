@@ -17,6 +17,7 @@ export const ar = {
     rejected: "المرفوضة",
     emailSettings: "البريد",
     bankSms: "رسائل البنك",
+    audit: "السجل",
     dashboard: "لوحة التحكم", transactions: "المعاملات", duplicates: "المعاملات المكررة", review: "المراجعة",
     processing: "المعالجة", reports: "التقارير", devices: "الأجهزة", users: "المستخدمون", account: "الحساب", help: "المساعدة",
   },
@@ -24,6 +25,7 @@ export const ar = {
     rejected: ["المرفوضة", "إيصالات اترفضت من شخص أو من Relay، وصور Relay خبّاها على إنها مش إيصالات. رجّع أي إيصال حقيقي للمراجعة."],
     emailSettings: ["إعدادات البريد", "حساب Gmail الذي يرسل منه Relay: روابط استعادة كلمة المرور والتقرير اليومي."],
     bankSms: ["رسائل البنك", "كل رسائل البنك التي استقبلها هاتف الرسائل، وهل أكّدت إيصالاً أم لا."],
+    audit: ["السجل", "مين أكد أو رفض أو رجّع كل إيصال للمراجعة وإمتى: الشخص بإيميله، أو Relay تلقائي ومعاه القاعدة."],
     dashboard: ["نظرة عامة على العمليات", "حالة الأموال والمراجعات والتكرارات والمعالجة والجمع في مكان واحد."],
     transactions: ["المعاملات", "استعرض الأدلة النهائية والمعلّقة وافتح أي إيصال مع الحفاظ على السياق."],
     transactionDetail: ["أدلة المعاملة", "تظهر القيم التي راجعها المشغّل أولاً، وتبقى نتائج الاستخراج الأصلية متاحة للتدقيق."],
@@ -135,7 +137,7 @@ export const ar = {
     permissions: "الصلاحيات", savePermissions: "احفظ الصلاحيات", resetPermissions: "رجّع صلاحيات الدور الأساسية", pagesTitle: "الصفحات", actionsTitle: "الإجراءات",
     adminAll: "الأدمن عنده كل الصفحات والإجراءات دايمًا.", changed: "متغيّرة عن صلاحيات الدور",
     keys: {
-      "page.dashboard": "لوحة التحكم", "page.review": "المراجعة", "page.transactions": "المعاملات", "page.rejected": "المرفوضة", "page.bank_sms": "رسائل البنك", "page.devices": "الأجهزة", "page.users": "المستخدمين", "page.email_settings": "إعدادات الإيميل",
+      "page.dashboard": "لوحة التحكم", "page.review": "المراجعة", "page.transactions": "المعاملات", "page.rejected": "المرفوضة", "page.audit": "السجل", "page.bank_sms": "رسائل البنك", "page.devices": "الأجهزة", "page.users": "المستخدمين", "page.email_settings": "إعدادات الإيميل",
       "action.review": "مراجعة الإيصالات (تأكيد، رفض، مطابقة الرسالة)", "action.bring_back": "رجوع الإيصالات المرفوضة", "action.reject_copies": "رفض أو إبقاء النسخ المكررة", "action.delete_receipts": "حذف الإيصالات", "action.close_shift": "قفل الشيفت", "action.retry_processing": "إعادة قراءة إيصال", "action.run_sms_check": "تشغيل فحص الرسائل دلوقتي", "action.manage_devices": "إضافة أو تسمية أو حذف الموبايلات", "action.manage_users": "إدارة المستخدمين", "action.email_settings": "تغيير إعدادات الإيميل",
     } as Record<string, string>,
   },
@@ -188,6 +190,13 @@ export const ar = {
   },
   rejected: {
     delete: "احذف", deleteSelected: "احذف المحدد ({count})", deleteConfirm: "تحذف {count} إيصال نهائيًا؟ الصور والقراءات هتتمسح ومش هترجع.", deleted: "اتحذف {count}.", select: "اختار", selectAll: "اختار كل اللي في الصفحة", smsFree: "فيه رسالة بنك بنفس المبلغ الساعة {time} لسه ماستخدمتش: ممكن يكون حقيقي.", smsUsed: "فيه رسالة بنك بنفس المبلغ الساعة {time} اتأكد بيها إيصال تاني: غالبًا نسخة.", openUsed: "افتح الإيصال ده", smsNone: "مفيش رسالة بنك بالمبلغ ده في نفس اليوم.", why: "السبب", action: "الإجراء", bringBack: "رجّعه للمراجعة", broughtBack: "رجع للمراجعة.", failed: "ماقدرناش نرجّعه.", empty: "مفيش حاجة اترفضت أو اتخبّت في الفترة دي.",
+  },
+  audit: {
+    time: "الوقت", action: "القرار", by: "بواسطة", why: "القاعدة / السبب", amount: "المبلغ", sender: "المرسل", receipt: "الإيصال", open: "افتح",
+    automatic: "تلقائي", everyone: "الكل", allActions: "كل القرارات", people: "بواسطة أشخاص", relay: "بواسطة Relay", total: "القرارات",
+    empty: "مفيش قرارات في الفترة دي.", hint: "الأوقات بتوقيت القاهرة. القرارات التلقائية مكتوب جنبها القاعدة اللي Relay استخدمها.", export: "صدّر Excel",
+    actions: { confirmed: "اتأكد", rejected: "اترفض", rejected_copy: "اترفض كنسخة", sent_back: "رجع للمراجعة", not_a_copy: "اتعلّم إنه مش نسخة" } as Record<string, string>,
+    rules: { sms_same_amount: "رسالة بنك بنفس المبلغ", sms_no_reference: "رسالة بنك في نفس الوقت (من غير مرجع)", copy_of_confirmed: "نسخة من إيصال متأكد", reader: "قارئ Relay" } as Record<string, string>,
   },
   bankSms: {
     matched: "استُخدمت لإيصال", unused: "لم تُستخدم بعد", noAmount: "بدون مبلغ", unusedMoney: "مبالغ رسائل غير مستخدمة", phone: "الهاتف", allPhones: "كل الهواتف",

@@ -47,8 +47,11 @@ async def unhide_copies(database: Database) -> int:
     return done
 
 
-async def reject_copies(session: AsyncSession, ids: list[UUID], actor_id: UUID) -> int:
-    """Reject receipts waiting in Review as copies of another receipt."""
+async def reject_copies(
+    session: AsyncSession, ids: list[UUID], actor_id: UUID, automatic: bool = False
+) -> int:
+    """Reject receipts waiting in Review as copies of another receipt;
+    ``automatic`` when Relay does it (shown so in the audit trail)."""
     now = datetime.now(UTC)
     done = 0
     for candidate_id in dict.fromkeys(ids):
@@ -81,7 +84,8 @@ async def reject_copies(session: AsyncSession, ids: list[UUID], actor_id: UUID) 
                 reviewer_id=actor_id,
                 action="REJECT",
                 before_result=before,
-                after_result={"review_status": "REJECTED", "reason": "copy"},
+                after_result={"review_status": "REJECTED", "reason": "copy"}
+                | ({"automatic": True} if automatic else {}),
                 created_at=now,
                 expires_at=row.expires_at,
             )

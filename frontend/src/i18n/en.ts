@@ -15,6 +15,7 @@ export const en = {
     rejected: "Rejected",
     emailSettings: "Email",
     bankSms: "Bank SMS",
+    audit: "Audit trail",
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
     processing: "Processing", reports: "Reports", devices: "Devices", users: "Users", account: "Account", help: "Help",
   },
@@ -22,6 +23,7 @@ export const en = {
     rejected: ["Rejected", "Receipts rejected by a person or by Relay, and photos Relay hid as not receipts. Bring back any real receipt to Review."],
     emailSettings: ["Email settings", "The Gmail account Relay sends from: password reset links and the daily report."],
     bankSms: ["Bank SMS", "Every bank SMS the SMS phone received, and whether it confirmed a receipt."],
+    audit: ["Audit trail", "Who confirmed, rejected or sent back each receipt, and when: a person by their email, or Relay automatically with its rule."],
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
     transactions: ["Transactions", "Scan final and pending evidence, then open any receipt without losing context."],
     transactionDetail: ["Transaction evidence", "Reviewed values lead. Machine extraction and original provenance remain available for audit."],
@@ -133,7 +135,7 @@ export const en = {
     permissions: "Permissions", savePermissions: "Save permissions", resetPermissions: "Back to role defaults", pagesTitle: "Pages", actionsTitle: "Actions",
     adminAll: "Admins always have every page and action.", changed: "changed from the role default",
     keys: {
-      "page.dashboard": "Dashboard", "page.review": "Review", "page.transactions": "Transactions", "page.rejected": "Rejected", "page.bank_sms": "Bank SMS", "page.devices": "Devices", "page.users": "Users", "page.email_settings": "Email settings",
+      "page.dashboard": "Dashboard", "page.review": "Review", "page.transactions": "Transactions", "page.rejected": "Rejected", "page.bank_sms": "Bank SMS", "page.audit": "Audit trail", "page.devices": "Devices", "page.users": "Users", "page.email_settings": "Email settings",
       "action.review": "Review receipts (confirm, reject, SMS match)", "action.bring_back": "Bring back rejected receipts", "action.reject_copies": "Reject or keep duplicate copies", "action.delete_receipts": "Delete receipts", "action.close_shift": "Close shift", "action.retry_processing": "Retry reading a receipt", "action.run_sms_check": "Run the SMS check now", "action.manage_devices": "Add, rename or remove phones", "action.manage_users": "Manage users", "action.email_settings": "Change email settings",
     } as Record<string, string>,
   },
@@ -186,6 +188,13 @@ export const en = {
   },
   rejected: {
     delete: "Delete", deleteSelected: "Delete selected ({count})", deleteConfirm: "Delete {count} receipt(s) for good? The photos and readings are removed and cannot be restored.", deleted: "{count} deleted.", select: "Select", selectAll: "Select all on this page", smsFree: "A bank SMS with this amount at {time} is still unused: it may be real.", smsUsed: "A bank SMS with this amount at {time} already confirmed another receipt: likely a copy.", openUsed: "Open that receipt", smsNone: "No bank SMS with this amount that day.", why: "Why", action: "Action", bringBack: "Bring back to Review", broughtBack: "Brought back to Review.", failed: "Could not bring it back.", empty: "Nothing was rejected or hidden in this period.",
+  },
+  audit: {
+    time: "Time", action: "Decision", by: "By", why: "Rule / reason", amount: "Amount", sender: "Sender", receipt: "Receipt", open: "Open",
+    automatic: "Automatic", everyone: "Everyone", allActions: "All decisions", people: "By people", relay: "By Relay", total: "Decisions",
+    empty: "No decisions in this range.", hint: "Times are Cairo time. Automatic decisions show the rule Relay used.", export: "Export Excel",
+    actions: { confirmed: "Confirmed", rejected: "Rejected", rejected_copy: "Rejected as a copy", sent_back: "Sent back to Review", not_a_copy: "Marked not a copy" } as Record<string, string>,
+    rules: { sms_same_amount: "Bank SMS with the same amount", sms_no_reference: "Bank SMS at the same time (no reference)", copy_of_confirmed: "Copy of a confirmed receipt", reader: "Relay reader" } as Record<string, string>,
   },
   bankSms: {
     matched: "Used for a receipt", unused: "Not used yet", noAmount: "No amount", unusedMoney: "Unused SMS money", phone: "Phone", allPhones: "All phones",
