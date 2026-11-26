@@ -149,7 +149,11 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
             else "other_recipient"
         )
     if repeat is not None:
-        return "repeated_amount"
+        # Same amount and sender, no reference to prove it is one transfer;
+        # "amount" when a sender could not be read.
+        return (
+            "repeated_unread_sender" if repeat_kind == "amount" else "repeated_amount"
+        )
     if not read:
         return "reading"
     if sms != "VERIFIED":
