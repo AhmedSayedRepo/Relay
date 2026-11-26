@@ -22,6 +22,7 @@ from relay.presentation.middleware import (
 from relay.presentation.routes import (
     admin_settings,
     agents,
+    audit,
     auth,
     binary_objects,
     devices,
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sms_verification.router, prefix="/api/v1")
     app.include_router(users.router, prefix="/api/v1")
     app.include_router(admin_settings.router, prefix="/api/v1")
+    app.include_router(audit.router, prefix="/api/v1")
     frontend = config.operator_frontend_dir.expanduser().resolve()
     if frontend.is_dir():
 

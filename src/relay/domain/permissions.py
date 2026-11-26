@@ -23,6 +23,7 @@ PAGES = (
     "page.devices",
     "page.users",
     "page.email_settings",
+    "page.audit",
 )
 ACTIONS = (
     "action.review",
@@ -90,6 +91,7 @@ READ_RULES: tuple[tuple[str, str], ...] = (
     ("/api/v1/bank-sms", "page.bank_sms"),
     ("/api/v1/users", "page.users"),
     ("/api/v1/settings", "page.email_settings"),
+    ("/api/v1/audit-trail", "page.audit"),
 )
 # Reads only an admin may make: raw events and training data.
 ADMIN_READ_PREFIXES = ("/api/v1/events", "/api/v1/training")

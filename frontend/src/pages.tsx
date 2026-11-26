@@ -373,12 +373,13 @@ export function CompareReceipts({ token }: { token: string }) {
     [m.transactions.device, (item) => item.device_name],
     [c.sender, (item) => item.suggested_sender],
     [c.status, (item) => item.review_status],
-    [c.sms, (item) => item.sms_verification]
+    [c.sms, (item) => item.sms_verification === "VERIFIED" ? c.smsMatched : c.noSms]
   ];
   const side = (item: Transaction | null | undefined, title: string) => <article className="panel compare-side"><h2>{title}</h2>{item ? <><ProtectedImage key={item.id} path={item.image_url} token={token} alt={title} /><dl className="compare-facts">{rows.map(([label, read]) => { const value = read(item); const theirs = item === mine ? (other ? read(other) : undefined) : (mine ? read(mine) : undefined); const differs = value !== undefined && theirs !== undefined && String(value) !== String(theirs); return <div key={label} className={differs ? "differs" : undefined}><dt>{label}</dt><dd>{value === null || value === undefined || value === "" ? dash : label === m.transactions.arrived ? <Timestamp value={String(value)} locale={locale} /> : <Bidi>{String(value)}</Bidi>}</dd></div>; })}</dl><Link to={"/transactions/" + item.id}>{c.openDetail}</Link></> : <p className="muted">{c.noOther}</p>}</article>;
   return <section><PageHeading title={c.title} description={c.description} help={contextHelp.review} />
     <Status loading={loading} error={error} />
     {mine && <><div className="compare-grid">{side(other, c.first)}{side(mine, c.copy)}</div>
+      {other && other.sms_verification !== "VERIFIED" && mine.review_status === "NEEDS_REVIEW" && <p className="hint">{c.firstWaitsSms}</p>}
       {message && <p className="status" role="status">{message}</p>}
       {can(role, "action.reject_copies") && mine.review_status === "NEEDS_REVIEW" && <div className="compare-actions"><button type="button" className="danger-button" onClick={() => void act("/receipts/reject-copies", { ids: [mine.id] })}>{c.rejectCopy}</button><button type="button" className="quiet-button" onClick={() => void act("/receipts/" + encodeURIComponent(mine.id) + "/not-a-copy")}>{c.notCopy}</button></div>}</>}
   </section>;

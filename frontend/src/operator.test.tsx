@@ -49,9 +49,9 @@ describe("Sprint 7 operator experience", () => {
     expect(ar.navigation.transactions).toBe("المعاملات");
   });
 
-  it("keeps all 32 Help topics stable, connected, and bilingual", () => {
+  it("keeps all 33 Help topics stable, connected, and bilingual", () => {
     const english = getHelpTopics("en"); const arabic = getHelpTopics("ar");
-    expect(english).toHaveLength(32); expect(arabic).toHaveLength(32); expect(arabic.map((topic) => topic.id)).toEqual(english.map((topic) => topic.id));
+    expect(english).toHaveLength(33); expect(arabic).toHaveLength(33); expect(arabic.map((topic) => topic.id)).toEqual(english.map((topic) => topic.id));
     expect(helpRegistry.size).toBe(helpTopics.length);
     for (const topic of english) for (const related of topic.related) expect(helpRegistry.has(related)).toBe(true);
     for (const topicId of Object.values(contextHelp)) expect(helpRegistry.has(topicId)).toBe(true);
