@@ -127,6 +127,7 @@ async def trail(
                 "actor_id": None if automatic else audit.reviewer_id,
                 "rule": "copy_of_confirmed" if automatic else None,
                 "reason": after.get("reason") or after.get("rejected_reason"),
+                "source": "audit",
             }
         )
 
@@ -211,15 +212,15 @@ async def trail(
             latest[key] = moment
     await _load(session, candidates, {candidate_id for candidate_id, _ in latest})
     for (candidate_id, reviewer_id), moment in latest.items():
-        row = candidates.get(candidate_id)
-        if row is None:
+        receipt = candidates.get(candidate_id)
+        if receipt is None:
             continue
         if (
             reviewer_id is not None
-            and row.review_status != ReviewStatus.AUTO_ACCEPTED.value
+            and receipt.review_status != ReviewStatus.AUTO_ACCEPTED.value
         ):
             continue  # a person is still working on it
-        auto = (row.resolution_result or {}).get("auto_confirmed")
+        auto = (receipt.resolution_result or {}).get("auto_confirmed")
         events.append(
             {
                 "candidate_id": candidate_id,
@@ -236,9 +237,21 @@ async def trail(
         )
 
     await _load(session, candidates, {e["candidate_id"] for e in events})
+    # A confirmation also leaves an ACCEPT in the review audit, written by the
+    # same account; the field decisions say who really decided it.
+    by_fields: dict[UUID, list[datetime]] = {}
+    for event in events:
+        if event["action"] == "confirmed" and event.get("source") != "audit":
+            by_fields.setdefault(event["candidate_id"], []).append(event["at"])
     result: list[dict[str, Any]] = []
     seen: set[tuple[UUID, str, str]] = set()
     for event in events:
+        if event["action"] == "confirmed" and event.get("source") == "audit":
+            moments = by_fields.get(event["candidate_id"], [])
+            if event["at"] is not None and any(
+                abs((event["at"] - moment).total_seconds()) < 120 for moment in moments
+            ):
+                continue
         at = event["at"]
         if at is None or not start <= at < end:
             continue
@@ -249,12 +262,12 @@ async def trail(
             continue
         if actor and actor != AUTOMATIC and users.get(actor_id) != actor:
             continue
-        key = (event["candidate_id"], event["action"], at.isoformat()[:19])
-        if key in seen:
+        mark = (event["candidate_id"], event["action"], at.isoformat()[:19])
+        if mark in seen:
             continue
-        seen.add(key)
-        row = candidates.get(event["candidate_id"])
-        amount, currency = _amount(row) if row is not None else (None, None)
+        seen.add(mark)
+        found = candidates.get(event["candidate_id"])
+        amount, currency = _amount(found) if found is not None else (None, None)
         result.append(
             {
                 "candidate_id": str(event["candidate_id"]),
@@ -266,7 +279,7 @@ async def trail(
                 "reason": event["reason"],
                 "amount": amount,
                 "currency": currency,
-                "sender": _sender(row) if row is not None else None,
+                "sender": _sender(found) if found is not None else None,
             }
         )
     result.sort(key=lambda item: item["at"], reverse=True)

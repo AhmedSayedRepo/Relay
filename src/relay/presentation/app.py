@@ -21,8 +21,8 @@ from relay.presentation.middleware import (
 )
 from relay.presentation.routes import (
     admin_settings,
-    audit,
     agents,
+    audit,
     auth,
     binary_objects,
     devices,
