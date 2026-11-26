@@ -209,6 +209,9 @@ async def test_repeat_without_references_confirms_one(client, auth_headers, app)
     # The later one points at the first (the original), side by side; the
     # first is not tagged, so the two never block each other.
     assert pair[second["id"]] == first["id"] and pair[first["id"]] is None
+    reasons = {i["id"]: i["status_reason"] for i in listed.json()["items"]}
+    # No sender read on either: only the amount matches, and the label says so.
+    assert reasons[second["id"]] == "repeated_unread_sender"
 
 
 async def test_the_original_of_a_same_sender_repeat_is_confirmed(

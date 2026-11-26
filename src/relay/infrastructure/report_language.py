@@ -100,6 +100,15 @@ AR = {
     "Transfer failed": "التحويل فشل",
     "Not recognised as a receipt": "مش متعرف عليه كإيصال",
     "Possible duplicate": "تكرار محتمل",
+    "Possible duplicate: same reference (surely a copy)": (
+        "تكرار محتمل: نفس المرجع (نسخة أكيدة)"
+    ),
+    "Possible duplicate: same amount and sender, no reference": (
+        "تكرار محتمل: نفس المبلغ والمرسل، مفيش مرجع"
+    ),
+    "Possible duplicate: same amount, sender unreadable": (
+        "تكرار محتمل: نفس المبلغ، والمرسل مش مقروء"
+    ),
     "Recipient not clear": "المستلم مش واضح",
     "Sent to someone else": "اتحول لحد تاني",
     "Same amount twice that day": "نفس المبلغ مرتين في نفس اليوم",

@@ -1181,9 +1181,10 @@ async def auto_confirm(
         candidate_id: UUID, day: str, mine: dict[str, Any]
     ) -> tuple[str, UUID] | None:
         """Another receipt that day with this amount that could be the same
-        transfer: "reference" when both show the same reference, "sender"
-        when the sender is the same (or unreadable) and the references do not
-        prove two transfers; None otherwise. Returned with the other receipt."""
+        transfer: "reference" when both show the same reference (surely a
+        copy), "sender" when both show the same sender, "amount" when either
+        sender is unreadable (only the amount matches), and the references do
+        not prove two transfers; None otherwise. Returned with the other one."""
         for other_id, other_day, other in known:
             if other_id == candidate_id or other_day != day:
                 continue
@@ -1205,7 +1206,8 @@ async def auto_confirm(
                 and mine["reference"] != other["reference"]
             )
             if same_sender and not different_refs:
-                return "sender", other_id
+                read = mine["sender"] is not None and other["sender"] is not None
+                return ("sender" if read else "amount"), other_id
         return None
 
     first_seen = {
