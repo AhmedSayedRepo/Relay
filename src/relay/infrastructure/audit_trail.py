@@ -54,12 +54,13 @@ def _amount(row: ReceiptCandidateRow) -> tuple[str | None, str | None]:
 
 
 def _sender(row: ReceiptCandidateRow) -> str | None:
+    """The confirmed sender, else the one the readers saw (as on Review)."""
     if row.sender_name:
         return row.sender_name
-    parties = (row.resolution_result or {}).get("parties")
-    if isinstance(parties, dict) and isinstance(parties.get("sender"), str):
-        return str(parties["sender"])
-    return None
+    from relay.infrastructure.operations_repository import _read_parties
+
+    seen = _read_parties(row.machine_result).get("suggested_sender")
+    return str(seen) if seen else None
 
 
 async def _load(
@@ -119,6 +120,7 @@ async def trail(
         if kind is None:
             kind = "rejected_copy" if after.get("reason") == "copy" else "rejected"
         automatic = bool(after.get("automatic"))
+        reason = after.get("reason") or after.get("rejected_reason")
         events.append(
             {
                 "candidate_id": audit.candidate_id,
@@ -126,7 +128,8 @@ async def trail(
                 "action": kind,
                 "actor_id": None if automatic else audit.reviewer_id,
                 "rule": "copy_of_confirmed" if automatic else None,
-                "reason": after.get("reason") or after.get("rejected_reason"),
+                # "copy" says no more than the decision itself.
+                "reason": None if kind == "rejected_copy" else reason,
                 "source": "audit",
             }
         )
