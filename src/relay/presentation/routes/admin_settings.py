@@ -1,7 +1,7 @@
 """Admin-only email settings: sender name, Gmail address and app password."""
 
 import smtplib
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import (
@@ -22,6 +22,8 @@ from relay.infrastructure.email_settings import (
     recipient,
     save,
     save_recipient,
+    save_shift_close,
+    shift_close,
 )
 from relay.infrastructure.mailer import SmtpMailer
 from relay.infrastructure.repositories import SqlUnitOfWork
@@ -186,3 +188,28 @@ async def put_recipient(
     name = " ".join(body.name.split())
     await save_recipient(uow.session, name, body.phone if name else None, user.id)
     return await get_recipient(uow)
+
+
+class ShiftCloseSettings(BaseModel):
+    # The open shift closes by itself every day at this local time; None: off.
+    time: str | None
+    language: Literal["en", "ar"]
+
+
+class ShiftCloseRequest(InputModel):
+    time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    language: Literal["en", "ar"] = "en"
+
+
+@router.get("/shift-close", response_model=ShiftCloseSettings)
+async def get_shift_close(uow: Uow) -> ShiftCloseSettings:
+    at, language = await shift_close(uow.session)
+    return ShiftCloseSettings(time=at, language="ar" if language == "ar" else "en")
+
+
+@router.put("/shift-close", response_model=ShiftCloseSettings)
+async def put_shift_close(
+    body: ShiftCloseRequest, uow: Uow, user: AuthenticatedUser
+) -> ShiftCloseSettings:
+    await save_shift_close(uow.session, body.time, body.language, user.id)
+    return await get_shift_close(uow)

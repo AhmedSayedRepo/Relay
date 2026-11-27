@@ -173,7 +173,7 @@ function cairoParts(moment: Date): [string, string] {
 function ShiftChips({ token, day, current, apply, allowClose = false, onActive }: { token: string; day: string; current: [string, string, string, string]; apply: (from: string, to: string, timeFrom: string, timeTo: string) => void; allowClose?: boolean; onActive?: (shift: number | null) => void }) {
   const { locale, messages: m } = useI18n(); const s = m.shifts; const role = useRole();
   const { data, reload } = useApi<{ items: Shift[]; open: Shift }>("/shifts" + query({ day }), token, true);
-  const [notice, setNotice] = useState(""); const [asking, setAsking] = useState(false); const [note, setNote] = useState(""); const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState(""); const [busy, setBusy] = useState(false);
   const valid = (shift: unknown): shift is Shift => typeof shift === "object" && shift !== null && typeof (shift as Shift).opened_at === "string" && !Number.isNaN(Date.parse((shift as Shift).opened_at)) && ((shift as Shift).closed_at === null || !Number.isNaN(Date.parse(String((shift as Shift).closed_at))));
   const items: Shift[] = data && Array.isArray(data.items) ? data.items.filter(valid) : []; const openShift: Shift | null = data && valid(data.open) ? data.open : null;
   // The open shift belongs to the day it started; it also shows on today's view while it is still open.
@@ -188,10 +188,9 @@ function ShiftChips({ token, day, current, apply, allowClose = false, onActive }
   // When the open shift started on another day, say which day so "Close shift 1" is not ambiguous.
   // A time on another day than the one being viewed carries its weekday: "Sat 12:00 AM – Sun 08:57 AM".
   const when = (iso: string) => { const [day0] = cairoParts(new Date(iso)); return day0 === day ? cairoClock(iso, locale) : `${new Date(day0 + "T12:00:00Z").toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { weekday: "short", timeZone: "UTC" })} ${cairoClock(iso, locale)}`; };
-  const started = (shift: Shift) => { const [day0] = cairoParts(new Date(shift.opened_at)); const label = new Date(day0 + "T12:00:00Z").toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" }); return day0 === cairoDate() ? cairoClock(shift.opened_at, locale) : `${label} ${cairoClock(shift.opened_at, locale)}`; };
   async function closeShift() {
     const open = openShift; if (!open) return; setBusy(true);
-    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: note.trim() || null, language: locale }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); setAsking(false); setNote(""); reload(); }
+    try { await api("/shifts/close", token, { method: "POST", body: JSON.stringify({ note: null, language: locale }) }); setNotice(formatMessage(s.closed, { number: number(open.number) })); reload(); }
     catch (caught) { setNotice(caught instanceof Error ? caught.message : s.failed); }
     finally { setBusy(false); }
   }
@@ -211,12 +210,7 @@ function ShiftChips({ token, day, current, apply, allowClose = false, onActive }
         <small>{when(shift.opened_at)} – {shift.closed_at ? when(shift.closed_at) : s.now}</small></button>;
     })}
   </div>
-    {allowClose && can(role, "action.close_shift") && openShift && openHere && !asking && <button type="button" className="close-shift" onClick={() => { setNotice(""); setAsking(true); }}>{formatMessage(s.close, { number: number(openShift.number) })}</button>}
-    {asking && openShift && <div className="close-confirm" role="group" aria-label={formatMessage(s.close, { number: number(openShift.number) })}>
-      <p>{formatMessage(s.closeAsk, { number: number(openShift.number), start: started(openShift) })}</p>
-      <input value={note} onChange={(event) => setNote(event.target.value)} placeholder={s.notePlaceholder} aria-label={s.notePlaceholder} maxLength={500} />
-      <div className="button-row"><button type="button" className="danger-button" disabled={busy} onClick={() => void closeShift()}>{busy ? s.closing : formatMessage(s.close, { number: number(openShift.number) })}</button><button type="button" className="quiet-button" disabled={busy} onClick={() => setAsking(false)}>{s.cancel}</button></div>
-    </div>}
+    {allowClose && can(role, "action.close_shift") && openShift && openHere && <button type="button" className="close-shift" disabled={busy} onClick={() => { setNotice(""); void closeShift(); }}>{busy ? s.closing : formatMessage(s.close, { number: number(openShift.number) })}</button>}
     {notice && <p className="status" role="status">{notice}</p>}</>;
 }
 
