@@ -191,25 +191,29 @@ async def put_recipient(
 
 
 class ShiftCloseSettings(BaseModel):
-    # The open shift closes by itself every day at this local time; None: off.
+    # When on, the open shift closes by itself every day at this local time.
     time: str | None
+    enabled: bool
     language: Literal["en", "ar"]
 
 
 class ShiftCloseRequest(InputModel):
     time: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    enabled: bool = True
     language: Literal["en", "ar"] = "en"
 
 
 @router.get("/shift-close", response_model=ShiftCloseSettings)
 async def get_shift_close(uow: Uow) -> ShiftCloseSettings:
-    at, language = await shift_close(uow.session)
-    return ShiftCloseSettings(time=at, language="ar" if language == "ar" else "en")
+    at, on, language = await shift_close(uow.session)
+    return ShiftCloseSettings(
+        time=at, enabled=on, language="ar" if language == "ar" else "en"
+    )
 
 
 @router.put("/shift-close", response_model=ShiftCloseSettings)
 async def put_shift_close(
     body: ShiftCloseRequest, uow: Uow, user: AuthenticatedUser
 ) -> ShiftCloseSettings:
-    await save_shift_close(uow.session, body.time, body.language, user.id)
+    await save_shift_close(uow.session, body.time, body.enabled, body.language, user.id)
     return await get_shift_close(uow)

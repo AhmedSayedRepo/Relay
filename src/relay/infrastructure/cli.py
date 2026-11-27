@@ -407,9 +407,9 @@ async def auto_close_shift(database: Database, settings: Settings) -> bool:
 
     zone = ZoneInfo(settings.receipt_timezone)
     async with database.session() as session:
-        at, language = await shift_close(session)
-        if not at:
-            return False
+        at, on, language = await shift_close(session)
+        if not at or not on:
+            return False  # no time, or switched off (the time stays saved)
         hour, minute = (int(part) for part in at.split(":"))
         done = await close_when_due(session, zone, clock(hour, minute))
     if done is None:

@@ -107,28 +107,30 @@ function RecipientCard({ token }: { token: string }) {
   </form>;
 }
 
-type ShiftClose = { time: string | null; language: "en" | "ar" };
+type ShiftClose = { time: string | null; enabled: boolean; language: "en" | "ar" };
 
-/** The open shift closes by itself every day at this time; its report is emailed. */
+/** The open shift closes by itself every day at this time when switched on; its report is emailed. */
 function ShiftCloseCard({ token }: { token: string }) {
   const { locale, messages: m } = useI18n(); const c = m.shiftCloseSettings;
   const { data } = useApi<ShiftClose>("/settings/shift-close", token);
-  const [time, setTime] = useState(""); const [busy, setBusy] = useState(false);
+  const [time, setTime] = useState(""); const [enabled, setEnabled] = useState(false); const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (data) setTime(data.time ?? "");
+    if (data) { setTime(data.time ?? ""); setEnabled(data.enabled); }
   }, [data]);
-  async function save(next: string | null) {
+  async function save(nextTime: string, nextOn: boolean) {
     setBusy(true); setNotice(null);
     try {
-      const saved = await api<ShiftClose>("/settings/shift-close", token, { method: "PUT", body: JSON.stringify({ time: next, language: locale }) });
-      setTime(saved.time ?? ""); setNotice({ text: saved.time ? formatMessage(c.saved, { time: saved.time }) : c.off, error: false });
+      const saved = await api<ShiftClose>("/settings/shift-close", token, { method: "PUT", body: JSON.stringify({ time: nextTime || null, enabled: nextOn, language: locale }) });
+      setTime(saved.time ?? ""); setEnabled(saved.enabled);
+      setNotice({ text: saved.enabled && saved.time ? formatMessage(c.saved, { time: saved.time }) : c.off, error: false });
     } catch { setNotice({ text: c.saveFailed, error: true }); } finally { setBusy(false); }
   }
-  return <form className="panel form-panel" onSubmit={(event) => { event.preventDefault(); void save(time || null); }}><h2>{c.title}</h2><p className="hint">{c.hint}</p>
+  return <form className="panel form-panel" onSubmit={(event) => { event.preventDefault(); void save(time, enabled); }}><h2>{c.title}</h2><p className="hint">{c.hint}</p>
+    <label className="checkbox"><input type="checkbox" checked={enabled} disabled={busy || (!enabled && !time)} onChange={(event) => void save(time, event.target.checked)} />{enabled ? c.on : c.offLabel}</label>
     <label>{c.time}<input type="time" dir="ltr" value={time} disabled={busy} onChange={(event) => setTime(event.target.value)} /></label>
-    <div className="form-actions"><button type="submit" disabled={busy || !time}>{c.save}</button><button type="button" className="quiet-button" disabled={busy || !data?.time} onClick={() => void save(null)}>{c.turnOff}</button></div>
+    <div className="form-actions"><button type="submit" disabled={busy || !time}>{c.save}</button></div>
     {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
   </form>;
 }

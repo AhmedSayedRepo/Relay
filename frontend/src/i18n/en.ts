@@ -167,7 +167,7 @@ export const en = {
   },
   shiftCloseSettings: {
     title: "Close the shift automatically", hint: "Every day at this time the open shift closes by itself and the next one opens; its report is emailed in the language you use now. Any time works, e.g. 02:00 or 03:00 at night.",
-    time: "Close at", save: "Save", turnOff: "Turn off", saved: "The shift will close every day at {time}.", off: "Automatic closing is off.", saveFailed: "Could not save. Try again.",
+    time: "Close at", save: "Save", on: "On: the shift closes by itself", offLabel: "Off: close the shift by hand", saved: "The shift will close every day at {time}.", off: "Automatic closing is off.", saveFailed: "Could not save. Try again.",
   },
   recipientSettings: {
     title: "Receipts must be sent to", hint: "A bank SMS confirms a receipt only when it was sent to this name (and this phone on InstaPay receipts). Leave the name empty to skip this check.",

@@ -51,26 +51,34 @@ RECIPIENT_NAME = "recipient_name"
 RECIPIENT_PHONE = "recipient_phone"
 SHIFT_CLOSE_AT = "shift_close_at"  # "HH:MM" local time; empty: off
 SHIFT_CLOSE_LANGUAGE = "shift_close_language"  # its report's language
+SHIFT_CLOSE_ON = "shift_close_on"  # "1": on; anything else: off (time kept)
 
 
-async def shift_close(session: AsyncSession) -> tuple[str | None, str]:
-    """(time "HH:MM" or None when off, report language)."""
+async def shift_close(session: AsyncSession) -> tuple[str | None, bool, str]:
+    """(time "HH:MM" or None, on, report language). A saved time stays when
+    it is turned off."""
+    keys = (SHIFT_CLOSE_AT, SHIFT_CLOSE_LANGUAGE, SHIFT_CLOSE_ON)
     rows = {
         row.key: row.value
         for row in await session.scalars(
-            select(AppSettingRow).where(
-                AppSettingRow.key.in_((SHIFT_CLOSE_AT, SHIFT_CLOSE_LANGUAGE))
-            )
+            select(AppSettingRow).where(AppSettingRow.key.in_(keys))
         )
     }
-    return rows.get(SHIFT_CLOSE_AT) or None, rows.get(SHIFT_CLOSE_LANGUAGE) or "en"
+    at = rows.get(SHIFT_CLOSE_AT) or None
+    # Saved before the switch existed: a time meant on.
+    on = rows.get(SHIFT_CLOSE_ON, "1" if at else "0") == "1"
+    return at, on, rows.get(SHIFT_CLOSE_LANGUAGE) or "en"
 
 
 async def save_shift_close(
-    session: AsyncSession, at: str | None, language: str, actor_id: UUID
+    session: AsyncSession, at: str | None, on: bool, language: str, actor_id: UUID
 ) -> None:
     now = datetime.now(UTC)
-    for key, value in ((SHIFT_CLOSE_AT, at or ""), (SHIFT_CLOSE_LANGUAGE, language)):
+    for key, value in (
+        (SHIFT_CLOSE_AT, at or ""),
+        (SHIFT_CLOSE_LANGUAGE, language),
+        (SHIFT_CLOSE_ON, "1" if on else "0"),
+    ):
         row = await session.get(AppSettingRow, key)
         if row is None:
             row = AppSettingRow(key=key)
