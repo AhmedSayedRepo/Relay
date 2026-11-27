@@ -1285,3 +1285,47 @@ def test_recipient_read_without_the_to_word_or_stars() -> None:
     found = parties(text)
     assert found["recipient_phone"] == "01003405232"
     assert found["recipient_name"] == "YOUSSEFM"
+
+
+async def _mark(app, candidate, extra) -> None:
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        row.resolution_result = dict(row.resolution_result or {}) | extra
+        await session.commit()
+
+
+async def test_a_confirmation_that_stopped_half_way_is_finished(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "half-way")
+    bundle = await _link_sms(client, auth_headers, [candidate], "half-way-ph")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 960.00 via InstaPay", _now()
+    )
+    # Tagged as confirmed, but its fields were never saved (still in Review).
+    await _mark(app, candidate, {"auto_confirmed": {"rule": "sms_day"}})
+    counts = await _read_and_confirm(
+        app, {"amount": "960.00", "currency": "EGP", "reference_number": None}
+    )
+    assert counts["sms_day"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "AUTO_ACCEPTED"
+
+
+async def test_a_receipt_a_person_sent_back_is_not_confirmed_again(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "sent-back")
+    bundle = await _link_sms(client, auth_headers, [candidate], "sent-back-ph")
+    await _send_sms(
+        client, bundle, "notice: You have received EGP 961.00 via InstaPay", _now()
+    )
+    await _mark(
+        app,
+        candidate,
+        {"auto_confirmed": {"rule": "sms_day"}, "kept_by": {"user": "x"}},
+    )
+    counts = await _read_and_confirm(
+        app, {"amount": "961.00", "currency": "EGP", "reference_number": None}
+    )
+    assert counts["sms_day"] == 0
