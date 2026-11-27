@@ -10,7 +10,8 @@ The 2026-11-26 reconciliation showed two problems:
   food) reach Review. #158 made it worse: any unclaimed bank SMS that day
   brought every hidden photo of the day back to Review (8 of 11).
 - Blurry receipts stay unread: the 960 receipt read "960 EGP" but showed no
-  recipient; a 3,750 receipt read "3,75C".
+  recipient; a 3,750 receipt read "3,75C" (stays a Review case: no fuzzy
+  amounts).
 
 ## Goals
 
@@ -72,10 +73,8 @@ The 2026-11-26 reconciliation showed two problems:
 - Variant order: the original image with the server engine first, then the
   existing variants (rotations, crop ×2, enhance, enhanced crop), each read
   by the mobile engines and the server engine.
-- SMS-guided amount match: besides the parsed amount, look in the text for
-  each waiting amount allowing one OCR confusion inside the number
-  (O/o/C/D→0, l/I/|→1, S→5, B→8, Z→2) with optional thousands separators,
-  e.g. "3,75C" → 3750.
+- Amount: exact only. No fuzzy matching or character correction ("3,75C"
+  stays unread) — Ahmed, 2026-11-27.
 - Recipient: accept "match" or "unclear"; only "different" rejects. The
   normal auto-confirm rule for an unclear recipient (confirm only when no
   other receipt of that day has the amount) still applies.
