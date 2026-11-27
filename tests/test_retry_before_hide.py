@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import UUID
 
 from PIL import Image
@@ -80,9 +81,16 @@ async def _hidden_receipt(client, auth_headers, app, key, amount=None):
     return candidate
 
 
-async def _row(app, candidate) -> ReceiptCandidateRow:
+async def _row(app, candidate) -> SimpleNamespace:
+    """What the row holds now (read inside the session)."""
     async with app.state.database.session() as session:
-        return await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        return SimpleNamespace(
+            hidden_reason=row.hidden_reason,
+            review_status=row.review_status,
+            resolution_result=dict(row.resolution_result or {}),
+            machine_result=dict(row.machine_result or {}),
+        )
 
 
 async def test_a_hidden_photo_is_read_again_when_a_bank_sms_waits(
