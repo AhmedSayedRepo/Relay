@@ -62,8 +62,9 @@ The 2026-11-26 reconciliation showed two problems:
 - Use:
   - **not_receipt** (machine-only rows): hidden as `not_a_receipt`; never
     rescued by #158, even with an unclaimed SMS.
-  - **receipt**: never hidden by `hide_non_receipts`; when unreadable it goes
-    to the second reading (if an SMS waits) and then Review.
+  - **receipt**: no effect on hiding (changed 2026-11-27, Ahmed: CLIP may only
+    hide more, never stop the text rules; it had let shop bills on a
+    computer screen through).
   - **unsure**: today's rules.
 - One-off: rows #158 brought back and that failed (`retry_read.state ==
   "failed"`) with a `not_receipt` verdict are hidden again (`hidden_as`).

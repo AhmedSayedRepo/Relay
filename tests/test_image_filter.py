@@ -74,16 +74,15 @@ async def test_not_receipt_is_hidden_even_with_numbers(client, auth_headers, app
     assert (await _row(app, candidate)).hidden_reason == "not_a_receipt"
 
 
-async def test_a_receipt_verdict_is_never_hidden(
+async def test_a_receipt_verdict_never_stops_the_text_rules(
     client, auth_headers, app, monkeypatch
 ):
     candidate, _ = await run_receipt(client, auth_headers, app, "clip-keep")
     await _set(app, candidate, verdict="receipt")
-    # The text rules would hide it (it reads like a shop bill).
+    # CLIP can only hide more: a shop bill the text rules hide stays hidden.
     monkeypatch.setattr(cli, "_shop_invoice", lambda row: True)
-    monkeypatch.setattr(cli, "_clear_non_receipt", lambda row: True)
     await hide_non_receipts(app.state.database)
-    assert (await _row(app, candidate)).hidden_reason is None
+    assert (await _row(app, candidate)).hidden_reason is not None
 
 
 async def test_a_person_s_photo_is_never_hidden_by_clip(client, auth_headers, app):
