@@ -33,7 +33,14 @@ async def test_the_automatic_close_time_is_a_setting(client, auth_headers):
         headers=auth_headers,
     )
     assert saved.status_code == 200
-    assert saved.json() == {"time": "02:00", "language": "ar"}
+    assert saved.json() == {"time": "02:00", "enabled": True, "language": "ar"}
+    paused = await client.put(
+        "/api/v1/settings/shift-close",
+        json={"time": "02:00", "enabled": False, "language": "ar"},
+        headers=auth_headers,
+    )
+    # Off keeps the time.
+    assert paused.json() == {"time": "02:00", "enabled": False, "language": "ar"}
     bad = await client.put(
         "/api/v1/settings/shift-close", json={"time": "25:00"}, headers=auth_headers
     )
