@@ -15,7 +15,7 @@ export const ar = {
   },
   navigation: {
     rejected: "المرفوضة",
-    emailSettings: "البريد",
+    emailSettings: "الإعدادات",
     bankSms: "رسائل البنك",
     audit: "السجل",
     dashboard: "لوحة التحكم", transactions: "المعاملات", duplicates: "المعاملات المكررة", review: "المراجعة",
@@ -23,7 +23,7 @@ export const ar = {
   },
   pages: {
     rejected: ["المرفوضة", "إيصالات اترفضت من شخص أو من Relay، وصور Relay خبّاها على إنها مش إيصالات. رجّع أي إيصال حقيقي للمراجعة."],
-    emailSettings: ["إعدادات البريد", "حساب Gmail الذي يرسل منه Relay: روابط استعادة كلمة المرور والتقرير اليومي."],
+    emailSettings: ["الإعدادات", "حساب Gmail اللي Relay بيبعت منه، والمستلم اللي الإيصالات لازم تتبعتله، وقفل الوردية التلقائي."],
     bankSms: ["رسائل البنك", "كل رسائل البنك التي استقبلها هاتف الرسائل، وهل أكّدت إيصالاً أم لا."],
     audit: ["السجل", "مين أكد أو رفض أو رجّع كل إيصال للمراجعة وإمتى: الشخص بإيميله، أو Relay تلقائي ومعاه القاعدة."],
     dashboard: ["نظرة عامة على العمليات", "حالة الأموال والمراجعات والتكرارات والمعالجة والجمع في مكان واحد."],
@@ -137,7 +137,7 @@ export const ar = {
     permissions: "الصلاحيات", savePermissions: "احفظ الصلاحيات", resetPermissions: "رجّع صلاحيات الدور الأساسية", pagesTitle: "الصفحات", actionsTitle: "الإجراءات",
     adminAll: "الأدمن عنده كل الصفحات والإجراءات دايمًا.", changed: "متغيّرة عن صلاحيات الدور",
     keys: {
-      "page.dashboard": "لوحة التحكم", "page.review": "المراجعة", "page.transactions": "المعاملات", "page.rejected": "المرفوضة", "page.audit": "السجل", "page.bank_sms": "رسائل البنك", "page.devices": "الأجهزة", "page.users": "المستخدمين", "page.email_settings": "إعدادات الإيميل",
+      "page.dashboard": "لوحة التحكم", "page.review": "المراجعة", "page.transactions": "المعاملات", "page.rejected": "المرفوضة", "page.audit": "السجل", "page.bank_sms": "رسائل البنك", "page.devices": "الأجهزة", "page.users": "المستخدمين", "page.email_settings": "الإعدادات",
       "action.review": "مراجعة الإيصالات (تأكيد، رفض، مطابقة الرسالة)", "action.bring_back": "رجوع الإيصالات المرفوضة", "action.reject_copies": "رفض أو إبقاء النسخ المكررة", "action.delete_receipts": "حذف الإيصالات", "action.close_shift": "قفل الشيفت", "action.retry_processing": "إعادة قراءة إيصال", "action.run_sms_check": "تشغيل فحص الرسائل دلوقتي", "action.manage_devices": "إضافة أو تسمية أو حذف الموبايلات", "action.manage_users": "إدارة المستخدمين", "action.email_settings": "تغيير إعدادات الإيميل",
     } as Record<string, string>,
   },

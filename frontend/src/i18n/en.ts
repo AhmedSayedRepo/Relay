@@ -13,7 +13,7 @@ export const en = {
   },
   navigation: {
     rejected: "Rejected",
-    emailSettings: "Email",
+    emailSettings: "Settings",
     bankSms: "Bank SMS",
     audit: "Audit trail",
     dashboard: "Dashboard", transactions: "Transactions", duplicates: "Duplicates", review: "Review",
@@ -21,7 +21,7 @@ export const en = {
   },
   pages: {
     rejected: ["Rejected", "Receipts rejected by a person or by Relay, and photos Relay hid as not receipts. Bring back any real receipt to Review."],
-    emailSettings: ["Email settings", "The Gmail account Relay sends from: password reset links and the daily report."],
+    emailSettings: ["Settings", "The Gmail account Relay sends from, who receipts must be sent to, and the automatic shift close."],
     bankSms: ["Bank SMS", "Every bank SMS the SMS phone received, and whether it confirmed a receipt."],
     audit: ["Audit trail", "Who confirmed, rejected or sent back each receipt, and when: a person by their email, or Relay automatically with its rule."],
     dashboard: ["Operations overview", "The state of money, review, duplicates, processing, and collection at a glance."],
@@ -135,7 +135,7 @@ export const en = {
     permissions: "Permissions", savePermissions: "Save permissions", resetPermissions: "Back to role defaults", pagesTitle: "Pages", actionsTitle: "Actions",
     adminAll: "Admins always have every page and action.", changed: "changed from the role default",
     keys: {
-      "page.dashboard": "Dashboard", "page.review": "Review", "page.transactions": "Transactions", "page.rejected": "Rejected", "page.bank_sms": "Bank SMS", "page.audit": "Audit trail", "page.devices": "Devices", "page.users": "Users", "page.email_settings": "Email settings",
+      "page.dashboard": "Dashboard", "page.review": "Review", "page.transactions": "Transactions", "page.rejected": "Rejected", "page.bank_sms": "Bank SMS", "page.audit": "Audit trail", "page.devices": "Devices", "page.users": "Users", "page.email_settings": "Settings",
       "action.review": "Review receipts (confirm, reject, SMS match)", "action.bring_back": "Bring back rejected receipts", "action.reject_copies": "Reject or keep duplicate copies", "action.delete_receipts": "Delete receipts", "action.close_shift": "Close shift", "action.retry_processing": "Retry reading a receipt", "action.run_sms_check": "Run the SMS check now", "action.manage_devices": "Add, rename or remove phones", "action.manage_users": "Manage users", "action.email_settings": "Change email settings",
     } as Record<string, string>,
   },
