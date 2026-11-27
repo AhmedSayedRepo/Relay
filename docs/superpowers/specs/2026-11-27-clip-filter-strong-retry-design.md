@@ -46,13 +46,17 @@ The 2026-11-26 reconciliation showed two problems:
   `/opt/clip`, run offline with the torch/transformers already in
   `Dockerfile.reader`.
 - Each photo is scored once against fixed prompts; result stored in
-  `machine_result["clip_v1"]`: `{"label", "receipt", "scores", "at"}`, where
+  `machine_result["clip_v2"]` (v1 before the screenshot descriptions): `{"label", "receipt", "scores", "at"}`, where
   `receipt` is the summed probability of the receipt prompts.
 - Receipt prompts: a screenshot of a mobile money transfer receipt; a photo
   of a phone screen showing a payment confirmation; a bank transfer
   confirmation screen. Non-receipt prompts: a computer screen or desktop; a
   keyboard; a photo of food; a printed shop or supermarket bill; a chat
-  conversation screenshot; a photo of people or a room; a paper document.
+  conversation screenshot; a photo of people or a room; a paper document;
+  a screenshot of a computer desktop with a taskbar; a screenshot of a phone
+  keyboard; a screenshot of a spreadsheet or computer program (added after
+  the first run: screenshots of a keyboard and a Windows desktop came out
+  "unsure").
 - Verdict: `receipt >= 0.6` → "receipt"; `receipt <= 0.15` → "not_receipt";
   else "unsure". Thresholds are constants, logged with each score.
 - Use:
