@@ -24,3 +24,43 @@ async def test_closing_a_shift_opens_the_next_one(client, auth_headers):
         (2, True),
     ]
     assert after.json()["open"]["number"] == 2
+
+
+async def test_the_automatic_close_time_is_a_setting(client, auth_headers):
+    saved = await client.put(
+        "/api/v1/settings/shift-close",
+        json={"time": "02:00", "language": "ar"},
+        headers=auth_headers,
+    )
+    assert saved.status_code == 200
+    assert saved.json() == {"time": "02:00", "language": "ar"}
+    bad = await client.put(
+        "/api/v1/settings/shift-close", json={"time": "25:00"}, headers=auth_headers
+    )
+    assert bad.status_code == 422
+    off = await client.put(
+        "/api/v1/settings/shift-close", json={"time": None}, headers=auth_headers
+    )
+    assert off.json()["time"] is None
+
+
+async def test_the_shift_closes_by_itself_at_the_set_time(app):
+    from datetime import UTC, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    from relay.infrastructure.shifts import close_when_due, current
+
+    zone = ZoneInfo(app.state.settings.receipt_timezone)
+    async with app.state.database.session() as session:
+        opened = await current(session, zone)  # opens at midnight
+        midnight = opened.opened_at.astimezone(zone)
+        at = time(0, 30)
+        early = (midnight + timedelta(minutes=10)).astimezone(UTC)
+        assert await close_when_due(session, zone, at, early) is None
+        late = (midnight + timedelta(minutes=45)).astimezone(UTC)
+        closed, following = await close_when_due(session, zone, at, late)
+        assert closed.closed_at.astimezone(zone).strftime("%H:%M") == "00:30"
+        assert closed.closed_by is None and "automatically" in closed.note
+        assert following.number == closed.number + 1
+        # Once closed for today, the next pass leaves the new shift alone.
+        assert await close_when_due(session, zone, at, late) is None

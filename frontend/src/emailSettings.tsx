@@ -74,6 +74,7 @@ export function EmailSettingsPage({ token }: { token: string }) {
     </form>
     <article className="panel"><h2>{e.howTitle}</h2><ol className="steps">{e.how.map((step) => <li key={step}>{step}</li>)}</ol><p className="hint">{e.privacy}</p></article></div>}
     <RecipientCard token={token} />
+    <ShiftCloseCard token={token} />
   </section>;
 }
 
@@ -102,6 +103,32 @@ function RecipientCard({ token }: { token: string }) {
     <label>{r.name}<input dir="ltr" value={form.name} maxLength={60} disabled={busy} placeholder="YOUSSEF" onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
     <label>{r.phone}<input dir="ltr" inputMode="numeric" value={form.phone ?? ""} maxLength={11} disabled={busy} placeholder="01xxxxxxxxx" onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label>
     <div className="form-actions"><button type="submit" disabled={busy}>{r.save}</button></div>
+    {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
+  </form>;
+}
+
+type ShiftClose = { time: string | null; language: "en" | "ar" };
+
+/** The open shift closes by itself every day at this time; its report is emailed. */
+function ShiftCloseCard({ token }: { token: string }) {
+  const { locale, messages: m } = useI18n(); const c = m.shiftCloseSettings;
+  const { data } = useApi<ShiftClose>("/settings/shift-close", token);
+  const [time, setTime] = useState(""); const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (data) setTime(data.time ?? "");
+  }, [data]);
+  async function save(next: string | null) {
+    setBusy(true); setNotice(null);
+    try {
+      const saved = await api<ShiftClose>("/settings/shift-close", token, { method: "PUT", body: JSON.stringify({ time: next, language: locale }) });
+      setTime(saved.time ?? ""); setNotice({ text: saved.time ? formatMessage(c.saved, { time: saved.time }) : c.off, error: false });
+    } catch { setNotice({ text: c.saveFailed, error: true }); } finally { setBusy(false); }
+  }
+  return <form className="panel form-panel" onSubmit={(event) => { event.preventDefault(); void save(time || null); }}><h2>{c.title}</h2><p className="hint">{c.hint}</p>
+    <label>{c.time}<input type="time" dir="ltr" value={time} disabled={busy} onChange={(event) => setTime(event.target.value)} /></label>
+    <div className="form-actions"><button type="submit" disabled={busy || !time}>{c.save}</button><button type="button" className="quiet-button" disabled={busy || !data?.time} onClick={() => void save(null)}>{c.turnOff}</button></div>
     {notice && <p className={"status" + (notice.error ? " error" : "")} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
   </form>;
 }

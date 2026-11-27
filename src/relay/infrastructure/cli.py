@@ -396,6 +396,33 @@ async def rescue_hidden(
     return rescued
 
 
+async def auto_close_shift(database: Database, settings: Settings) -> bool:
+    """Close the open shift at the time set in Settings, and email its report
+    in the language saved with that setting."""
+    from datetime import time as clock
+
+    from relay.infrastructure.daily_report import send_shift_report
+    from relay.infrastructure.email_settings import shift_close
+    from relay.infrastructure.shifts import as_dict, close_when_due
+
+    zone = ZoneInfo(settings.receipt_timezone)
+    async with database.session() as session:
+        at, language = await shift_close(session)
+        if not at:
+            return False
+        hour, minute = (int(part) for part in at.split(":"))
+        done = await close_when_due(session, zone, clock(hour, minute))
+    if done is None:
+        return False
+    closed, _ = done
+    print(f"Closed shift {closed.number} automatically at {at}.", flush=True)
+    try:
+        await send_shift_report(settings, as_dict(closed), language)
+    except Exception as error:  # noqa: BLE001 - the close stands; mail may fail
+        print(f"Shift report not sent ({type(error).__name__}).", flush=True)
+    return True
+
+
 async def reopen_rescued(database: Database) -> int:
     """Photos brought back before rescue_hidden reopened them: unhidden but
     still a machine-rejected record, so confirming their fields failed ("no
@@ -2069,6 +2096,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 await hide_non_receipts(database)
                 await rescue_hidden(database, settings)
                 await reopen_rescued(database)
+                await auto_close_shift(database, settings)
                 await rehide_failed(database)
                 await unhide_copies(database)
                 await helper_suggest(database)

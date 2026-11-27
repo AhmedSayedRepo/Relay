@@ -49,6 +49,36 @@ class AppSettingRow(Base):
 
 RECIPIENT_NAME = "recipient_name"
 RECIPIENT_PHONE = "recipient_phone"
+SHIFT_CLOSE_AT = "shift_close_at"  # "HH:MM" local time; empty: off
+SHIFT_CLOSE_LANGUAGE = "shift_close_language"  # its report's language
+
+
+async def shift_close(session: AsyncSession) -> tuple[str | None, str]:
+    """(time "HH:MM" or None when off, report language)."""
+    rows = {
+        row.key: row.value
+        for row in await session.scalars(
+            select(AppSettingRow).where(
+                AppSettingRow.key.in_((SHIFT_CLOSE_AT, SHIFT_CLOSE_LANGUAGE))
+            )
+        )
+    }
+    return rows.get(SHIFT_CLOSE_AT) or None, rows.get(SHIFT_CLOSE_LANGUAGE) or "en"
+
+
+async def save_shift_close(
+    session: AsyncSession, at: str | None, language: str, actor_id: UUID
+) -> None:
+    now = datetime.now(UTC)
+    for key, value in ((SHIFT_CLOSE_AT, at or ""), (SHIFT_CLOSE_LANGUAGE, language)):
+        row = await session.get(AppSettingRow, key)
+        if row is None:
+            row = AppSettingRow(key=key)
+            session.add(row)
+        row.value = value
+        row.updated_at = now
+        row.updated_by = actor_id
+    await session.commit()
 
 
 async def recipient(session: AsyncSession) -> tuple[str, str | None] | None:

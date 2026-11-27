@@ -73,11 +73,16 @@ async def of_day(session: AsyncSession, day: date, zone: ZoneInfo) -> list[Shift
 
 
 async def close(
-    session: AsyncSession, actor_id: UUID, note: str | None, zone: ZoneInfo
+    session: AsyncSession,
+    actor_id: UUID | None,
+    note: str | None,
+    zone: ZoneInfo,
+    at: datetime | None = None,
 ) -> tuple[ShiftRow, ShiftRow]:
-    """Close the open shift now and open the next one at the same minute."""
+    """Close the open shift now (or at ``at``) and open the next one at the
+    same minute. No actor: closed automatically."""
     shift = await current(session, zone)
-    now = max(_minute(datetime.now(UTC)), _aware(shift.opened_at))
+    now = max(_minute(at or datetime.now(UTC)), _aware(shift.opened_at))
     shift.closed_at = now
     shift.closed_by = actor_id
     shift.note = (note or "").strip()[:500] or None
@@ -85,3 +90,20 @@ async def close(
     following = await _open(session, now, zone)
     await session.commit()
     return shift, following
+
+
+async def close_when_due(
+    session: AsyncSession, zone: ZoneInfo, at: time, now: datetime | None = None
+) -> tuple[ShiftRow, ShiftRow] | None:
+    """The automatic close: once the clock passes ``at`` (local time), the
+    open shift closes at ``at`` if it opened before then."""
+    moment = now or datetime.now(UTC)
+    local = moment.astimezone(zone)
+    due = datetime.combine(local.date(), at, zone)
+    if local < due:
+        return None
+    shift = await current(session, zone)
+    if _aware(shift.opened_at) >= due.astimezone(UTC):
+        return None
+    note = f"Closed automatically at {at.strftime('%H:%M')}"
+    return await close(session, None, note, zone, due.astimezone(UTC))
