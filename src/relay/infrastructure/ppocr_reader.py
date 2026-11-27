@@ -92,6 +92,8 @@ def self_test() -> None:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     read_ppocr(buffer.getvalue())
+    if server_engine() is None:
+        raise RuntimeError("PP-OCRv5 server models could not be loaded")
 
 
 def lines(boxes: Any, texts: Any) -> list[str]:
@@ -267,13 +269,15 @@ def variants(picture: Any) -> Iterator[tuple[str, Any]]:
     yield "crop_enhance", enhance(crop)
 
 
-def proves(
+def examine(
     reading: dict[str, str],
     amounts: list[Decimal],
     owner: tuple[str, str | None] | None,
-) -> str | None:
-    """The amount this reading shows when it is one of the waiting SMS
-    amounts and the receipt was sent to the owner (when one is set)."""
+) -> tuple[str | None, str, str | None]:
+    """(amount read, recipient verdict, proven amount). Proven when the
+    amount read is exactly one of the waiting SMS amounts and the recipient
+    is not someone else ("match" or "unclear": a blurry photo often hides
+    it; auto-confirm still treats an unclear recipient carefully)."""
     from relay.infrastructure.cli import _paddle_amount
     from relay.infrastructure.text_recheck import recipient_check
 
@@ -287,13 +291,63 @@ def proves(
         )
     except InvalidOperation:
         value = None
-    if value is None or value not in amounts:
+    seen = f"{value:.2f}" if value is not None else None
+    recipient = (
+        # As an InstaPay screen: another phone printed means another person.
+        recipient_check(text, owner[0], owner[1], True)
+        if owner
+        else "unchecked"
+    )
+    proven = seen if value in amounts and recipient != "different" else None
+    return seen, recipient, proven
+
+
+def proves(
+    reading: dict[str, str],
+    amounts: list[Decimal],
+    owner: tuple[str, str | None] | None,
+) -> str | None:
+    return examine(reading, amounts, owner)[2]
+
+
+@lru_cache(maxsize=1)
+def server_engine() -> Any | None:
+    """PP-OCRv5 server detection and recognition (Chinese/English, digits):
+    slower and stronger than the mobile models; only for reading again.
+    None when it cannot be loaded (the mobile engines still try)."""
+    try:
+        from rapidocr import (  # type: ignore[import-not-found]
+            ModelType,
+            OCRVersion,
+            RapidOCR,
+        )
+
+        return RapidOCR(
+            params={
+                "Det.ocr_version": OCRVersion.PPOCRV5,
+                "Det.model_type": ModelType.SERVER,
+                "Rec.ocr_version": OCRVersion.PPOCRV5,
+                "Rec.model_type": ModelType.SERVER,
+            }
+        )
+    except Exception:  # noqa: BLE001 - missing model or library
         return None
-    if owner is not None and recipient_check(text, owner[0], owner[1], False) != (
-        "match"
-    ):
-        return None
-    return f"{value:.2f}"
+
+
+def _read_server(picture: Any) -> dict[str, str]:
+    import numpy
+
+    engine = server_engine()
+    if engine is None:
+        return {"text": "", "latin": ""}
+    result = engine(numpy.asarray(picture))
+    text = "\n".join(
+        lines(getattr(result, "boxes", None), getattr(result, "txts", None))
+    )
+    return {"text": text, "latin": text}
+
+
+Try = dict[str, str | None]
 
 
 def try_variants(
@@ -301,18 +355,27 @@ def try_variants(
     amounts: list[Decimal],
     owner: tuple[str, str | None] | None,
     read: Callable[[Any], dict[str, str]] | None = None,
-) -> tuple[str | None, dict[str, str], str | None, list[str]]:
-    """(rule, reading, amount, tried): the first variant whose reading proves
-    a waiting amount; rule None when none did."""
+    server: Callable[[Any], dict[str, str]] | None = None,
+) -> tuple[str | None, dict[str, str], str | None, list[Try]]:
+    """(rule, reading, amount, tries): the first reading that proves a
+    waiting amount. The server engine reads the photo as it is first, then
+    each variant is read by the mobile engines and by the server engine."""
     reader = read or _read_picture
-    tried: list[str] = []
+    tries: list[Try] = []
+    attempts: list[tuple[str, Any, Callable[[Any], dict[str, str]]]] = []
+    if server is not None:
+        attempts.append(("original+server", picture, server))
     for rule, variant in variants(picture):
-        tried.append(rule)
-        reading = reader(variant)
-        amount = proves(reading, amounts, owner)
-        if amount is not None:
-            return rule, reading, amount, tried
-    return None, {}, None, tried
+        attempts.append((rule, variant, reader))
+        if server is not None:
+            attempts.append((f"{rule}+server", variant, server))
+    for rule, variant, engine in attempts:
+        reading = engine(variant)
+        seen, recipient, proven = examine(reading, amounts, owner)
+        tries.append({"rule": rule, "amount": seen, "recipient": recipient})
+        if proven is not None:
+            return rule, reading, proven, tries
+    return None, {}, None, tries
 
 
 async def retry_pass(
@@ -358,8 +421,9 @@ async def retry_pass(
             data = storage.read(storage_key, MAX_IMAGE_BYTES)
             with Image.open(io.BytesIO(data)) as image:
                 picture = ImageOps.exif_transpose(image).convert("RGB")
+            server = _read_server if server_engine() is not None else None
             rule, reading, amount, tried = await asyncio.to_thread(
-                try_variants, picture, amounts, owner
+                try_variants, picture, amounts, owner, None, server
             )
         except Exception as failure:  # noqa: BLE001 - one bad image, not the batch
             rule, reading, amount, tried = None, {}, None, []
@@ -376,7 +440,7 @@ async def retry_pass(
             updated = copy.deepcopy(row.resolution_result or {})
             state = dict(updated.get(RETRY_READ) or {}) | {
                 "state": "read" if rule else "failed",
-                "tried": tried,
+                "tries": tried,
                 "seconds": round(time.monotonic() - started, 1),
                 "done_at": now,
             }

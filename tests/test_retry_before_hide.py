@@ -33,7 +33,8 @@ def test_a_sideways_receipt_is_read_turned() -> None:
     rule, reading, amount, tried = ppocr_reader.try_variants(
         picture, WAITING, OWNER, read
     )
-    assert rule == "rotate_90" and amount == "3750.00" and tried == ["rotate_90"]
+    assert rule == "rotate_90" and amount == "3750.00"
+    assert [t["rule"] for t in tried] == ["rotate_90"]
     assert reading["text"] == RECEIPT
 
 
@@ -46,12 +47,18 @@ def test_a_blurry_receipt_is_read_cropped_and_enlarged() -> None:
 
     rule, _, amount, tried = ppocr_reader.try_variants(picture, WAITING, OWNER, read)
     assert rule == "crop_2x" and amount == "3750.00"
-    assert tried == ["rotate_90", "rotate_180", "rotate_270", "crop_2x"]
+    assert [t["rule"] for t in tried] == [
+        "rotate_90",
+        "rotate_180",
+        "rotate_270",
+        "crop_2x",
+    ]
 
 
 def test_only_the_waiting_amount_sent_to_the_owner_counts() -> None:
     picture = Image.new("RGB", (400, 600), "white")
     other = RECEIPT.replace("01003405232", "01112223334").replace("YOUSSEF", "AHMED")
+    # Someone else's phone printed: a different recipient, never proven.
     rule, _, _, tried = ppocr_reader.try_variants(
         picture, WAITING, OWNER, lambda variant: _reading(other)
     )
@@ -139,7 +146,8 @@ async def test_when_every_retry_fails_it_waits_in_review(
     assert await ppocr_reader.retry_pass(database, storage) == 1
     row = await _row(app, candidate)
     retry = row.resolution_result["retry_read"]
-    assert retry["state"] == "failed" and len(retry["tried"]) == 6
+    assert retry["state"] == "failed" and len(retry["tries"]) == 6
+    assert set(retry["tries"][0]) == {"rule", "amount", "recipient"}
     await hide_non_receipts(database)
     row = await _row(app, candidate)
     assert row.hidden_reason is None and row.review_status == "NEEDS_REVIEW"
@@ -152,3 +160,51 @@ def ppocr_reader_zone(app):
     from zoneinfo import ZoneInfo
 
     return ZoneInfo(app.state.settings.receipt_timezone)
+
+
+def test_unclear_recipient_passes_different_fails() -> None:
+    assert ppocr_reader.proves(_reading("960 EGP"), [Decimal("960.00")], OWNER) == (
+        "960.00"
+    )
+    other = "960 EGP\nإلى AHMED 01112223334"
+    assert ppocr_reader.proves(_reading(other), [Decimal("960.00")], OWNER) is None
+
+
+def test_exact_amount_only() -> None:
+    blurred = RECEIPT.replace("3,750", "3,75C")
+    assert ppocr_reader.proves(_reading(blurred), WAITING, OWNER) is None
+
+
+def test_the_server_engine_reads_first() -> None:
+    picture = Image.new("RGB", (400, 600), "white")
+    rule, _, amount, tries = ppocr_reader.try_variants(
+        picture,
+        WAITING,
+        OWNER,
+        lambda variant: _reading(""),
+        lambda variant: _reading(RECEIPT),
+    )
+    assert rule == "original+server" and amount == "3750.00" and len(tries) == 1
+
+
+def test_retries_go_on_without_the_server_engine() -> None:
+    picture = Image.new("RGB", (400, 600), "white")
+
+    def read(variant):
+        return _reading(RECEIPT if max(variant.size) >= 1100 else "")
+
+    rule, _, _, _ = ppocr_reader.try_variants(picture, WAITING, OWNER, read, None)
+    assert rule == "crop_2x"
+
+
+def test_each_try_is_recorded() -> None:
+    picture = Image.new("RGB", (400, 600), "white")
+    rule, _, _, tries = ppocr_reader.try_variants(
+        picture,
+        WAITING,
+        OWNER,
+        lambda variant: _reading("510 EGP"),
+        lambda variant: _reading(""),
+    )
+    assert rule is None and len(tries) == 13
+    assert tries[1] == {"rule": "rotate_90", "amount": "510.00", "recipient": "unclear"}
