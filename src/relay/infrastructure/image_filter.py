@@ -31,7 +31,7 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.object_storage import FilesystemObjectStorage
 from relay.infrastructure.processing_models import ReceiptCandidateRow
 
-KEY = "clip_v1"
+KEY = "clip_v2"  # v2: screenshot descriptions added; v1 scores are re-done
 RECEIPT_AT = 0.6  # summed probability of the receipt descriptions
 OTHER_AT = 0.15
 MAX_IMAGE_BYTES = 16 * 1024 * 1024
@@ -48,6 +48,9 @@ OTHER_PROMPTS = (
     "a screenshot of a chat conversation",
     "a photo of people or a room",
     "a photo of a paper document",
+    "a screenshot of a computer desktop with a taskbar and windows",
+    "a screenshot of a phone keyboard",
+    "a screenshot of a spreadsheet or a computer program",
 )
 
 
