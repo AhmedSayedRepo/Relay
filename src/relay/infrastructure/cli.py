@@ -309,7 +309,11 @@ async def rescue_hidden(
     zone = ZoneInfo(settings.receipt_timezone)
     async with database.session() as session:
         statement = (
-            select(ReceiptCandidateRow, RawEventRow.occurred_at)
+            select(
+                ReceiptCandidateRow.id,
+                ReceiptCandidateRow.device_id,
+                RawEventRow.occurred_at,
+            )
             .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
             .where(
                 ReceiptCandidateRow.hidden_reason.in_(RESCUE_REASONS),
@@ -330,12 +334,7 @@ async def rescue_hidden(
             )
         found = (await session.execute(statement)).all()
     rescued = 0
-    for row, folder_at in found:
-        resolution = (
-            row.resolution_result if isinstance(row.resolution_result, dict) else {}
-        )
-        if isinstance(resolution.get(RETRY_READ), dict) or not _machine_only(row):
-            continue
+    for candidate_id, device_id, folder_at in found:
         moment = aware(folder_at)
         local = moment.astimezone(zone).date()
         midnight = datetime(local.year, local.month, local.day, tzinfo=zone)
@@ -344,18 +343,23 @@ async def rescue_hidden(
             amounts = await build_sms_verification_service(
                 SqlUnitOfWork(session), settings
             ).free_amounts(
-                row.device_id, row.id, moment, since if since < midnight else None
+                device_id, candidate_id, moment, since if since < midnight else None
             )
         if not amounts:
             continue
         async with database.session() as session:
             current = await session.scalar(
                 select(ReceiptCandidateRow)
-                .where(ReceiptCandidateRow.id == row.id)
+                .where(ReceiptCandidateRow.id == candidate_id)
                 .with_for_update()
             )
-            if current is None or current.hidden_reason not in RESCUE_REASONS:
-                continue
+            if (
+                current is None
+                or current.hidden_reason not in RESCUE_REASONS
+                or isinstance((current.resolution_result or {}).get(RETRY_READ), dict)
+                or not _machine_only(current)
+            ):
+                continue  # a person decided on it, or it was read again already
             updated = copy.deepcopy(current.resolution_result or {})
             updated[RETRY_READ] = {
                 "state": "pending",
