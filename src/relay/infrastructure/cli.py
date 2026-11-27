@@ -263,6 +263,8 @@ async def hide_non_receipts(database: Database) -> int:
         for row in rows:
             if kept(row):
                 continue  # a person brought it back from the Rejected page
+            if isinstance((row.resolution_result or {}).get(RETRY_READ), dict):
+                continue  # a bank SMS may prove it: read again, else Review
             if _not_completed(row):
                 # An error screen or the send form: no money moved. Rejected,
                 # with nothing suggested, so no amount is offered.
@@ -289,6 +291,87 @@ async def hide_non_receipts(database: Database) -> int:
     if hidden:
         print(f"Hid {hidden} photos in Review that are not receipts.")
     return hidden
+
+
+RETRY_READ = "retry_read"
+RESCUE_REASONS = ("not_a_receipt", "no_transfer")
+
+
+async def rescue_hidden(
+    database: Database, settings: Settings, day: date | None = None
+) -> int:
+    """Photos hidden as "not a receipt" or "no transfer" while a bank SMS of
+    the same day (or the evening before) is still unclaimed: probably a
+    blurry or sideways receipt. They come back to Review, marked to be read
+    again (rotated, cropped, enhanced) by the PaddleOCR container; if that
+    fails they stay in Review, never hidden. ``day``: only photos of that
+    local day (a one-off fix); otherwise photos of the last day and a half."""
+    zone = ZoneInfo(settings.receipt_timezone)
+    async with database.session() as session:
+        statement = (
+            select(ReceiptCandidateRow, RawEventRow.occurred_at)
+            .join(RawEventRow, RawEventRow.id == ReceiptCandidateRow.raw_event_id)
+            .where(
+                ReceiptCandidateRow.hidden_reason.in_(RESCUE_REASONS),
+                ReceiptCandidateRow.review_status.in_(
+                    (ReviewStatus.NEEDS_REVIEW.value, ReviewStatus.REJECTED.value)
+                ),
+            )
+        )
+        if day is not None:
+            start = datetime(day.year, day.month, day.day, tzinfo=zone)
+            statement = statement.where(
+                RawEventRow.occurred_at >= start,
+                RawEventRow.occurred_at < start + timedelta(days=1),
+            )
+        else:
+            statement = statement.where(
+                RawEventRow.occurred_at >= datetime.now(UTC) - timedelta(hours=36)
+            )
+        found = (await session.execute(statement)).all()
+    rescued = 0
+    for row, folder_at in found:
+        resolution = (
+            row.resolution_result if isinstance(row.resolution_result, dict) else {}
+        )
+        if isinstance(resolution.get(RETRY_READ), dict) or not _machine_only(row):
+            continue
+        moment = aware(folder_at)
+        local = moment.astimezone(zone).date()
+        midnight = datetime(local.year, local.month, local.day, tzinfo=zone)
+        since = moment - EVENING_BEFORE
+        async with database.session() as session:
+            amounts = await build_sms_verification_service(
+                SqlUnitOfWork(session), settings
+            ).free_amounts(
+                row.device_id, row.id, moment, since if since < midnight else None
+            )
+        if not amounts:
+            continue
+        async with database.session() as session:
+            current = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == row.id)
+                .with_for_update()
+            )
+            if current is None or current.hidden_reason not in RESCUE_REASONS:
+                continue
+            updated = copy.deepcopy(current.resolution_result or {})
+            updated[RETRY_READ] = {
+                "state": "pending",
+                "hidden_as": current.hidden_reason,
+                "amounts": [f"{amount:.2f}" for amount in amounts],
+                "at": datetime.now(UTC).isoformat(),
+            }
+            current.resolution_result = updated
+            current.hidden_reason = None
+            current.review_status = ReviewStatus.NEEDS_REVIEW.value
+            current.updated_at = datetime.now(UTC)
+            await session.commit()
+        rescued += 1
+    if rescued:
+        print(f"Brought back {rescued} hidden photos a bank SMS may prove.")
+    return rescued
 
 
 async def review_unreadable(database: Database) -> int:
@@ -1541,6 +1624,12 @@ async def auto_confirm(
                 }
                 | ({"recipient": "unclear"} if unclear else {})
                 | ({"no_reference": True} if near is not None else {})
+                | (
+                    {"retry": str(resolution[RETRY_READ].get("rule"))}
+                    if isinstance(resolution.get(RETRY_READ), dict)
+                    and resolution[RETRY_READ].get("state") == "read"
+                    else {}
+                )
                 | ({"amount_read_as": read_as} if scaled else {}),
             )
             if unclear:
@@ -1907,6 +1996,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 await helper_reopen(database)
                 await review_unreadable(database)
                 await hide_non_receipts(database)
+                await rescue_hidden(database, settings)
                 await unhide_copies(database)
                 await helper_suggest(database)
                 async with database.session() as session:
@@ -1950,6 +2040,7 @@ def main() -> int:
             "vl-loop",
             "ppocr-loop",
             "check-alerts",
+            "retry-hidden",
         ],
     )
     parser.add_argument("--email")
@@ -1972,6 +2063,24 @@ def main() -> int:
         except Exception as error:
             print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
             return 1
+    if args.command == "retry-hidden":
+        # One-off: photos of --day hidden as not a receipt while a bank SMS
+        # of that day is unclaimed are queued to be read again.
+        if args.day is None:
+            print("Give --day YYYY-MM-DD.", file=sys.stderr)
+            return 2
+        settings = load_settings()
+
+        async def queue() -> int:
+            database = Database(settings)
+            try:
+                return await rescue_hidden(database, settings, args.day)
+            finally:
+                await database.close()
+
+        queued = asyncio.run(queue())
+        print(f"Queued {queued} photo(s) of {args.day} to be read again.")
+        return 0
     if args.command == "ppocr-loop":
         from relay.infrastructure.ppocr_reader import ppocr_loop
 

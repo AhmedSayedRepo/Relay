@@ -101,6 +101,10 @@ AR = {
     "Not recognised as a receipt": "مش متعرف عليه كإيصال",
     "Possible duplicate": "تكرار محتمل",
     "Audit trail": "سجل القرارات",
+    "Photo not clear, a bank SMS with the amount waits": (
+        "الصورة مش واضحة، وفيه رسالة بنك بنفس المبلغ مستنية"
+    ),
+    "read again": "قراءة تانية",
     "Time": "الوقت",
     "Action": "القرار",
     "By": "بواسطة",

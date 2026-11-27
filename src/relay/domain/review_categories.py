@@ -67,6 +67,14 @@ def _repeats(row: dict[str, JsonValue]) -> bool:
     )
 
 
+def _read_again(row: dict[str, JsonValue]) -> bool:
+    """Hidden as "not a receipt" while a bank SMS of its day is unclaimed,
+    and reading it again (rotated, cropped, enhanced) found nothing yet."""
+    resolution = row.get("resolution_result")
+    retry = resolution.get("retry_read") if isinstance(resolution, dict) else None
+    return isinstance(retry, dict) and retry.get("state") in ("pending", "failed")
+
+
 def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
     """Map receipt id to one category, checked in this order:
     done (every remaining field was marked unavailable), in_progress (an
@@ -92,7 +100,11 @@ def categorize(rows: Iterable[dict[str, JsonValue]]) -> dict[str, str]:
             result[identifier] = "in_progress"
         elif (reference and counts[reference] > 1) or _repeats(row):
             result[identifier] = "duplicate"
-        elif any(suggestion(fields.get(name)) is None for name in _blocking(row)):
+        elif _read_again(row) or any(
+            suggestion(fields.get(name)) is None for name in _blocking(row)
+        ):
+            # A photo the readers could not read while a bank SMS of its day
+            # waits is "missing" too: a person types what it shows.
             result[identifier] = "missing"
         else:
             result[identifier] = "ready"

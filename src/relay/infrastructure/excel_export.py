@@ -74,6 +74,7 @@ REASONS = {
     "repeated_unread_sender": "Possible duplicate: same amount, sender unreadable",
     "reading": "Still being read",
     "no_sms": "No bank SMS yet",
+    "unreadable_sms_waiting": "Photo not clear, a bank SMS with the amount waits",
     "missing_fields": "Fields to confirm",
 }
 SMS = {
