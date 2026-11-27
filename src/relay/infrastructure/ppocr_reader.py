@@ -316,7 +316,7 @@ def server_engine() -> Any | None:
     slower and stronger than the mobile models; only for reading again.
     None when it cannot be loaded (the mobile engines still try)."""
     try:
-        from rapidocr import (  # type: ignore[import-not-found]
+        from rapidocr import (
             ModelType,
             OCRVersion,
             RapidOCR,
