@@ -227,3 +227,32 @@ async def test_a_failed_retry_is_hidden_by_the_usual_rules(
     monkeypatch.setattr(cli, "_shop_invoice", lambda row: True)
     await hide_non_receipts(database)
     assert (await _row(app, candidate)).hidden_reason == "shop_invoice"
+
+
+async def test_a_rescued_photo_can_be_confirmed(client, auth_headers, app):
+    from relay.infrastructure.cli import reopen_rescued
+
+    candidate = await _hidden_receipt(client, auth_headers, app, "retry-open", "960.00")
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        # Machine-rejected before it was hidden: no field open to decide.
+        row.resolution_result = {"state": "REJECTED_OR_UNKNOWN_RECEIPT"}
+        await session.commit()
+    assert await rescue_hidden(app.state.database, app.state.settings) == 1
+    row = await _row(app, candidate)
+    assert row.resolution_result["reopened_by"] == "retry_read"
+    assert row.resolution_result["retry_read"]["state"] == "pending"
+    assert row.resolution_result["blocking_fields"]
+    # Already rescued the old way (unhidden only): reopened once, mark kept.
+    async with app.state.database.session() as session:
+        stored = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        stored.resolution_result = {
+            "state": "REJECTED_OR_UNKNOWN_RECEIPT",
+            "retry_read": {"state": "failed", "hidden_as": "not_a_receipt"},
+        }
+        await session.commit()
+    assert await reopen_rescued(app.state.database) == 1
+    assert await reopen_rescued(app.state.database) == 0
+    row = await _row(app, candidate)
+    assert row.resolution_result["retry_read"]["state"] == "failed"
+    assert row.resolution_result["reopened_by"] == "retry_read"
