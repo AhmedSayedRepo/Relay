@@ -37,6 +37,7 @@ from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.datetime_utils import aware
 from relay.infrastructure.event_models import RawEventRow
+from relay.infrastructure.image_filter import clip_pass, clip_verdict
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
@@ -265,6 +266,21 @@ async def hide_non_receipts(database: Database) -> int:
                 continue  # a person brought it back from the Rejected page
             if isinstance((row.resolution_result or {}).get(RETRY_READ), dict):
                 continue  # a bank SMS may prove it: read again, else Review
+            seen = clip_verdict(row.machine_result)
+            if seen == "receipt":
+                continue  # CLIP sees a transfer receipt: never hidden
+            if (
+                seen == "not_receipt"
+                and _machine_only(row)
+                # PaddleOCR clearly reading a transfer wins (a photo of a
+                # computer screen showing a receipt): no hide/unhide loop.
+                and not _helper_receipt(_helper_read(row.machine_result))
+            ):
+                # A keyboard, a desktop, a shop bill, food: hidden even when
+                # its text has numbers.
+                row.hidden_reason = "not_a_receipt"
+                hidden += 1
+                continue
             if _not_completed(row):
                 # An error screen or the send form: no money moved. Rejected,
                 # with nothing suggested, so no amount is offered.
@@ -358,6 +374,7 @@ async def rescue_hidden(
                 or current.hidden_reason not in RESCUE_REASONS
                 or isinstance((current.resolution_result or {}).get(RETRY_READ), dict)
                 or not _machine_only(current)
+                or clip_verdict(current.machine_result) == "not_receipt"
             ):
                 continue  # a person decided on it, or it was read again already
             updated = copy.deepcopy(current.resolution_result or {})
@@ -376,6 +393,36 @@ async def rescue_hidden(
     if rescued:
         print(f"Brought back {rescued} hidden photos a bank SMS may prove.")
     return rescued
+
+
+async def rehide_failed(database: Database) -> int:
+    """Photos brought back for a waiting bank SMS that reading again could not
+    read, and that CLIP sees are not receipts: hidden again as before."""
+    hidden = 0
+    async with database.session() as session:
+        rows = await session.scalars(
+            select(ReceiptCandidateRow)
+            .where(
+                ReceiptCandidateRow.hidden_reason.is_(None),
+                ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value,
+                ReceiptCandidateRow.resolution_result[RETRY_READ]["state"]
+                .as_string()
+                .in_(("failed",)),
+            )
+            .with_for_update()
+        )
+        for row in rows:
+            if clip_verdict(row.machine_result) != "not_receipt" or not (
+                _machine_only(row)
+            ):
+                continue
+            was = (row.resolution_result or {}).get(RETRY_READ) or {}
+            row.hidden_reason = str(was.get("hidden_as") or "not_a_receipt")
+            hidden += 1
+        await session.commit()
+    if hidden:
+        print(f"Hid again {hidden} photos CLIP sees are not receipts.")
+    return hidden
 
 
 async def review_unreadable(database: Database) -> int:
@@ -431,6 +478,8 @@ async def unhide_receipt_like(database: Database) -> int:
         now = datetime.now(UTC)
         for row in rows:
             read = (row.machine_result or {}).get(text_recheck.VERSION)
+            if clip_verdict(row.machine_result) == "not_receipt":
+                continue  # CLIP sees no receipt; loose text signs do not win
             if not isinstance(read, dict) or not _receipt_like(read):
                 continue
             row.hidden_reason = None
@@ -1999,8 +2048,10 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 )
                 await helper_reopen(database)
                 await review_unreadable(database)
+                await clip_pass(database, storage, 10)
                 await hide_non_receipts(database)
                 await rescue_hidden(database, settings)
+                await rehide_failed(database)
                 await unhide_copies(database)
                 await helper_suggest(database)
                 async with database.session() as session:
