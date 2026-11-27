@@ -48,6 +48,9 @@ _HANDLE = re.compile(r"([a-z][a-z0-9._-]{1,40}(?:\s\d{1,8})?)\s*@\s*instapay", r
 _FAILED = re.compile(
     r"فشل(?:ت)?\s*(?:ال)?(?:معامل[ةه]|عملي[ةه]|تحويل)|"
     r"(?:transaction|transfer)\s+failed|unsuccessful|"
+    # A rejected transfer: "عملية مرفوضة", "لقد تجاوزت الحد الشهري للتحويل".
+    r"عملي[ةه]\s*مرفوض[ةه]|تم\s*رفض|تجاوزت\s*(?:ال)?حد|"
+    r"(?:transaction|transfer)\s+(?:rejected|declined)|limit\s+exceeded|"
     # An error on the send screen: "the phone number or payment address is
     # incorrect, please try again".
     r"غير\s*صحيح|يرجى\s*المحاولة|حاول\s*مر[ةه]\s*[اأ]خرى|try\s+again|incorrect",

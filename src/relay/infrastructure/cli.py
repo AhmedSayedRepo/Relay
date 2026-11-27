@@ -377,22 +377,55 @@ async def rescue_hidden(
                 or clip_verdict(current.machine_result) == "not_receipt"
             ):
                 continue  # a person decided on it, or it was read again already
-            updated = copy.deepcopy(current.resolution_result or {})
-            updated[RETRY_READ] = {
+            marked = {
                 "state": "pending",
                 "hidden_as": current.hidden_reason,
                 "amounts": [f"{amount:.2f}" for amount in amounts],
                 "at": datetime.now(UTC).isoformat(),
             }
+            # Back in Review as a receipt to decide (its fields open), so a
+            # bank SMS can confirm it; not only unhidden.
+            updated = _reopen(current, "retry_read", datetime.now(UTC))
+            updated[RETRY_READ] = marked
             current.resolution_result = updated
             current.hidden_reason = None
-            current.review_status = ReviewStatus.NEEDS_REVIEW.value
-            current.updated_at = datetime.now(UTC)
             await session.commit()
         rescued += 1
     if rescued:
         print(f"Brought back {rescued} hidden photos a bank SMS may prove.")
     return rescued
+
+
+async def reopen_rescued(database: Database) -> int:
+    """Photos brought back before rescue_hidden reopened them: unhidden but
+    still a machine-rejected record, so confirming their fields failed ("no
+    active evidence exception"). Reopened the same way, keeping the mark."""
+    reopened = 0
+    async with database.session() as session:
+        rows = await session.scalars(
+            select(ReceiptCandidateRow)
+            .where(
+                ReceiptCandidateRow.hidden_reason.is_(None),
+                ReceiptCandidateRow.review_status == ReviewStatus.NEEDS_REVIEW.value,
+                ReceiptCandidateRow.resolution_result[RETRY_READ]["state"]
+                .as_string()
+                .is_not(None),
+            )
+            .with_for_update()
+        )
+        for row in rows:
+            resolution = row.resolution_result or {}
+            if "reopened_by" in resolution or not _machine_only(row):
+                continue
+            marked = resolution.get(RETRY_READ)
+            updated = _reopen(row, "retry_read", datetime.now(UTC))
+            updated[RETRY_READ] = marked
+            row.resolution_result = updated
+            reopened += 1
+        await session.commit()
+    if reopened:
+        print(f"Reopened {reopened} brought-back photos for confirming.")
+    return reopened
 
 
 async def rehide_failed(database: Database) -> int:
@@ -2035,6 +2068,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 await clip_pass(database, storage, 10)
                 await hide_non_receipts(database)
                 await rescue_hidden(database, settings)
+                await reopen_rescued(database)
                 await rehide_failed(database)
                 await unhide_copies(database)
                 await helper_suggest(database)
