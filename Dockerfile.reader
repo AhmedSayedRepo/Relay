@@ -6,11 +6,13 @@ FROM ${BASE_IMAGE}
 USER root
 RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.6,<3" \
     && pip install "transformers>=4.57,<6" "peft>=0.21,<1" "huggingface_hub>=0.30,<2" \
-    && python -c "from huggingface_hub import snapshot_download; snapshot_download('naver-clova-ix/donut-base', revision='a959cf33c20e09215873e338299c900f57047c61', local_dir='/opt/donut-base', allow_patterns=['*.json', '*.safetensors', '*.bin', '*.model', '*.txt'])"
+    && python -c "from huggingface_hub import snapshot_download; snapshot_download('naver-clova-ix/donut-base', revision='a959cf33c20e09215873e338299c900f57047c61', local_dir='/opt/donut-base', allow_patterns=['*.json', '*.safetensors', '*.bin', '*.model', '*.txt'])" \
+    && python -c "from huggingface_hub import snapshot_download; snapshot_download('openai/clip-vit-base-patch32', revision='3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268', local_dir='/opt/clip', allow_patterns=['*.json', '*.bin', '*.txt'])"
 
 USER relay
 ENV HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
     HOME=/tmp \
     RELAY_MODEL_DIR=/model \
-    RELAY_BASE_MODEL_DIR=/opt/donut-base
+    RELAY_BASE_MODEL_DIR=/opt/donut-base \
+    RELAY_CLIP_DIR=/opt/clip
