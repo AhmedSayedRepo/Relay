@@ -119,3 +119,22 @@ async def test_only_not_receipt_failures_are_hidden_again(client, auth_headers, 
     assert await rehide_failed(app.state.database) == 1
     assert (await _row(app, junk)).hidden_reason == "not_a_receipt"
     assert (await _row(app, real)).hidden_reason is None
+
+
+async def test_loose_text_signs_do_not_bring_back_a_clip_hidden_photo(
+    client, auth_headers, app
+):
+    from relay.infrastructure import text_recheck
+    from relay.infrastructure.cli import unhide_receipt_like
+
+    candidate, _ = await run_receipt(client, auth_headers, app, "clip-loop")
+    async with app.state.database.session() as session:
+        row = await session.get(ReceiptCandidateRow, UUID(candidate["id"]))
+        row.machine_result = dict(row.machine_result or {}) | {
+            image_filter.KEY: {"verdict": "not_receipt", "receipt": 0.02},
+            text_recheck.VERSION: {"receipt": True, "text": "1234567890"},
+        }
+        row.hidden_reason = "not_a_receipt"
+        await session.commit()
+    await unhide_receipt_like(app.state.database)
+    assert (await _row(app, candidate)).hidden_reason == "not_a_receipt"

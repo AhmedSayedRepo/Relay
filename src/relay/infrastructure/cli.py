@@ -269,7 +269,13 @@ async def hide_non_receipts(database: Database) -> int:
             seen = clip_verdict(row.machine_result)
             if seen == "receipt":
                 continue  # CLIP sees a transfer receipt: never hidden
-            if seen == "not_receipt" and _machine_only(row):
+            if (
+                seen == "not_receipt"
+                and _machine_only(row)
+                # PaddleOCR clearly reading a transfer wins (a photo of a
+                # computer screen showing a receipt): no hide/unhide loop.
+                and not _helper_receipt(_helper_read(row.machine_result))
+            ):
                 # A keyboard, a desktop, a shop bill, food: hidden even when
                 # its text has numbers.
                 row.hidden_reason = "not_a_receipt"
@@ -472,6 +478,8 @@ async def unhide_receipt_like(database: Database) -> int:
         now = datetime.now(UTC)
         for row in rows:
             read = (row.machine_result or {}).get(text_recheck.VERSION)
+            if clip_verdict(row.machine_result) == "not_receipt":
+                continue  # CLIP sees no receipt; loose text signs do not win
             if not isinstance(read, dict) or not _receipt_like(read):
                 continue
             row.hidden_reason = None
