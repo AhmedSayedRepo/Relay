@@ -135,6 +135,10 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         return None
     if isinstance(resolution.get("old_receipt"), dict):
         return "old_receipt"
+    retry = resolution.get("retry_read")
+    if isinstance(retry, dict) and retry.get("state") in ("pending", "failed"):
+        # Hidden as "not a receipt", but a bank SMS of its day is unclaimed.
+        return "unreadable_sms_waiting"
     if resolution.get("unreadable") and not resolution.get("possible_repeat"):
         return "unreadable"
     repeat = resolution.get("possible_repeat")

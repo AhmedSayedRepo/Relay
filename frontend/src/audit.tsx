@@ -26,7 +26,8 @@ export function AuditTrail({ token }: { token: string }) {
   const money = (row: AuditRow) => row.amount ? Number(row.amount).toLocaleString(locale === "ar" ? "ar-EG" : "en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + (row.currency || "") : "—";
   const reasons = m.transactions.reasons as Record<string, string>;
   const reasonText = (reason: string | null) => reason ? reasons[reason] ?? reasons["hidden_" + reason] ?? reason : "";
-  const why = (row: AuditRow) => [row.rule ? a.rules[row.rule] ?? row.rule : "", reasonText(row.reason)].filter(Boolean).join(" · ") || "—";
+  const ruleText = (rule: string | null) => { if (!rule) return ""; const [base, retry] = rule.split(" · retry:"); return (a.rules[base] ?? base) + (retry ? " · " + a.rules.retry + ": " + retry : ""); };
+  const why = (row: AuditRow) => [ruleText(row.rule), reasonText(row.reason)].filter(Boolean).join(" · ") || "—";
   async function exportExcel() { setMessage(m.reports.preparing); try { await downloadExport("/audit-trail/export.xlsx" + query({ ...filters, language: locale }), token); setMessage(m.reports.downloaded); } catch { setMessage(m.reports.failed); } }
   return <section><PageHeading title={m.pages.audit[0]} description={m.pages.audit[1]} help="audit-trail" />
     <div className="panel dash-filters"><div className="filter-bar"><DateFields dateFrom={dateFrom} dateTo={dateTo} setDateFrom={(value) => reset(() => setDateFrom(value))} setDateTo={(value) => reset(() => setDateTo(value))} />

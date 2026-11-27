@@ -79,9 +79,11 @@ async def _load(
 
 
 def _rule(auto: dict[str, Any]) -> str:
-    if auto.get("no_reference"):
-        return "sms_no_reference"
-    return "sms_same_amount"
+    rule = "sms_no_reference" if auto.get("no_reference") else "sms_same_amount"
+    if auto.get("retry"):
+        # Read again first (the photo was about to be hidden): which way.
+        return f"{rule} · retry:{auto['retry']}"
+    return rule
 
 
 async def trail(
@@ -303,6 +305,15 @@ LABELS = {
 }
 
 
+def _label(rule: str | None) -> str:
+    """A rule in words; "… · retry:rotate_90" keeps the retry's name."""
+    if not rule:
+        return ""
+    base, _, retry = rule.partition(" · retry:")
+    words = LABELS.get(base, base)
+    return f"{words} · read again: {retry}" if retry else words
+
+
 def workbook(items: Iterable[dict[str, Any]], zone: Any) -> bytes:
     """The trail as an Excel sheet (local times)."""
     from openpyxl import Workbook
@@ -314,7 +325,7 @@ def workbook(items: Iterable[dict[str, Any]], zone: Any) -> bytes:
     sheet.append(HEADERS)
     for item in items:
         at = datetime.fromisoformat(item["at"]).astimezone(zone)
-        why = LABELS.get(item["rule"] or "", item["rule"] or "")
+        why = _label(item["rule"])
         if item["reason"]:
             why = f"{why} · {item['reason']}" if why else str(item["reason"])
         sheet.append(

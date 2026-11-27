@@ -368,6 +368,41 @@ class SmsVerificationService:
         near = moment >= folder_at - FOLDER_NEAR
         return event_id, moment.replace(tzinfo=None, second=0, microsecond=0), near
 
+    async def free_amounts(
+        self,
+        device_id: UUID,
+        candidate_id: UUID,
+        folder_at: datetime,
+        since: datetime | None = None,
+    ) -> list[Decimal]:
+        """Amounts of incoming bank SMS no receipt has claimed, of the photo's
+        local day (or from ``since``, the evening before): what a photo the
+        readers could not read may still prove."""
+        if folder_at.tzinfo is None:
+            return []
+        sources = set(await self.repo.sms_sources(device_id))
+        if not sources:
+            sources = set(await self.repo.sms_devices())
+        if not sources:
+            return []
+        day = folder_at.astimezone(self.zone).date()
+        start = datetime(day.year, day.month, day.day, tzinfo=self.zone)
+        earliest = min(start, since) if since is not None else start
+        held = await self.repo.held_events(except_candidate=candidate_id)
+        events = await self.repo.sms_events(
+            sources, earliest, start + timedelta(hours=24)
+        )
+        return sorted(
+            {
+                sms.amount
+                for sms in _facts(events)
+                if sms.event_id not in held
+                and sms.device_id in sources
+                and sms.direction == SmsDirection.IN
+                and earliest <= sms.occurred_at < start + timedelta(hours=24)
+            }
+        )
+
     async def match_by_day(
         self,
         device_id: UUID,

@@ -18,7 +18,9 @@ import asyncio
 import copy
 import io
 import time
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 from typing import Any
 
@@ -172,6 +174,26 @@ def zoom_in(picture: Any) -> Any:
     when there is nothing to gain (already large and filling the frame)."""
     from PIL import ImageFilter, ImageOps
 
+    box = screen_box(picture)
+    cropped = picture.crop(box) if box is not None else picture
+    side = max(cropped.size)
+    scale = min(3.0, ZOOM_MAX_SIDE / side)
+    if scale < 1.3 and box is None:
+        return None
+    if scale > 1:
+        cropped = cropped.resize(
+            (int(cropped.width * scale), int(cropped.height * scale)),
+            resample=3,  # bicubic
+        )
+    cropped = ImageOps.autocontrast(cropped, cutoff=1)
+    return cropped.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=3))
+
+
+def screen_box(picture: Any) -> tuple[int, int, int, int] | None:
+    """Where the bright phone screen (the receipt) is in a photo, or None
+    when no part stands out (a lamp or a reflection is too small)."""
+    from PIL import ImageOps
+
     gray = ImageOps.grayscale(picture)
     histogram = gray.histogram()
     total = sum(histogram)
@@ -194,19 +216,189 @@ def zoom_in(picture: Any) -> Any:
         )
         area = (box[2] - box[0]) * (box[3] - box[1])
         if area < width * height * 0.08:
-            box = None  # a lamp or a reflection, not a screen
-    cropped = picture.crop(box) if box is not None else picture
-    side = max(cropped.size)
-    scale = min(3.0, ZOOM_MAX_SIDE / side)
-    if scale < 1.3 and box is None:
-        return None
-    if scale > 1:
-        cropped = cropped.resize(
-            (int(cropped.width * scale), int(cropped.height * scale)),
-            resample=3,  # bicubic
+            return None  # a lamp or a reflection, not a screen
+        return box
+    return None
+
+
+# Reading again before a photo is hidden: a bank SMS of its day is unclaimed,
+# so it may be a blurry or sideways receipt. Tried in this order; the first
+# reading that shows the SMS amount (sent to the owner) wins.
+RETRY_READ = "retry_read"
+RETRY_MAX_SIDE = 3200
+
+
+def _upscaled(picture: Any, factor: float = 2.0) -> Any:
+    scale = min(factor, RETRY_MAX_SIDE / max(picture.size))
+    if scale <= 1:
+        return picture
+    return picture.resize(
+        (int(picture.width * scale), int(picture.height * scale)), resample=3
+    )
+
+
+def enhance(picture: Any) -> Any:
+    """Grayscale, local contrast (CLAHE where OpenCV is there, as in the
+    PaddleOCR container), denoise and sharpen."""
+    from PIL import Image, ImageFilter, ImageOps
+
+    gray = ImageOps.grayscale(picture)
+    try:
+        import cv2
+        import numpy
+
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        gray = Image.fromarray(clahe.apply(numpy.asarray(gray)))
+    except ImportError:
+        gray = ImageOps.equalize(gray)
+    gray = gray.filter(ImageFilter.MedianFilter(3))
+    gray = gray.filter(ImageFilter.UnsharpMask(radius=2, percent=180, threshold=2))
+    return gray.convert("RGB")
+
+
+def variants(picture: Any) -> Iterator[tuple[str, Any]]:
+    """The photo turned, cropped to the screen and enlarged, and enhanced."""
+    for angle in (90, 180, 270):
+        yield f"rotate_{angle}", picture.rotate(angle, expand=True)
+    box = screen_box(picture)
+    crop = _upscaled(picture.crop(box) if box is not None else picture)
+    yield "crop_2x", crop
+    yield "enhance", enhance(picture)
+    yield "crop_enhance", enhance(crop)
+
+
+def proves(
+    reading: dict[str, str],
+    amounts: list[Decimal],
+    owner: tuple[str, str | None] | None,
+) -> str | None:
+    """The amount this reading shows when it is one of the waiting SMS
+    amounts and the receipt was sent to the owner (when one is set)."""
+    from relay.infrastructure.cli import _paddle_amount
+    from relay.infrastructure.text_recheck import recipient_check
+
+    text = str(reading.get("text") or "")
+    amount = _paddle_amount(text, reading.get("latin") or None)
+    try:
+        value = (
+            Decimal(str(amount).replace(",", "")).quantize(Decimal("0.01"))
+            if amount
+            else None
         )
-    cropped = ImageOps.autocontrast(cropped, cutoff=1)
-    return cropped.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=3))
+    except InvalidOperation:
+        value = None
+    if value is None or value not in amounts:
+        return None
+    if owner is not None and recipient_check(text, owner[0], owner[1], False) != (
+        "match"
+    ):
+        return None
+    return f"{value:.2f}"
+
+
+def try_variants(
+    picture: Any,
+    amounts: list[Decimal],
+    owner: tuple[str, str | None] | None,
+    read: Callable[[Any], dict[str, str]] | None = None,
+) -> tuple[str | None, dict[str, str], str | None, list[str]]:
+    """(rule, reading, amount, tried): the first variant whose reading proves
+    a waiting amount; rule None when none did."""
+    reader = read or _read_picture
+    tried: list[str] = []
+    for rule, variant in variants(picture):
+        tried.append(rule)
+        reading = reader(variant)
+        amount = proves(reading, amounts, owner)
+        if amount is not None:
+            return rule, reading, amount, tried
+    return None, {}, None, tried
+
+
+async def retry_pass(
+    database: Database,
+    storage: FilesystemObjectStorage,
+    limit: int = 2,
+) -> int:
+    """Read again the photos marked by rescue_hidden. A success becomes this
+    receipt's PaddleOCR reading (the normal rules then apply, so it can be
+    confirmed); a failure keeps it in Review."""
+    from PIL import Image, ImageOps
+
+    from relay.infrastructure.email_settings import recipient
+
+    async with database.session() as session:
+        owner = await recipient(session)
+        rows = (
+            await session.execute(
+                select(
+                    ReceiptCandidateRow.id,
+                    BinaryObjectRow.storage_key,
+                    ReceiptCandidateRow.resolution_result,
+                )
+                .join(
+                    BinaryObjectRow, BinaryObjectRow.id == ReceiptCandidateRow.object_id
+                )
+                .where(
+                    ReceiptCandidateRow.resolution_result[RETRY_READ]["state"]
+                    .as_string()
+                    .in_(("pending",))
+                )
+                .order_by(ReceiptCandidateRow.created_at)
+                .limit(limit)
+            )
+        ).all()
+    done = 0
+    for candidate_id, storage_key, resolution in rows:
+        marked = (resolution or {}).get(RETRY_READ) or {}
+        amounts = [Decimal(str(value)) for value in marked.get("amounts") or ()]
+        started = time.monotonic()
+        error: str | None = None
+        try:
+            data = storage.read(storage_key, MAX_IMAGE_BYTES)
+            with Image.open(io.BytesIO(data)) as image:
+                picture = ImageOps.exif_transpose(image).convert("RGB")
+            rule, reading, amount, tried = await asyncio.to_thread(
+                try_variants, picture, amounts, owner
+            )
+        except Exception as failure:  # noqa: BLE001 - one bad image, not the batch
+            rule, reading, amount, tried = None, {}, None, []
+            error = f"{type(failure).__name__}: {failure}"[:300]
+        now = datetime.now(UTC).isoformat()
+        async with database.session() as session:
+            row = await session.scalar(
+                select(ReceiptCandidateRow)
+                .where(ReceiptCandidateRow.id == candidate_id)
+                .with_for_update()
+            )
+            if row is None:
+                continue
+            updated = copy.deepcopy(row.resolution_result or {})
+            state = dict(updated.get(RETRY_READ) or {}) | {
+                "state": "read" if rule else "failed",
+                "tried": tried,
+                "seconds": round(time.monotonic() - started, 1),
+                "done_at": now,
+            }
+            if rule:
+                state |= {"rule": rule, "amount": amount}
+                machine = copy.deepcopy(row.machine_result or {})
+                machine[VERSION] = dict(reading) | {"retry": rule, "at": now}
+                row.machine_result = machine
+                updated.pop("primary_reader", None)  # its values apply again
+            if error:
+                state["error"] = error
+            updated[RETRY_READ] = state
+            row.resolution_result = updated
+            row.updated_at = datetime.now(UTC)
+            await session.commit()
+        done += 1
+        print(
+            f"Read again {str(candidate_id)[:8]}: "
+            + (f"{rule} shows {amount}" if rule else "no variant matched"),
+            flush=True,
+        )
+    return done
 
 
 async def ppocr_pass(
@@ -294,10 +486,12 @@ async def _carry_over(database: Database, candidate_id: Any) -> bool:
 
 
 async def ppocr_loop(database: Database, storage: FilesystemObjectStorage) -> None:
-    """Read five at a time; rest 30 seconds when caught up."""
+    """Read five at a time, then the photos to read again; rest 30 seconds
+    when caught up."""
     while True:
         try:
             done = await ppocr_pass(database, storage, 5)
+            done += await retry_pass(database, storage)
         except Exception as error:  # keep the loop alive
             print(f"PP-OCR pass failed ({type(error).__name__}).", flush=True)
             done = 0
