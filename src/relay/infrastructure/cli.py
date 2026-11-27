@@ -31,13 +31,13 @@ from relay.domain.processing import ReceiptType, ReviewStatus
 from relay.domain.review_trust import initial_resolution
 from relay.infrastructure.agent_models import InstallationRow
 from relay.infrastructure.binary_models import BinaryObjectRow
-from relay.infrastructure.image_filter import clip_pass, clip_verdict
 from relay.infrastructure.config import Settings, load_settings
 from relay.infrastructure.daily_report import send_daily_report
 from relay.infrastructure.database import Database
 from relay.infrastructure.dataset_store import FilesystemDatasetStore
 from relay.infrastructure.datetime_utils import aware
 from relay.infrastructure.event_models import RawEventRow
+from relay.infrastructure.image_filter import clip_pass, clip_verdict
 from relay.infrastructure.image_processing import PillowImagePreprocessor
 from relay.infrastructure.instapay_adapter import InstaPayReceiptAdapter
 from relay.infrastructure.object_storage import FilesystemObjectStorage
