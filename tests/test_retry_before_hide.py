@@ -148,7 +148,6 @@ async def test_when_every_retry_fails_it_waits_in_review(
     retry = row.resolution_result["retry_read"]
     assert retry["state"] == "failed" and len(retry["tries"]) == 6
     assert set(retry["tries"][0]) == {"rule", "amount", "recipient"}
-    await hide_non_receipts(database)
     row = await _row(app, candidate)
     assert row.hidden_reason is None and row.review_status == "NEEDS_REVIEW"
     listed = await client.get("/api/v1/transactions", headers=auth_headers)
@@ -208,3 +207,23 @@ def test_each_try_is_recorded() -> None:
     )
     assert rule is None and len(tries) == 13
     assert tries[1] == {"rule": "rotate_90", "amount": "510.00", "recipient": "unclear"}
+
+
+async def test_a_failed_retry_is_hidden_by_the_usual_rules(
+    client, auth_headers, app, monkeypatch
+):
+    from relay.infrastructure import cli
+
+    candidate = await _hidden_receipt(
+        client, auth_headers, app, "retry-bill", "1116.50"
+    )
+    database, storage = app.state.database, app.state.object_storage
+    assert await rescue_hidden(database, app.state.settings) == 1
+    monkeypatch.setattr(
+        ppocr_reader, "_read_picture", lambda p: _reading("Total 1,116.50 INSTAPAY")
+    )
+    assert await ppocr_reader.retry_pass(database, storage) == 1
+    # A shop bill on a computer screen: the usual rules hide it again.
+    monkeypatch.setattr(cli, "_shop_invoice", lambda row: True)
+    await hide_non_receipts(database)
+    assert (await _row(app, candidate)).hidden_reason == "shop_invoice"

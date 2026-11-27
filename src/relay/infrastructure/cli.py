@@ -264,8 +264,10 @@ async def hide_non_receipts(database: Database) -> int:
         for row in rows:
             if kept(row):
                 continue  # a person brought it back from the Rejected page
-            if isinstance((row.resolution_result or {}).get(RETRY_READ), dict):
-                continue  # a bank SMS may prove it: read again, else Review
+            retry = (row.resolution_result or {}).get(RETRY_READ)
+            if isinstance(retry, dict) and retry.get("state") != "failed":
+                continue  # being read again for a waiting bank SMS
+            # Reading again failed: the same rules as any photo decide.
             seen = clip_verdict(row.machine_result)
             if (
                 seen == "not_receipt"
