@@ -1440,8 +1440,21 @@ async def auto_confirm(
     ) in rows:
         if status != ReviewStatus.NEEDS_REVIEW.value:
             continue
-        if not isinstance(resolution, dict) or "auto_confirmed" in resolution:
+        if not isinstance(resolution, dict):
             continue
+        if "auto_confirmed" in resolution:
+            from relay.infrastructure.set_aside import KEPT
+
+            if resolution.get(KEPT) is not None:
+                continue  # a person sent it back to Review
+            # A confirmation that stopped half way (its bank SMS was linked
+            # but saving the fields failed): go through it again. The SMS link
+            # is replaced, not doubled.
+            resolution = {
+                key: value
+                for key, value in resolution.items()
+                if key != "auto_confirmed"
+            }
         text = machine.get(VERSION) if isinstance(machine, dict) else None
         if not isinstance(text, dict) or text.get("payment_request"):
             counts["waiting"] += 1  # wait for the text reading (or a request)
