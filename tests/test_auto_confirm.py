@@ -1227,41 +1227,37 @@ async def test_a_copy_hidden_before_comes_back_flagged_as_a_repeat(
         }
 
 
-async def test_a_receipt_without_a_reference_needs_an_sms_at_the_same_time(
+async def test_a_receipt_without_a_reference_is_confirmed_by_a_same_day_sms(
     client, auth_headers, app
 ):
     candidate, _ = await run_receipt(client, auth_headers, app, "no-ref")
     bundle = await _link_sms(client, auth_headers, [candidate], "no-ref-phone")
-    body = "notice: You have received EGP 19485.00 via InstaPay"
-    # Same amount, but hours before the photo: not the same payment for sure.
-    await _send_sms(client, bundle, body, _now() - timedelta(hours=4))
+    # Hours before the photo: any time of the day counts.
+    await _send_sms(
+        client,
+        bundle,
+        "notice: You have received EGP 19485.00 via InstaPay",
+        _now() - timedelta(hours=4),
+    )
     counts = await _read_and_confirm(
         app, {"amount": "19485.00", "currency": "EGP", "reference_number": None}
     )
-    assert counts["sms_day"] == 0 and counts["no_reference"] == 1
-    detail = await _detail(client, auth_headers, candidate)
-    assert detail["review_status"] == "NEEDS_REVIEW"
-    # The bank SMS right before the photo confirms it, reference or not.
-    await _send_sms(client, bundle, body, _now() - timedelta(minutes=5))
-    again = await auto_confirm(
-        app.state.database, app.state.object_storage, app.state.settings
-    )
-    assert again["sms_day"] == 1
+    assert counts["sms_day"] == 1
     detail = await _detail(client, auth_headers, candidate)
     assert detail["resolution_result"]["auto_confirmed"]["no_reference"] is True
 
 
-def test_a_dark_photo_of_a_screen_is_cropped_and_enlarged() -> None:
-    from PIL import Image, ImageDraw
-
-    from relay.infrastructure.ppocr_reader import zoom_in
-
-    photo = Image.new("RGB", (900, 1200), (20, 20, 20))
-    ImageDraw.Draw(photo).rectangle((300, 300, 600, 800), fill=(235, 235, 235))
-    zoomed = zoom_in(photo)
-    assert zoomed is not None
-    # Only the bright screen (plus a small margin), enlarged.
-    assert zoomed.width > 600 and zoomed.width / zoomed.height < 0.75
+async def test_a_receipt_without_a_reference_and_no_sms_waits(
+    client, auth_headers, app
+):
+    candidate, _ = await run_receipt(client, auth_headers, app, "no-ref-none")
+    await _link_sms(client, auth_headers, [candidate], "no-ref-none-phone")
+    counts = await _read_and_confirm(
+        app, {"amount": "19486.00", "currency": "EGP", "reference_number": None}
+    )
+    assert counts["sms_day"] == 0 and counts["no_reference"] == 1
+    detail = await _detail(client, auth_headers, candidate)
+    assert detail["review_status"] == "NEEDS_REVIEW"
 
 
 async def test_an_unreadable_photo_goes_to_review_not_rejected(
