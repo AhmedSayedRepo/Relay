@@ -937,6 +937,9 @@ def test_a_send_screen_with_an_error_is_not_a_transfer() -> None:
     )
     assert not_completed(error)
     assert not_completed("إرسال النقود إلى\n01003405232\nEGP 820\nالتالي")
+    rejected = "عملية مرفوضة\nلقد تجاوزت الحد الشهري للتحويل !\n2,180 EGP\nمبلغ التحويل"
+    assert not_completed(rejected)
+    assert not_completed("Transaction rejected\nMonthly limit exceeded\n2,180 EGP")
     assert not not_completed("تم التحويل بنجاح\n530 EGP\nمبلغ التحويل")
     assert not not_completed("Your transaction was successful\n195 EGP")
 
