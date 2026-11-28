@@ -6,7 +6,10 @@ evening and not the next day:
 - an incoming bank SMS is over an hour old and no receipt matches it (the
   photo never reached Relay, or it is waiting in Review);
 - an old receipt shown again: its reference was already on a receipt from an
-  earlier day, or its printed date is days before it reached the phone.
+  earlier day, or its printed date is days before it reached the phone;
+- the bank SMS phone sends bank SMS but no InstaPay notification at all
+  today (its notification access is off), so payments without a bank SMS
+  cannot be confirmed.
 
 Shown on the dashboard and emailed, each warning once, by ``check-alerts``.
 """
@@ -32,6 +35,7 @@ from relay.infrastructure.sms_verification_models import SmsVerificationRow
 
 WORK_STARTS, WORK_ENDS = 9, 23  # receipt hours, local time
 QUIET = timedelta(hours=1)  # how long before something counts as missing
+INSTAPAY_QUIET = timedelta(hours=3)  # bank SMS this old, still no notification
 SENT_KEY = "alerts_sent"
 
 
@@ -125,6 +129,11 @@ async def current_alerts(
             }
         )
 
+    if WORK_STARTS <= local.hour < WORK_ENDS:
+        alert = await _no_instapay(session, midnight, moment)
+        if alert is not None:
+            alerts.append(alert)
+
     old = await session.execute(
         select(
             ReceiptCandidateRow.id,
@@ -161,6 +170,40 @@ async def current_alerts(
             }
         )
     return alerts
+
+
+async def _no_instapay(
+    session: AsyncSession, midnight: datetime, moment: datetime
+) -> dict[str, Any] | None:
+    """Bank SMS today, the first over INSTAPAY_QUIET old, and not one InstaPay
+    notification (alone or seen with an SMS): its notification access is off."""
+    rows = (
+        await session.execute(
+            select(
+                RawEventRow.occurred_at, RawEventRow.payload, RawEventRow.metadata_json
+            )
+            .where(RawEventRow.collector == "sms", RawEventRow.occurred_at >= midnight)
+            .order_by(RawEventRow.occurred_at)
+        )
+    ).all()
+    bank = [row for row in rows if not _instapay(row[1], row[2])]
+    if not bank or len(bank) != len(rows):
+        return None
+    first = _aware(bank[0][0])
+    if moment - first < INSTAPAY_QUIET:
+        return None
+    return {
+        "key": f"no_instapay:{midnight.date().isoformat()}",
+        "kind": "no_instapay",
+        "count": len(bank),
+        "since": first.isoformat(),
+    }
+
+
+def _instapay(payload: Any, metadata: Any) -> bool:
+    sender = payload.get("sender") if isinstance(payload, dict) else None
+    seen = metadata.get("instapay_seen") if isinstance(metadata, dict) else None
+    return bool(seen) or "instapay" in str(sender or "").lower()
 
 
 def _old_receipt(
@@ -248,6 +291,12 @@ def describe(alert: dict[str, Any], zone: ZoneInfo) -> str:
             f"amount at {at} is still unused. Check the Rejected page: if the "
             "receipt is real, bring it back to Review."
         )
+    if alert["kind"] == "no_instapay":
+        return (
+            f"The bank SMS phone sent {alert['count']} bank SMS today but no "
+            "InstaPay notification. Give Relay Bank SMS notification access on it "
+            "(Settings > Apps > Special access > Notification access)."
+        )
     if alert["kind"] == "old_receipt":
         return (
             f"Old receipt shown again on {alert['device']} at {at}: {_money(alert)}, "
@@ -329,7 +378,15 @@ def render_email(alerts: list[dict[str, Any]], zone: ZoneInfo, moment: datetime)
     texts = [alert for alert in alerts if alert["kind"] == "sms_without_receipt"]
     old = [alert for alert in alerts if alert["kind"] == "old_receipt"]
     rejected = [alert for alert in alerts if alert["kind"] == "rejected_with_sms"]
+    instapay = [alert for alert in alerts if alert["kind"] == "no_instapay"]
     sections = []
+    if instapay:
+        sections.append(
+            layout.section_head(
+                "No InstaPay notifications", len(instapay), dot=layout.TONES["bad"][0]
+            )
+            + layout.note(" ".join(describe(alert, zone) for alert in instapay))
+        )
     if phones:
         sections.append(
             layout.section_head(

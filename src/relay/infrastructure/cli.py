@@ -8,6 +8,7 @@ import random
 import re
 import sys
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -291,7 +292,14 @@ async def hide_non_receipts(database: Database) -> int:
                 row.resolution_result = resolution
                 row.review_status = ReviewStatus.REJECTED.value
                 hidden += 1
-            elif _clear_non_receipt(row):
+            elif _clear_non_receipt(row) and not (
+                # A receipt CLIP sees, read again for a waiting bank SMS and
+                # still unreadable (blurry, cracked screen): a person reads
+                # it; never hidden unseen.
+                seen == "receipt"
+                and isinstance(retry, dict)
+                and retry.get("state") == "failed"
+            ):
                 row.hidden_reason = "not_a_receipt"
                 hidden += 1
             elif _shop_invoice(row):
@@ -668,8 +676,11 @@ async def helper_reopen(database: Database) -> int:
             if row is None or not _machine_only(row):
                 continue
             resolution_now = row.resolution_result or {}
-            if resolution_now.get("rejected_reason") == "payment_request":
-                continue
+            if resolution_now.get("rejected_reason") in (
+                "payment_request",
+                "not_completed",
+            ):
+                continue  # rejected for what it shows, not for being unread
             helper = _helper_read(row.machine_result)
             if not _helper_receipt(helper):
                 continue
@@ -1095,7 +1106,11 @@ def model_values(
 
 
 async def _tag(
-    database: Database, candidate_id: UUID, key: str, value: dict[str, Any]
+    database: Database,
+    candidate_id: UUID,
+    key: str,
+    value: dict[str, Any],
+    touch: bool = True,
 ) -> None:
     async with database.session() as session:
         row = await session.scalar(
@@ -1108,7 +1123,8 @@ async def _tag(
         tagged = copy.deepcopy(row.resolution_result)
         tagged[key] = value | {"at": datetime.now(UTC).isoformat()}
         row.resolution_result = tagged
-        row.updated_at = datetime.now(UTC)
+        if touch:
+            row.updated_at = datetime.now(UTC)
         await session.commit()
 
 
@@ -1367,14 +1383,15 @@ async def auto_confirm(
         for candidate_id, _, resolution, machine, _, folder_at, _ in rows
     ]
 
-    def repeated(
+    def repeats(
         candidate_id: UUID, day: str, mine: dict[str, Any]
-    ) -> tuple[str, UUID] | None:
-        """Another receipt that day with this amount that could be the same
-        transfer: "reference" when both show the same reference (surely a
+    ) -> list[tuple[str, UUID]]:
+        """Every other receipt that day with this amount that could be the
+        same transfer: "reference" when both show the same reference (surely a
         copy), "sender" when both show the same sender, "amount" when either
         sender is unreadable (only the amount matches), and the references do
-        not prove two transfers; None otherwise. Returned with the other one."""
+        not prove two transfers. Each with the other one."""
+        found: list[tuple[str, UUID]] = []
         for other_id, other_day, other in known:
             if other_id == candidate_id or other_day != day:
                 continue
@@ -1384,7 +1401,8 @@ async def auto_confirm(
                 mine["reference"] is not None
                 and mine["reference"] == other["reference"]
             ):
-                return "reference", other_id
+                found.append(("reference", other_id))
+                continue
             same_sender = (
                 mine["sender"] is None
                 or other["sender"] is None
@@ -1397,8 +1415,24 @@ async def auto_confirm(
             )
             if same_sender and not different_refs:
                 read = mine["sender"] is not None and other["sender"] is not None
-                return ("sender" if read else "amount"), other_id
-        return None
+                found.append((("sender" if read else "amount"), other_id))
+        return found
+
+    def repeated(
+        candidate_id: UUID, day: str, mine: dict[str, Any]
+    ) -> tuple[str, UUID] | None:
+        """The receipt this one repeats, or None when it is the original.
+        Same-reference copies are judged among themselves first; the original
+        of a group is a confirmed one, else the best ranked (rank)."""
+        matches = repeats(candidate_id, day, mine)
+        group = [match for match in matches if match[0] == "reference"] or matches
+        if not group:
+            return None
+        for match in group:
+            if status_of.get(match[1]) == ReviewStatus.AUTO_ACCEPTED.value:
+                return match
+        best = min(group, key=lambda match: rank(match[1]))
+        return best if rank(best[1]) < rank(candidate_id) else None
 
     first_seen = {
         candidate_id: aware(folder_at)
@@ -1489,6 +1523,17 @@ async def auto_confirm(
         )
 
     used: set[UUID] = set()
+
+    async def waiting(candidate_id: UUID, resolution: Any, reason: str) -> None:
+        """Leave it in Review, noting why (shown on the receipt): written only
+        when the reason changes, without touching the receipt's version."""
+        counts["waiting"] += 1
+        noted = resolution.get("waiting_for") if isinstance(resolution, dict) else None
+        if not isinstance(noted, dict) or noted.get("reason") != reason:
+            await _tag(
+                database, candidate_id, "waiting_for", {"reason": reason}, touch=False
+            )
+
     for (
         candidate_id,
         device_id,
@@ -1517,7 +1562,9 @@ async def auto_confirm(
             }
         text = machine.get(VERSION) if isinstance(machine, dict) else None
         if not isinstance(text, dict) or text.get("payment_request"):
-            counts["waiting"] += 1  # wait for the text reading (or a request)
+            await waiting(
+                candidate_id, resolution, "text_reading"
+            )  # wait for the text reading (or a request)
             continue
         helper = _helper_read(machine)
         if (
@@ -1527,7 +1574,7 @@ async def auto_confirm(
         ):
             # Give classic PaddleOCR, the first reader, time to read it; after
             # that, Tesseract alone decides (PaddleOCR may be down).
-            counts["waiting"] += 1
+            await waiting(candidate_id, resolution, "paddle_reading")
             continue
         old = stale(candidate_id, folder_at, resolution, machine)
         if old is not None:
@@ -1571,7 +1618,7 @@ async def auto_confirm(
                 ):
                     # Someone else's, or a readable phone that is not the
                     # owner's: a person decides.
-                    counts["waiting"] += 1
+                    await waiting(candidate_id, resolution, "recipient")
                     continue
                 # Unreadable, not someone else: the bank SMS can still prove
                 # the money arrived (checked below, more strictly).
@@ -1599,7 +1646,7 @@ async def auto_confirm(
                 resolution = fixed
         core = model_values(resolution, ("amount", "currency"))
         if core is None:
-            counts["waiting"] += 1
+            await waiting(candidate_id, resolution, "no_amount")
             continue
         # "425" read as 4.25: try the amount without the lost separator. Only
         # the SMS check below can make it stick.
@@ -1614,14 +1661,8 @@ async def auto_confirm(
             else repeated(candidate_id, day, facts(resolution, machine))
         )
         previous = resolution.get("possible_repeat")
-        if repeat is not None:
-            other_id = repeat[1]
-            if not rank(other_id) < rank(candidate_id) and status_of.get(other_id) != (
-                ReviewStatus.AUTO_ACCEPTED.value
-            ):
-                # The original goes on as usual; only the other one (the
-                # copy) waits in Review, shown side by side with it.
-                repeat = None
+        # The original goes on as usual (repeated() returns None for it); only
+        # the copies wait in Review, shown side by side with it.
         if repeat is not None:
             kind, other_id = repeat
             tag = {"day": day, "kind": kind, "with": str(other_id)}
@@ -1641,7 +1682,7 @@ async def auto_confirm(
                     )
                 counts["copies"] += 1
                 continue
-            counts["waiting"] += 1
+            await waiting(candidate_id, resolution, "repeat")
             continue
         if previous is not None:
             await _untag(database, candidate_id, "possible_repeat")
@@ -1650,7 +1691,9 @@ async def auto_confirm(
         # amount, at any time of the day, and noted as having no reference.
         no_reference = model_values(resolution, ("reference_number",)) is None
         if (unclear or scaled) and not alone(candidate_id, day, core["amount"]):
-            counts["waiting"] += 1  # two receipts could claim the one SMS
+            await waiting(
+                candidate_id, resolution, "same_amount_twice"
+            )  # two receipts could claim the one SMS
             continue
         # The shown amount first, then what the other reader saw (each only
         # if no other receipt that day shows it: one SMS, one receipt).
@@ -1688,7 +1731,7 @@ async def auto_confirm(
         if sms is None:
             if no_reference:
                 counts["no_reference"] += 1
-            counts["waiting"] += 1
+            await waiting(candidate_id, resolution, "no_sms")
             continue
         if lifted is not None:
             # The SMS proves the corrected amount: offer it before confirming.
@@ -1749,6 +1792,8 @@ async def auto_confirm(
                 )
             counts["sms_day"] += 1
             status_of[candidate_id] = ReviewStatus.AUTO_ACCEPTED.value
+            if resolution.get("waiting_for") is not None:
+                await _untag(database, candidate_id, "waiting_for")
         except Conflict as error:
             counts["failed"] += 1
             print(f"Left {candidate_id} for review: {error}")
@@ -2053,6 +2098,20 @@ async def run(
         await database.close()
 
 
+async def run_steps(steps: list[tuple[str, Callable[[], Awaitable[Any]]]]) -> list[str]:
+    """Run each step of a pass on its own: one that fails is logged by name
+    and the rest still run (auto-confirm and the shift close never starve
+    behind a failing step). Returns the names that failed."""
+    failed: list[str] = []
+    for name, action in steps:
+        try:
+            await action()
+        except Exception as error:  # keep the pass going; no details logged
+            failed.append(name)
+            print(f"Reader step {name} failed ({type(error).__name__}).", flush=True)
+    return failed
+
+
 async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
     """Keep the receipt model loaded and, every minute, read new receipts,
     match bank SMS and auto-confirm. One pass at a time."""
@@ -2072,43 +2131,58 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
     )
     database = Database(settings)
     try:
+
+        async def process() -> None:
+            async with database.session() as session:
+                await ProcessingService(
+                    SqlUnitOfWork(session),
+                    storage,
+                    PillowImagePreprocessor(),
+                    provider,
+                    InstaPayReceiptParser(),
+                    ocr_timeout_seconds=settings.ocr_timeout_seconds,
+                    stale_job_minutes=settings.processing_stale_minutes,
+                    evidence_extractor=InstaPayReceiptAdapter(provider),
+                ).process_pending(limit=settings.processing_batch_limit)
+
+        async def suggest() -> None:
+            await model_suggest(database, storage, reader, 20)
+
+        async def verify_sms() -> None:
+            async with database.session() as session:
+                await build_sms_verification_service(
+                    SqlUnitOfWork(session), settings
+                ).run()
+
         while True:
             started = time.monotonic()
-            try:
-                async with database.session() as session:
-                    await ProcessingService(
-                        SqlUnitOfWork(session),
-                        storage,
-                        PillowImagePreprocessor(),
-                        provider,
-                        InstaPayReceiptParser(),
-                        ocr_timeout_seconds=settings.ocr_timeout_seconds,
-                        stale_job_minutes=settings.processing_stale_minutes,
-                        evidence_extractor=InstaPayReceiptAdapter(provider),
-                    ).process_pending(limit=settings.processing_batch_limit)
-                await unhide_receipt_like(database)
-                await text_pass(
-                    database, storage, provider, tuple(settings.ocr_languages), 4
-                )
-                await helper_reopen(database)
-                await review_unreadable(database)
-                await clip_pass(database, storage, 10)
-                await hide_non_receipts(database)
-                await rescue_hidden(database, settings)
-                await reopen_rescued(database)
-                await auto_close_shift(database, settings)
-                await rehide_failed(database)
-                await unhide_copies(database)
-                await helper_suggest(database)
-                async with database.session() as session:
-                    await build_sms_verification_service(
-                        SqlUnitOfWork(session), settings
-                    ).run()
-                if reader is not None:
-                    await model_suggest(database, storage, reader, 20)
-                await auto_confirm(database, storage, settings)
-            except Exception as error:  # keep the loop alive; no details logged
-                print(f"Reader pass failed ({type(error).__name__}).", flush=True)
+            steps: list[tuple[str, Callable[[], Awaitable[Any]]]] = [
+                ("process", process),
+                ("unhide_receipt_like", lambda: unhide_receipt_like(database)),
+                (
+                    "text_pass",
+                    lambda: text_pass(
+                        database, storage, provider, tuple(settings.ocr_languages), 4
+                    ),
+                ),
+                ("helper_reopen", lambda: helper_reopen(database)),
+                ("review_unreadable", lambda: review_unreadable(database)),
+                ("clip_pass", lambda: clip_pass(database, storage, 10)),
+                ("hide_non_receipts", lambda: hide_non_receipts(database)),
+                ("rescue_hidden", lambda: rescue_hidden(database, settings)),
+                ("reopen_rescued", lambda: reopen_rescued(database)),
+                ("auto_close_shift", lambda: auto_close_shift(database, settings)),
+                ("rehide_failed", lambda: rehide_failed(database)),
+                ("unhide_copies", lambda: unhide_copies(database)),
+                ("helper_suggest", lambda: helper_suggest(database)),
+                ("sms_verification", verify_sms),
+            ]
+            if reader is not None:
+                steps.append(("model_suggest", suggest))
+            steps.append(
+                ("auto_confirm", lambda: auto_confirm(database, storage, settings))
+            )
+            await run_steps(steps)
             elapsed = time.monotonic() - started
             await asyncio.sleep(max(5.0, interval_seconds - elapsed))
     finally:
