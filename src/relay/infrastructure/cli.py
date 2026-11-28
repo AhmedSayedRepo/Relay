@@ -2145,6 +2145,9 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                     evidence_extractor=InstaPayReceiptAdapter(provider),
                 ).process_pending(limit=settings.processing_batch_limit)
 
+        async def suggest() -> None:
+            await model_suggest(database, storage, reader, 20)
+
         async def verify_sms() -> None:
             async with database.session() as session:
                 await build_sms_verification_service(
@@ -2175,14 +2178,7 @@ async def reader_loop(settings: Settings, interval_seconds: int = 60) -> None:
                 ("sms_verification", verify_sms),
             ]
             if reader is not None:
-                steps.append(
-                    (
-                        "model_suggest",
-                        lambda model=reader: model_suggest(
-                            database, storage, model, 20
-                        ),
-                    )
-                )
+                steps.append(("model_suggest", suggest))
             steps.append(
                 ("auto_confirm", lambda: auto_confirm(database, storage, settings))
             )
