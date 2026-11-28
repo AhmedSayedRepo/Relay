@@ -90,16 +90,17 @@ async def test_notification_fourteen_minutes_after_its_sms_is_the_same_transfer(
 ):
     device, bundle = await provision(client, auth_headers, "instapay-phone-3")
     now = datetime.now(UTC)
+    # In the past: events dated in the future are rejected.
     await _send(
-        client, bundle, sender="ALERT-QNB", body=SMS, rule="generic-alert", moment=now
-    )
-    status = await _send(
         client,
         bundle,
-        sender="InstaPay",
-        body=NOTICE,
-        rule="instapay-app",
-        moment=now + timedelta(minutes=14),
+        sender="ALERT-QNB",
+        body=SMS,
+        rule="generic-alert",
+        moment=now - timedelta(minutes=14),
+    )
+    status = await _send(
+        client, bundle, sender="InstaPay", body=NOTICE, rule="instapay-app", moment=now
     )
     assert status == "duplicate"
     assert await _bodies(client, auth_headers, device) == [SMS]
