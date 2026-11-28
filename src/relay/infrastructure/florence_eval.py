@@ -239,7 +239,7 @@ async def main(known_limit: int, failed_limit: int, name: str, out: str) -> None
     database = Database(settings)
     storage = FilesystemObjectStorage(settings.object_storage_root)
     try:
-        result = {
+        result: dict[str, Any] = {
             "model": MODELS[name],
             "known": await known(database, storage, known_limit, name),
             "failed": await failed(database, storage, failed_limit, name),
