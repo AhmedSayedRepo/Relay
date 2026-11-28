@@ -19,7 +19,7 @@ from relay.domain.sms_verification import SmsDirection, parse_bank_sms
 
 # A bank SMS and the InstaPay notification of the same transfer arrive within
 # minutes of each other; one record is kept for the transfer.
-TWIN_WINDOW = timedelta(minutes=5)
+TWIN_WINDOW = timedelta(minutes=30)
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class EventService:
     ) -> UUID | None:
         """The other record of the same incoming transfer: for an InstaPay
         notification, its bank SMS; for a bank SMS, the InstaPay notification
-        of the same amount within a few minutes."""
+        of the same amount within half an hour."""
         parsed = parse_bank_sms(body)
         if parsed is None or parsed.direction != SmsDirection.IN:
             return None
