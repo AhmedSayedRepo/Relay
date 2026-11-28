@@ -321,6 +321,81 @@ RETRY_READ = "retry_read"
 RESCUE_REASONS = ("not_a_receipt", "no_transfer")
 
 
+async def pair_instapay(database: Database, settings: Settings, day: date) -> int:
+    """One-off: InstaPay notifications of ``day`` kept apart from the bank
+    SMS of the same transfer (same phone and amount, within the twin window)
+    are folded into that SMS, which is then marked as seen by InstaPay too."""
+    from relay.application.events import TWIN_WINDOW
+    from relay.domain.events import INSTAPAY_SENDER
+    from relay.domain.sms_verification import SmsDirection, parse_bank_sms
+    from relay.infrastructure.event_repository import SqlEventRepository
+
+    zone = ZoneInfo(settings.receipt_timezone)
+    start = datetime(day.year, day.month, day.day, tzinfo=zone)
+    end = start + timedelta(days=1)
+    paired = 0
+    async with database.session() as session:
+        rows = (
+            await session.execute(
+                select(
+                    RawEventRow.id,
+                    RawEventRow.device_id,
+                    RawEventRow.occurred_at,
+                    RawEventRow.payload,
+                    RawEventRow.metadata_json,
+                )
+                .where(
+                    RawEventRow.collector == "sms",
+                    RawEventRow.occurred_at >= start - TWIN_WINDOW,
+                    RawEventRow.occurred_at < end + TWIN_WINDOW,
+                )
+                .order_by(RawEventRow.occurred_at)
+            )
+        ).all()
+
+        def amount(payload: Any) -> Decimal | None:
+            body = payload.get("body") if isinstance(payload, dict) else None
+            parsed = parse_bank_sms(str(body)) if body else None
+            ok = parsed is not None and parsed.direction == SmsDirection.IN
+            return parsed.amount if parsed is not None and ok else None
+
+        def sender(payload: Any) -> str:
+            return str(payload.get("sender")) if isinstance(payload, dict) else ""
+
+        banks = [
+            row
+            for row in rows
+            if sender(row.payload) != INSTAPAY_SENDER
+            and not (row.metadata_json or {}).get("instapay_seen")
+            and amount(row.payload) is not None
+        ]
+        events = SqlEventRepository(session)
+        for notice in rows:
+            value = amount(notice.payload)
+            if (
+                sender(notice.payload) != INSTAPAY_SENDER
+                or value is None
+                or not start <= notice.occurred_at < end
+            ):
+                continue
+            near = [
+                bank
+                for bank in banks
+                if bank.device_id == notice.device_id
+                and amount(bank.payload) == value
+                and abs(bank.occurred_at - notice.occurred_at) <= TWIN_WINDOW
+            ]
+            if not near:
+                continue
+            bank = min(near, key=lambda one: abs(one.occurred_at - notice.occurred_at))
+            banks.remove(bank)
+            await events.mark_instapay_seen(bank.id)
+            await events.replace_sms(notice.id, bank.id)
+            paired += 1
+        await session.commit()
+    return paired
+
+
 async def rescue_hidden(
     database: Database, settings: Settings, day: date | None = None
 ) -> int:
@@ -2216,6 +2291,7 @@ def main() -> int:
             "ppocr-loop",
             "check-alerts",
             "retry-hidden",
+            "pair-instapay",
         ],
     )
     parser.add_argument("--email")
@@ -2238,6 +2314,22 @@ def main() -> int:
         except Exception as error:
             print(f"Operation failed ({type(error).__name__}).", file=sys.stderr)
             return 1
+    if args.command == "pair-instapay":
+        # One-off: fold --day's InstaPay notifications into their bank SMS.
+        if args.day is None:
+            print("Give --day YYYY-MM-DD.", file=sys.stderr)
+            return 2
+        settings = load_settings()
+
+        async def pair() -> int:
+            database = Database(settings)
+            try:
+                return await pair_instapay(database, settings, args.day)
+            finally:
+                await database.close()
+
+        print(f"Paired {asyncio.run(pair())} InstaPay notification(s) of {args.day}.")
+        return 0
     if args.command == "retry-hidden":
         # One-off: photos of --day hidden as not a receipt while a bank SMS
         # of that day is unclaimed are queued to be read again.

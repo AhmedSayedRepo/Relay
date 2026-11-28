@@ -84,6 +84,28 @@ async def test_notification_after_its_sms_is_not_stored_twice(client, auth_heade
     assert response.json()["results"][0]["status"] == "rejected"
 
 
+@pytest.mark.asyncio
+async def test_notification_fourteen_minutes_after_its_sms_is_the_same_transfer(
+    client, auth_headers
+):
+    device, bundle = await provision(client, auth_headers, "instapay-phone-3")
+    now = datetime.now(UTC)
+    # In the past: events dated in the future are rejected.
+    await _send(
+        client,
+        bundle,
+        sender="ALERT-QNB",
+        body=SMS,
+        rule="generic-alert",
+        moment=now - timedelta(minutes=14),
+    )
+    status = await _send(
+        client, bundle, sender="InstaPay", body=NOTICE, rule="instapay-app", moment=now
+    )
+    assert status == "duplicate"
+    assert await _bodies(client, auth_headers, device) == [SMS]
+
+
 def test_the_source_says_who_showed_the_transfer() -> None:
     from relay.application.sms_verification import sms_source
 
