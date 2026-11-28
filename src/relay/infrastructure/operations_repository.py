@@ -158,7 +158,12 @@ def _status_reason(value: ReceiptCandidateRow, sms: Any) -> str | None:
         return (
             "repeated_unread_sender" if repeat_kind == "amount" else "repeated_amount"
         )
-    if not read:
+    # What auto-confirm last noted while leaving it in Review.
+    noted = resolution.get("waiting_for")
+    noted_reason = noted.get("reason") if isinstance(noted, dict) else None
+    if noted_reason in ("no_amount", "same_amount_twice"):
+        return str(noted_reason)
+    if not read or noted_reason in ("text_reading", "paddle_reading"):
         return "reading"
     if sms != "VERIFIED":
         return "no_sms"
