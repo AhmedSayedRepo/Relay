@@ -36,10 +36,11 @@ export function BankSms({ token }: { token: string }) {
       <article className="metric money"><span>{b.unusedMoney}</span><strong><Bidi>{(data.unused_totals ?? []).map((item) => money(item.amount, item.currency)).join(" · ") || "0"}</Bidi></strong></article>
     </div>}
     <Status loading={loading} error={error} empty={data?.total === 0} emptyMessage={b.empty} />
-    {data && data.total > 0 && <div className="table-wrap"><table><thead><tr><th>{b.time}</th><th>{b.phone}</th><th>{b.sender}</th><th>{b.amount}</th><th>{b.status}</th><th>{b.receipt}</th></tr></thead><tbody>{data.items.map((row) => <tr key={row.event_id}>
+    {data && data.total > 0 && <div className="table-wrap"><table><thead><tr><th>{b.time}</th><th>{b.phone}</th><th>{b.sender}</th><th>{b.source}</th><th>{b.amount}</th><th>{b.status}</th><th>{b.receipt}</th></tr></thead><tbody>{data.items.map((row) => <tr key={row.event_id}>
       <td data-label={b.time}><Bidi>{new Date(row.occurred_at).toLocaleString(locale === "ar" ? "ar-EG" : "en", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Cairo" })}</Bidi></td>
       <td data-label={b.phone}>{row.device_name}</td>
-      <td data-label={b.sender}><Bidi>{row.sender || "—"}</Bidi>{row.source && row.source !== "bank" && <> <span className={"source-tag " + row.source}>{m.sms.sources[row.source]}</span></>}</td>
+      <td data-label={b.sender}><Bidi>{row.sender || "—"}</Bidi></td>
+      <td data-label={b.source}>{row.source ? <span className={"source-tag " + row.source}>{m.sms.sources[row.source]}</span> : "—"}</td>
       <td data-label={b.amount}><Bidi>{money(row.amount, row.currency)}</Bidi></td>
       <td data-label={b.status}><span className={"badge " + tone[row.status]}>{labels[row.status]}</span></td>
       <td data-label={b.receipt}>{row.candidate_id ? <Link to={"/transactions/" + row.candidate_id}>{b.openReceipt}</Link> : row.reason ? <span className="sms-why"><small>{b.reasons[row.reason]}</small>{row.reason_candidate_id && <Link to={"/transactions/" + row.reason_candidate_id}>{b.openReceipt}</Link>}</span> : "—"}</td>
